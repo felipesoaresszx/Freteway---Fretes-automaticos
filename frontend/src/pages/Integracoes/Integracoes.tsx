@@ -17,6 +17,7 @@ import {
 import type { MetodoCalculo, TipoIntegracao, Transportadora, TransportadoraInput } from "../../types/transportadora";
 import { ConfiguracaoApiForm } from "./ConfiguracaoApiForm";
 import { SankhyaMapeamentos } from "./SankhyaMapeamentos";
+import { useAuth } from "../../hooks/useAuth";
 
 const METODOS: { valor: MetodoCalculo; label: string }[] = [
   { valor: "tabela_propria", label: "Tabela própria" },
@@ -233,6 +234,7 @@ function Formulario({ editando, onClose }: { editando: Transportadora | null; on
 }
 
 export function Integracoes() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const transportadoras = useTransportadoras();
   const status = useAlterarStatusTransportadora();
@@ -279,7 +281,7 @@ export function Integracoes() {
           </Card>
         ))}
       </div>
-      {transportadoras.data && <SankhyaMapeamentos transportadoras={transportadoras.data} />}
+      {transportadoras.data && user?.permissions?.includes("integrations.view") && <SankhyaMapeamentos transportadoras={transportadoras.data} />}
     </div>
   );
 }

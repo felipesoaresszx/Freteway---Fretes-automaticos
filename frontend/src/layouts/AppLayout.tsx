@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { to: "/transportadoras", label: "Transportadoras", icon: Truck },
   { to: "/historico", label: "Histórico", icon: HistoryIcon },
   { to: "/integracoes", label: "Integrações", icon: Plug },
-  { to: "/configuracoes", label: "Configurações", icon: Settings },
+  { to: "/configuracoes", label: "Configurações", icon: Settings, permission: "settings.view" },
 ];
 
 function useBackendStatus() {
@@ -93,7 +93,7 @@ export function AppLayout() {
       >
         <div className="flex h-16 items-center border-b border-white/10 px-4 [&_*]:text-brand-cream"><Brand /></div>
         <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => !item.permission || user?.permissions?.includes(item.permission)).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

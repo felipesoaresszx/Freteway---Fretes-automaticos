@@ -9,6 +9,7 @@ import { Integracoes } from "../pages/Integracoes/Integracoes";
 import { NovaCotacao } from "../pages/NovaCotacao/NovaCotacao";
 import { Transportadoras } from "../pages/Transportadoras/Transportadoras";
 import { ProtectedRoute } from "./ProtectedRoute";
+import { PermissionRoute } from "./PermissionRoute";
 
 export function AppRoutes() {
   return (
@@ -28,7 +29,7 @@ export function AppRoutes() {
         <Route path="/historico" element={<Cotacoes />} />
         <Route path="/transportadoras" element={<Transportadoras />} />
         <Route path="/integracoes" element={<Integracoes />} />
-        <Route path="/configuracoes" element={<Configuracoes />} />
+        <Route path="/configuracoes" element={<PermissionRoute permission="settings.view"><Configuracoes /></PermissionRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

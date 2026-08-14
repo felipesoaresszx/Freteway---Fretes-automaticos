@@ -17,4 +17,6 @@ export interface User {
   id: string;
   email: string;
   nome: string;
+  permissions: string[];
+  roles?: Array<{ id: string; nome: string; permissions: string[] }>;
 }
