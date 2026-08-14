@@ -41,6 +41,7 @@ class ItemPedidoSankhya(BaseModel):
 
 
 class CotacaoSankhyaIn(BaseModel):
+    empresa_sankhya_id: str | None = Field(default=None, min_length=1, max_length=80)
     origem: Endereco
     destino: Endereco
     itens: list[ItemPedidoSankhya] = Field(min_length=1)

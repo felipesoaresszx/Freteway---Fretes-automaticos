@@ -9,9 +9,10 @@ from sqlalchemy.orm import selectinload
 from app.core.deps import get_current_user
 from app.core.config import get_settings
 from app.core.security import create_access_token, generate_totp_secret, verify_password, verify_totp
-from app.db.session import get_db
+from app.db.session import get_db, get_master_db
+from app.models.master import Tenant
 from app.models.models import Role, SystemSetting, User
-from app.schemas.auth import LoginRequest, TokenResponse, TotpCodeRequest, TotpSetupResponse
+from app.schemas.auth import LoginRequest, TokenResponse, TotpCodeRequest, TotpSetupResponse, TenantResolveRequest, TenantResolveResponse
 from app.schemas.configuracoes import CurrentUserOut, RoleOut
 from app.services.credenciais import criptografar, descriptografar
 
@@ -21,9 +22,26 @@ _JANELA = timedelta(minutes=15)
 _MAX_TENTATIVAS = 5
 
 
+@router.post("/auth/tenant/resolve", response_model=TenantResolveResponse)
+async def resolve_tenant(payload: TenantResolveRequest, response: Response, db: AsyncSession = Depends(get_master_db)):
+    codigo = payload.codigo.strip().upper()
+    tenant = await db.scalar(select(Tenant).where(Tenant.codigo_login == codigo))
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Código do cliente não encontrado.")
+    if not tenant.ativo or tenant.status_assinatura != "ativa":
+        raise HTTPException(status_code=403, detail="Assinatura do cliente suspensa.")
+    minutos = get_settings().TENANT_CONTEXT_EXPIRE_MINUTES
+    token = create_access_token("tenant-resolution", minutos, tenant_id=tenant.id,
+                                tenant_schema=tenant.schema_name, token_type="tenant_context")
+    response.set_cookie("tenant_context", token, max_age=minutos * 60, httponly=True,
+                        secure=get_settings().COOKIE_SECURE, samesite="strict", path="/")
+    return TenantResolveResponse(tenant_name=tenant.nome, expires_in=minutos * 60)
+
+
 def _chave_login(request: Request, email: str) -> str:
     ip = request.client.host if request.client else "desconhecido"
-    return f"{ip}|{email.strip().lower()}"
+    tenant_id = getattr(request.state, "tenant_id", "sem-tenant")
+    return f"{tenant_id}|{ip}|{email.strip().lower()}"
 
 
 def _verificar_limite(chave: str) -> None:
@@ -37,6 +55,10 @@ def _verificar_limite(chave: str) -> None:
 
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(payload: LoginRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    tenant_id = getattr(request.state, "tenant_id", None)
+    tenant_schema = getattr(request.state, "tenant_schema", None)
+    if not tenant_id or not tenant_schema:
+        raise HTTPException(status_code=400, detail="Informe primeiro o código do cliente.")
     chave = _chave_login(request, payload.email)
     _verificar_limite(chave)
     result = await db.execute(select(User).where(User.email == payload.email).options(selectinload(User.roles).selectinload(Role.permissions)))
@@ -57,11 +79,13 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
     user.last_login_at = datetime.utcnow()
     await db.commit()
     _tentativas.pop(chave, None)
-    token = create_access_token(subject=user.id, expires_minutes=expiracao, session_version=user.session_version)
+    token = create_access_token(subject=user.id, expires_minutes=expiracao, session_version=user.session_version,
+                                tenant_id=tenant_id, tenant_schema=tenant_schema)
     response.set_cookie(
         "access_token", token, max_age=expiracao * 60, httponly=True,
         secure=get_settings().COOKIE_SECURE, samesite="strict", path="/",
     )
+    response.delete_cookie("tenant_context", path="/")
     return TokenResponse()
 
 

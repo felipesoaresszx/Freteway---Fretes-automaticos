@@ -4,6 +4,11 @@ export interface LoginRequest {
   otp?: string;
 }
 
+export interface TenantResolveResponse {
+  tenant_name: string;
+  expires_in: number;
+}
+
 export interface TokenResponse {
   authenticated: boolean;
 }

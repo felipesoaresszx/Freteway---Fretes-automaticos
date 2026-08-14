@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     DATABASE_URL: str = "postgresql+asyncpg://frete:frete@localhost:5432/frete"
+    MASTER_DATABASE_URL: str | None = None
+    DEFAULT_TENANT_SCHEMA: str = "public"
+    TENANT_CONTEXT_EXPIRE_MINUTES: int = 10
+    PLATFORM_ADMIN_API_KEY: str | None = None
 
     JWT_SECRET: str = "change-me"
     CREDENTIAL_ENCRYPTION_KEY: str | None = None
@@ -26,6 +30,8 @@ class Settings(BaseSettings):
     # Consulta cadastral de CNPJ. O provedor pode ser trocado sem alterar o frontend.
     CNPJ_CONSULTA_BASE_URL: str = "https://brasilapi.com.br/api/cnpj/v1"
     CNPJ_CONSULTA_TIMEOUT_SECONDS: int = 10
+    CEP_CONSULTA_BASE_URL: str = "https://brasilapi.com.br/api/cep/v2"
+    CEP_CONSULTA_TIMEOUT_SECONDS: int = 8
 
     # Documentos originais das tabelas de frete.
     TABELA_FRETE_STORAGE_DIR: str = "storage/tabelas_frete"

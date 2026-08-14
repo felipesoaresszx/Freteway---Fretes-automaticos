@@ -1,7 +1,7 @@
 import type { PropsWithChildren, InputHTMLAttributes } from "react";
 
 export function Card({ children, className = "" }: PropsWithChildren<{ className?: string }>) {
-  return <div className={`rounded-lg p-4 bg-surface border border-border ${className}`}>{children}</div>;
+  return <div className={`rounded-xl p-4 bg-surface border border-border shadow-card ${className}`}>{children}</div>;
 }
 
 export function Badge({
@@ -9,8 +9,8 @@ export function Badge({
   children,
 }: PropsWithChildren<{ tone?: "default" | "success" | "warning" | "error" | "info" }>) {
   const tones: Record<string, string> = {
-    default: "bg-surface2 text-text-secondary border-border",
-    success: "bg-state-success/10 text-state-success border-state-success/30",
+    default: "bg-surface2 text-text-primary border-border",
+    success: "bg-brand-copper/10 text-brand-copper border-brand-copper/40",
     warning: "bg-state-warning/10 text-state-warning border-state-warning/30",
     error: "bg-state-error/10 text-state-error border-state-error/30",
     info: "bg-state-info/10 text-state-info border-state-info/30",
@@ -35,7 +35,7 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`h-9 w-full min-w-0 rounded px-3 text-sm outline-none bg-surface2 border border-border text-text-primary focus:ring-1 focus:ring-state-info ${props.className || ""}`}
+      className={`h-9 w-full min-w-0 rounded-md px-3 text-sm outline-none bg-surface border border-border text-text-primary placeholder:text-text-secondary/70 hover:border-text-secondary/50 focus:border-state-info focus:ring-2 focus:ring-state-info/15 ${props.className || ""}`}
     />
   );
 }

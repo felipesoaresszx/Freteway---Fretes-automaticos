@@ -3,7 +3,7 @@ import logging
 import secrets
 import time
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +11,7 @@ from app.core.config import get_settings
 from app.core.deps import require_permission
 from app.db.session import get_db
 from app.integrations.sankhya_client import SankhyaClient, SankhyaCredentials, SankhyaError
-from app.models.models import IntegrationCredential, SankhyaTransportadoraMapeamento, Transportadora
+from app.models.models import Empresa, IntegrationCredential, SankhyaTransportadoraMapeamento, Transportadora
 from app.schemas.cotacao import CotacaoCreate
 from app.schemas.sankhya import (
     CotacaoSankhyaIn, CotacaoSankhyaOut, LinhaCotacaoSankhya,
@@ -31,13 +31,26 @@ def validar_api_key(x_api_key: str | None = Header(default=None)) -> None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="API key inválida")
 
 
-@root_router.post("/integrations/sankhya/cotacao", response_model=CotacaoSankhyaOut, dependencies=[Depends(validar_api_key)])
-@router.post("/cotacao", response_model=CotacaoSankhyaOut, dependencies=[Depends(validar_api_key)])
+def validar_api_key_tenant(request: Request, x_api_key: str | None = Header(default=None)) -> None:
+    if getattr(request.state, "tenant_id", None):
+        return
+    validar_api_key(x_api_key)
+
+
+@root_router.post("/integrations/sankhya/cotacao", response_model=CotacaoSankhyaOut, dependencies=[Depends(validar_api_key_tenant)])
+@router.post("/cotacao", response_model=CotacaoSankhyaOut, dependencies=[Depends(validar_api_key_tenant)])
 async def cotar_para_sankhya(payload: CotacaoSankhyaIn, db: AsyncSession = Depends(get_db)):
     inicio = time.perf_counter()
     request_id = secrets.token_hex(12)
     if not payload.numero_pedido:
         raise HTTPException(status_code=422, detail="numero_pedido_sankhya é obrigatório para gravar no ERP")
+    if not payload.empresa_sankhya_id:
+        raise HTTPException(status_code=422, detail={"codigo": "EMPRESA_OBRIGATORIA", "mensagem": "empresa_sankhya_id é obrigatório"})
+    empresa = await db.scalar(select(Empresa).where(
+        Empresa.codigo_empresa_sankhya == payload.empresa_sankhya_id, Empresa.ativa.is_(True)
+    ))
+    if not empresa:
+        raise HTTPException(status_code=422, detail={"codigo": "EMPRESA_NAO_VINCULADA", "mensagem": "Empresa do pedido não está vinculada a este cliente"})
     cotacao = CotacaoCreate(
         origem=payload.origem,
         destino=payload.destino,
@@ -148,8 +161,8 @@ async def cotar_para_sankhya(payload: CotacaoSankhyaIn, db: AsyncSession = Depen
     com_erro = sum(1 for linha in linhas if linha.erro)
     tempo_ms = round((time.perf_counter() - inicio) * 1000)
     logger.info(
-        "cotacao_sankhya request_id=%s pedido=%s gravadas=%d erros=%d tempo_ms=%d",
-        request_id, payload.numero_pedido, gravadas, com_erro, tempo_ms,
+        "cotacao_sankhya tenant=%s request_id=%s pedido=%s empresa=%s gravadas=%d erros=%d tempo_ms=%d",
+        db.info.get("tenant_id"), request_id, payload.numero_pedido, payload.empresa_sankhya_id, gravadas, com_erro, tempo_ms,
     )
     return CotacaoSankhyaOut(
         numero_pedido=payload.numero_pedido,

@@ -39,11 +39,11 @@ try {
     $ativa = Invoke-RestMethod -Method Post -Uri "$ApiBase/tabelas-frete/$($tabela.id)/ativar" -Headers $headers
 
     $cotacaoBody = @{
-        origem = @{ cep = "07000-000"; cidade = "Guarulhos"; uf = "SP" }
-        destino = @{ cep = "80000-000"; cidade = "Curitiba"; uf = "PR" }
-        valor_nf = 5800
-        peso = 120
-        volumes = @(@{ quantidade = 2; comprimento_cm = 50; largura_cm = 40; altura_cm = 30; peso_kg = 20 })
+        origem = @{ cep = ""; cidade = ""; uf = "" }
+        destino = @{ cep = ""; cidade = ""; uf = "" }
+        valor_nf = 
+        peso = 
+        volumes = @(@{ quantidade = ; comprimento_cm = ; largura_cm = ; altura_cm = ; peso_kg =  })
         transportadoras_ids = @($transportadora.id)
     } | ConvertTo-Json -Depth 6 -Compress
     $cotacao = Invoke-RestMethod -Method Post -Uri "$ApiBase/cotacoes" -Headers $headers -ContentType "application/json" -Body $cotacaoBody

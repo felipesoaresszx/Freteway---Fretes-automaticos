@@ -1,12 +1,12 @@
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_, select
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_permission
-from app.db.session import AsyncSessionLocal, get_db
+from app.db.session import AsyncSessionLocal, get_db, quote_schema
 from app.models.models import Cotacao, CotacaoResultado, CotacaoVolume, Transportadora
 from app.schemas.cotacao import (
     CotacaoCreate,
@@ -26,14 +26,16 @@ from app.services.cubagem import calcular_cubagem_m3
 router = APIRouter()
 
 
-async def _processar_cotacao_em_background(cotacao_id: str, payload: CotacaoCreate):
+async def _processar_cotacao_em_background(cotacao_id: str, payload: CotacaoCreate, tenant_schema: str):
     """Executa as consultas às transportadoras e grava os resultados.
     Roda fora do ciclo de request/response — é por isso que o endpoint de
     criação responde imediatamente com status 'processing'."""
     async with AsyncSessionLocal() as db:
-        resultados = await executar_cotacao(payload, db)
-        for r in resultados:
-            db.add(
+        await db.execute(text(f"SET search_path TO {quote_schema(tenant_schema)}, public"))
+        try:
+            resultados = await executar_cotacao(payload, db)
+            for r in resultados:
+                db.add(
                 CotacaoResultado(
                     cotacao_id=cotacao_id,
                     transportadora_id=r.transportadora_id,
@@ -43,19 +45,23 @@ async def _processar_cotacao_em_background(cotacao_id: str, payload: CotacaoCrea
                     erro_codigo=r.erro.codigo if r.erro else None,
                     erro_mensagem=r.erro.mensagem if r.erro else None,
                     request_id=r.request_id,
-                )
-            )
+                ))
 
-        cotacao = await db.get(Cotacao, cotacao_id)
-        cotacao.status = determinar_status_geral(resultados)
-        cotacao.melhor_opcao_id = determinar_melhor_opcao(resultados)
-        await db.commit()
+            cotacao = await db.get(Cotacao, cotacao_id)
+            cotacao.status = determinar_status_geral(resultados)
+            cotacao.melhor_opcao_id = determinar_melhor_opcao(resultados)
+            await db.commit()
+        finally:
+            await db.rollback()
+            await db.execute(text("RESET search_path"))
+            await db.commit()
 
 
 @router.post("/cotacoes", response_model=CotacaoOut, status_code=status.HTTP_201_CREATED)
 async def criar_cotacao(
     payload: CotacaoCreate,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _user=Depends(require_permission("cotacoes.manage")),
 ):
@@ -91,7 +97,7 @@ async def criar_cotacao(
         )
     await db.commit()
 
-    background_tasks.add_task(_processar_cotacao_em_background, cotacao.id, payload)
+    background_tasks.add_task(_processar_cotacao_em_background, cotacao.id, payload, request.state.tenant_schema)
 
     return CotacaoOut(id=cotacao.id, status="processing", cubagem_m3=cubagem, resultados=[])
 

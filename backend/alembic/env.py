@@ -3,7 +3,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 
 from app.core.config import get_settings
 from app.db.session import Base
@@ -27,7 +27,15 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    schema = context.get_x_argument(as_dictionary=True).get("tenant_schema")
+    options = {}
+    if schema:
+        if not schema.replace("_", "").isalnum() or not schema[0].isalpha():
+            raise ValueError("tenant_schema inválido")
+        connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
+        connection.execute(text(f'SET search_path TO "{schema}", public'))
+        options = {"version_table_schema": schema, "include_schemas": False}
+    context.configure(connection=connection, target_metadata=target_metadata, **options)
     with context.begin_transaction():
         context.run_migrations()
 

@@ -41,9 +41,16 @@ def verify_totp(secret: str, code: str, window: int = 1) -> bool:
     return False
 
 
-def create_access_token(subject: str, expires_minutes: int | None = None, session_version: int = 0) -> str:
+def create_access_token(subject: str, expires_minutes: int | None = None, session_version: int = 0,
+                        tenant_id: str | None = None, tenant_schema: str | None = None,
+                        token_type: str = "access") -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": subject, "exp": expire, "iat": datetime.now(timezone.utc), "sv": session_version, "iss": "freteway", "aud": "freteway-web"}
+    payload = {"sub": subject, "exp": expire, "iat": datetime.now(timezone.utc), "sv": session_version,
+               "iss": "freteway", "aud": "freteway-web", "typ": token_type}
+    if tenant_id:
+        payload["tid"] = tenant_id
+    if tenant_schema:
+        payload["tsc"] = tenant_schema
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 

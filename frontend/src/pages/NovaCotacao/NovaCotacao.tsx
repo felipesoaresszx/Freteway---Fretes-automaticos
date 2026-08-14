@@ -1,10 +1,11 @@
-import { Star, Trash2, PlusCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { LoaderCircle, Star, Trash2, PlusCircle } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 
 import { Badge, Card, Field, Input } from "../../components/ui";
 import { useCotacao } from "../../hooks/useCotacao";
 import { useTransportadoras } from "../../hooks/useTransportadoras";
 import type { VolumeIn } from "../../types/cotacao";
+import { enderecoService } from "../../services/enderecoService";
 
 let nextVolumeId = 1;
 
@@ -20,6 +21,9 @@ export function NovaCotacao() {
 
   const [origem, setOrigem] = useState({ cep: "", cidade: "", uf: "" });
   const [destino, setDestino] = useState({ cep: "", cidade: "", uf: "" });
+  const [cepStatus, setCepStatus] = useState({ origem: false, destino: false });
+  const [cepErros, setCepErros] = useState<{ origem?: string; destino?: string }>({});
+  const cepRequests = useRef({ origem: 0, destino: 0 });
   const [valorNf, setValorNf] = useState("");
   const [volumes, setVolumes] = useState<VolumeForm[]>([volumeVazio()]);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
@@ -42,6 +46,32 @@ export function NovaCotacao() {
   }
   function toggle(id: string) {
     setSelecionadas((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
+
+  function handleCepChange(tipo: "origem" | "destino", rawValue: string) {
+    const digits = rawValue.replace(/\D/g, "").slice(0, 8);
+    const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+    const requestId = ++cepRequests.current[tipo];
+    const setter = tipo === "origem" ? setOrigem : setDestino;
+    setter((current) => ({ ...current, cep: formatted, ...(digits.length < 8 ? { cidade: "", uf: "" } : {}) }));
+    setCepErros((current) => ({ ...current, [tipo]: undefined }));
+    if (digits.length !== 8) {
+      setCepStatus((current) => ({ ...current, [tipo]: false }));
+      return;
+    }
+
+    setCepStatus((current) => ({ ...current, [tipo]: true }));
+    void enderecoService.consultarCep(digits).then((address) => {
+      if (cepRequests.current[tipo] !== requestId) return;
+      setter({ cep: formatted, cidade: address.cidade, uf: address.uf });
+    }).catch((error: Error) => {
+      if (cepRequests.current[tipo] !== requestId) return;
+      setCepErros((current) => ({ ...current, [tipo]: error.message }));
+    }).finally(() => {
+      if (cepRequests.current[tipo] === requestId) {
+        setCepStatus((current) => ({ ...current, [tipo]: false }));
+      }
+    });
   }
 
   async function handleCalcular() {
@@ -70,14 +100,24 @@ export function NovaCotacao() {
         <p className="text-sm font-medium mb-3">Origem e destino</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Field label="CEP origem"><Input autoComplete="off" value={origem.cep} onChange={(e) => setOrigem({ ...origem, cep: e.target.value })} /></Field>
+            <Field label="CEP origem">
+              <div className="relative"><Input inputMode="numeric" maxLength={9} autoComplete="postal-code" value={origem.cep} onChange={(e) => handleCepChange("origem", e.target.value)} />
+                {cepStatus.origem && <LoaderCircle aria-label="Consultando CEP de origem" className="absolute right-3 top-2.5 animate-spin text-text-secondary" size={15} />}
+              </div>
+              {cepErros.origem && <p className="mt-1 text-xs text-state-error">{cepErros.origem}</p>}
+            </Field>
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2"><Field label="Cidade"><Input autoComplete="off" value={origem.cidade} onChange={(e) => setOrigem({ ...origem, cidade: e.target.value })} /></Field></div>
               <Field label="UF"><Input autoComplete="off" value={origem.uf} onChange={(e) => setOrigem({ ...origem, uf: e.target.value })} /></Field>
             </div>
           </div>
           <div className="space-y-2">
-            <Field label="CEP destino"><Input autoComplete="off" value={destino.cep} onChange={(e) => setDestino({ ...destino, cep: e.target.value })} /></Field>
+            <Field label="CEP destino">
+              <div className="relative"><Input inputMode="numeric" maxLength={9} autoComplete="postal-code" value={destino.cep} onChange={(e) => handleCepChange("destino", e.target.value)} />
+                {cepStatus.destino && <LoaderCircle aria-label="Consultando CEP de destino" className="absolute right-3 top-2.5 animate-spin text-text-secondary" size={15} />}
+              </div>
+              {cepErros.destino && <p className="mt-1 text-xs text-state-error">{cepErros.destino}</p>}
+            </Field>
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2"><Field label="Cidade"><Input autoComplete="off" value={destino.cidade} onChange={(e) => setDestino({ ...destino, cidade: e.target.value })} /></Field></div>
               <Field label="UF"><Input autoComplete="off" value={destino.uf} onChange={(e) => setDestino({ ...destino, uf: e.target.value })} /></Field>

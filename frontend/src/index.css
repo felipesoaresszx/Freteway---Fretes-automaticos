@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+:root {
+  --color-primary: #2563eb; --color-secondary: #111827; --color-accent: #3b82f6;
+  --color-background: #0f1115; --color-surface: #171a1f; --color-text: #f8fafc;
+  --color-muted-text: #94a3b8; --color-border: #303642; --color-button: #2563eb;
 }
+
+body {
+  margin: 0;
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--color-accent); color: var(--color-text); }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }

@@ -208,10 +208,25 @@ class Cotacao(Base):
     peso: Mapped[float] = mapped_column(Float)
     cubagem_m3: Mapped[float] = mapped_column(Float, default=0.0)
     melhor_opcao_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    empresa_sankhya_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    numero_pedido_sankhya: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     volumes: Mapped[list["CotacaoVolume"]] = relationship(back_populates="cotacao", cascade="all, delete-orphan")
     resultados: Mapped[list["CotacaoResultado"]] = relationship(back_populates="cotacao", cascade="all, delete-orphan")
+
+
+class Empresa(Base):
+    """Empresa emissora dentro do tenant; não delimita cotações nem tabelas de frete."""
+
+    __tablename__ = "empresas"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    codigo_empresa_sankhya: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    razao_social: Mapped[str] = mapped_column(String(255))
+    cnpj: Mapped[str] = mapped_column(String(14), unique=True, index=True)
+    ativa: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class CotacaoVolume(Base):

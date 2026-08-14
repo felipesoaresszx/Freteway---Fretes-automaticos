@@ -1,9 +1,11 @@
-import { Bell, LayoutDashboard, ListChecks, Menu, PlusCircle, Plug, Settings, Truck, User, History as HistoryIcon, Wifi, WifiOff } from "lucide-react";
-import { useEffect, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Bell, ChevronDown, History as HistoryIcon, LayoutDashboard, ListChecks, LogOut, Menu, PlusCircle, Plug, Settings, Truck, User, Wifi, WifiOff } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { apiClient } from "../api/client";
 import { Brand } from "../components/Brand";
+import { useAuth } from "../hooks/useAuth";
+import { useCompany } from "../contexts/CompanyContext";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -41,7 +43,43 @@ function useBackendStatus() {
 
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const backendOnline = useBackendStatus();
+  const { user, logout, isLoggingOut } = useAuth();
+  const { company, clearCompany } = useCompany();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    function closeUserMenu(event: MouseEvent) {
+      if (!userMenuRef.current?.contains(event.target as Node)) setUserMenuOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setUserMenuOpen(false);
+    }
+    document.addEventListener("mousedown", closeUserMenu);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeUserMenu);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } finally {
+      setUserMenuOpen(false);
+      navigate("/login", { replace: true });
+    }
+  }
+
+  async function handleSwitchCompany() {
+    try { await logout(); } catch { /* o contexto ainda deve ser removido localmente */ }
+    await clearCompany();
+    setUserMenuOpen(false);
+    navigate("/login", { replace: true });
+  }
 
   return (
     <div className="flex min-h-screen bg-bg text-text-primary">
@@ -49,20 +87,21 @@ export function AppLayout() {
         <div className="fixed inset-0 z-20 bg-black/50 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
       <aside
-        className={`fixed md:static z-30 top-0 left-0 h-full w-64 flex flex-col bg-surface border-r border-border transition-transform duration-200 ${
+        className={`fixed md:static z-30 top-0 left-0 h-full w-64 flex flex-col bg-brand-graphite border-r border-black/10 transition-transform duration-200 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
-        <div className="flex h-14 items-center px-4 border-b border-border"><Brand /></div>
+        <div className="flex h-16 items-center border-b border-white/10 px-4 [&_*]:text-brand-cream"><Brand /></div>
         <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.to === "/cotacoes"}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
-                `w-full flex items-center gap-2.5 px-3 py-2 rounded text-sm transition-colors ${
-                  isActive ? "bg-surface2 text-text-primary font-medium" : "text-text-secondary"
+                `w-full flex items-center gap-2.5 rounded-md border-l-2 px-3 py-2.5 text-sm transition-colors ${
+                  isActive ? "border-brand-copper bg-white/10 text-white font-medium" : "border-transparent text-white/70 hover:bg-white/5 hover:text-white"
                 }`
               }
             >
@@ -74,7 +113,7 @@ export function AppLayout() {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 flex items-center gap-3 px-4 sticky top-0 z-10 bg-bg border-b border-border">
+        <header className="h-16 flex items-center gap-3 px-4 sticky top-0 z-10 bg-surface/95 backdrop-blur border-b border-border">
           <button className="md:hidden" onClick={() => setMobileOpen(true)}>
             <Menu size={20} />
           </button>
@@ -84,8 +123,41 @@ export function AppLayout() {
             <span className="hidden sm:inline">{backendOnline ? "Backend conectado" : "Backend indisponível"}</span>
           </div>
           <Bell size={17} className="text-text-secondary" />
-          <div className="w-7 h-7 rounded-full flex items-center justify-center bg-surface2">
-            <User size={14} className="text-text-secondary" />
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              aria-label="Abrir menu do usuário"
+              aria-haspopup="menu"
+              aria-expanded={userMenuOpen}
+              onClick={() => setUserMenuOpen((open) => !open)}
+              className="flex h-9 items-center gap-1.5 rounded-md border border-transparent bg-surface2 px-2 text-text-secondary transition hover:border-border hover:text-text-primary"
+            >
+              <User size={15} />
+              <ChevronDown size={13} className={`transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+            {userMenuOpen && (
+              <div role="menu" className="absolute right-0 top-11 z-50 w-64 overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+                <div className="border-b border-border px-4 py-3">
+                  <p className="truncate text-sm font-medium text-text-primary">{user?.nome || "Usuário"}</p>
+                  <p className="mt-0.5 truncate text-xs text-text-secondary">{user?.email}</p>
+                </div>
+                <div className="p-1.5">
+                  <button type="button" role="menuitem" onClick={() => void handleSwitchCompany()} className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm text-text-secondary transition hover:bg-surface2 hover:text-text-primary">
+                    <Brand compact /> Trocar empresa{company ? ` (${company.display_name})` : ""}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={isLoggingOut}
+                    onClick={() => void handleLogout()}
+                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm text-state-error transition hover:bg-state-error/10 disabled:opacity-50"
+                  >
+                    <LogOut size={15} />
+                    {isLoggingOut ? "Saindo..." : "Sair do sistema"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6">

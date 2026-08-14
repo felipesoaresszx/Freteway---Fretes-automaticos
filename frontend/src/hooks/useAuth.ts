@@ -17,11 +17,13 @@ export function useAuth() {
   });
 
   return {
+    user: me.data,
     isAuthenticated: Boolean(me.data),
     isCheckingAuth: me.isLoading,
     login: loginMutation.mutateAsync,
     isLoggingIn: loginMutation.isPending,
     loginError: loginMutation.error as Error | null,
-    logout: () => logoutMutation.mutate(),
+    logout: logoutMutation.mutateAsync,
+    isLoggingOut: logoutMutation.isPending,
   };
 }
