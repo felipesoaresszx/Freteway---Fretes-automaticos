@@ -1,0 +1,31 @@
+let buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
+let instances = Resources.*[ Type == 'AWS::EC2::Instance' ]
+let security_groups = Resources.*[ Type == 'AWS::EC2::SecurityGroup' ]
+
+rule s3_encrypted when %buckets !empty {
+  %buckets.Properties.BucketEncryption exists
+}
+
+rule s3_public_access_blocked when %buckets !empty {
+  %buckets.Properties.PublicAccessBlockConfiguration.BlockPublicAcls == true
+  %buckets.Properties.PublicAccessBlockConfiguration.BlockPublicPolicy == true
+  %buckets.Properties.PublicAccessBlockConfiguration.IgnorePublicAcls == true
+  %buckets.Properties.PublicAccessBlockConfiguration.RestrictPublicBuckets == true
+}
+
+rule ec2_imdsv2_required when %instances !empty {
+  %instances.Properties.MetadataOptions.HttpTokens == 'required'
+}
+
+rule ec2_ebs_encrypted when %instances !empty {
+  %instances.Properties.BlockDeviceMappings[*].Ebs.Encrypted == true
+}
+
+rule security_group_only_public_web_ports when %security_groups !empty {
+  %security_groups.Properties.SecurityGroupIngress[*] {
+    when CidrIp == '0.0.0.0/0' {
+      FromPort IN [80, 443]
+      ToPort IN [80, 443]
+    }
+  }
+}

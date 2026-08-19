@@ -6,8 +6,8 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_permission
-from app.db.session import AsyncSessionLocal, get_db, quote_schema
-from app.models.models import Cotacao, CotacaoResultado, CotacaoVolume, Transportadora
+from app.db.session import get_db, get_tenant_sessionmaker
+from app.models.models import Cotacao, CotacaoResultado, CotacaoVolume, Empresa, Transportadora
 from app.schemas.cotacao import (
     CotacaoCreate,
     CotacaoListaResponse,
@@ -26,14 +26,14 @@ from app.services.cubagem import calcular_cubagem_m3
 router = APIRouter()
 
 
-async def _processar_cotacao_em_background(cotacao_id: str, payload: CotacaoCreate, tenant_schema: str):
+async def _processar_cotacao_em_background(cotacao_id: str, payload: CotacaoCreate, tenant_id: str):
     """Executa as consultas às transportadoras e grava os resultados.
     Roda fora do ciclo de request/response — é por isso que o endpoint de
     criação responde imediatamente com status 'processing'."""
-    async with AsyncSessionLocal() as db:
-        await db.execute(text(f"SET search_path TO {quote_schema(tenant_schema)}, public"))
+    factory = await get_tenant_sessionmaker(tenant_id)
+    async with factory() as db:
         try:
-            resultados = await executar_cotacao(payload, db)
+            resultados = await executar_cotacao(payload, db, cotacao_id=cotacao_id)
             for r in resultados:
                 db.add(
                 CotacaoResultado(
@@ -53,8 +53,6 @@ async def _processar_cotacao_em_background(cotacao_id: str, payload: CotacaoCrea
             await db.commit()
         finally:
             await db.rollback()
-            await db.execute(text("RESET search_path"))
-            await db.commit()
 
 
 @router.post("/cotacoes", response_model=CotacaoOut, status_code=status.HTTP_201_CREATED)
@@ -69,6 +67,11 @@ async def criar_cotacao(
 
     peso_total = sum(volume.peso_kg * volume.quantidade for volume in payload.volumes)
 
+    if payload.empresa_id:
+        empresa = await db.scalar(select(Empresa).where(Empresa.id == payload.empresa_id, Empresa.ativa.is_(True)))
+        if not empresa:
+            raise HTTPException(status_code=422, detail="Empresa emissora inválida ou inativa.")
+
     cotacao = Cotacao(
         status="processing",
         origem_cep=payload.origem.cep,
@@ -80,6 +83,7 @@ async def criar_cotacao(
         valor_nf=payload.valor_nf,
         peso=peso_total,
         cubagem_m3=cubagem,
+        empresa_id=payload.empresa_id,
     )
     db.add(cotacao)
     await db.flush()
@@ -97,9 +101,10 @@ async def criar_cotacao(
         )
     await db.commit()
 
-    background_tasks.add_task(_processar_cotacao_em_background, cotacao.id, payload, request.state.tenant_schema)
+    background_tasks.add_task(_processar_cotacao_em_background, cotacao.id, payload, request.state.tenant_id)
 
-    return CotacaoOut(id=cotacao.id, status="processing", cubagem_m3=cubagem, resultados=[])
+    return CotacaoOut(id=cotacao.id, status="processing", cubagem_m3=cubagem,
+                      empresa_id=cotacao.empresa_id, resultados=[])
 
 
 @router.get("/cotacoes", response_model=CotacaoListaResponse)

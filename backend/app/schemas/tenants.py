@@ -6,8 +6,8 @@ class TenantCreate(BaseModel):
     nome: str = Field(min_length=2, max_length=255)
     slug: str = Field(min_length=2, max_length=80, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
     razao_social: str | None = Field(default=None, max_length=255)
-    schema_name: str = Field(min_length=3, max_length=63, pattern=r"^[a-z][a-z0-9_]+$")
-    connection_string: str | None = Field(default=None, max_length=1000)
+    schema_name: str = Field(default="public", min_length=3, max_length=63, pattern=r"^[a-z][a-z0-9_]+$")
+    database_url: str = Field(min_length=20, max_length=1000, exclude=True)
     sankhya_api_key: str | None = Field(default=None, min_length=24)
 
     @field_validator("codigo_login")

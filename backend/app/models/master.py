@@ -22,7 +22,7 @@ class Tenant(MasterBase):
     slug: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
     razao_social: Mapped[str | None] = mapped_column(String(255), nullable=True)
     schema_name: Mapped[str] = mapped_column(String(63), unique=True)
-    connection_string: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    database_url_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
     status_assinatura: Mapped[str] = mapped_column(String(30), default="ativa", index=True)
     sankhya_api_key_hash: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)

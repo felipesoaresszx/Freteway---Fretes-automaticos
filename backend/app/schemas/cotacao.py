@@ -18,6 +18,7 @@ class VolumeIn(BaseModel):
 
 
 class CotacaoCreate(BaseModel):
+    empresa_id: str | None = None
     origem: Endereco
     destino: Endereco
     valor_nf: float = Field(gt=0)
@@ -47,6 +48,7 @@ class CotacaoOut(BaseModel):
     status: str  # processing | completed | completed_with_errors | failed
     cubagem_m3: float
     melhor_opcao_id: str | None = None
+    empresa_id: str | None = None
     resultados: list[ResultadoTransportadora] = []
 
 

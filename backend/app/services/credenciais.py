@@ -10,7 +10,11 @@ from app.core.config import get_settings
 
 def _fernet() -> Fernet:
     settings = get_settings()
-    segredo = settings.CREDENTIAL_ENCRYPTION_KEY or settings.JWT_SECRET
+    segredo = (settings.CREDENTIALS_ENCRYPTION_KEY or "").strip()
+    if not segredo:
+        raise RuntimeError(
+            "CREDENTIALS_ENCRYPTION_KEY deve ser definida para usar credenciais criptografadas."
+        )
     chave = hashlib.sha256(segredo.encode("utf-8")).digest()
     return Fernet(base64.urlsafe_b64encode(chave))
 

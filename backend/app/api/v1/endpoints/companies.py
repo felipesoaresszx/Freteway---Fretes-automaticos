@@ -48,7 +48,7 @@ async def _audit(db: AsyncSession, request: Request, code_hash: str, tenant: Ten
 def _set_context_cookie(response: Response, tenant: Tenant) -> int:
     minutes = get_settings().TENANT_CONTEXT_EXPIRE_MINUTES
     token = create_access_token("company-context", minutes, tenant_id=tenant.id,
-                                tenant_schema=tenant.schema_name, token_type="tenant_context")
+                                tenant_code=tenant.codigo_login, token_type="tenant_context")
     response.set_cookie("tenant_context", token, max_age=minutes * 60, httponly=True,
                         secure=get_settings().COOKIE_SECURE, samesite="strict", path="/")
     return minutes * 60

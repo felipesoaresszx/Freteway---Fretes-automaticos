@@ -21,7 +21,11 @@ async def get_current_user(
     user_id = payload.get("sub") if payload else None
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido ou expirado.")
-    if payload.get("typ") != "access" or not getattr(request.state, "tenant_id", None):
+    if (
+        payload.get("typ") != "access"
+        or payload.get("tid") != getattr(request.state, "tenant_id", None)
+        or payload.get("tcd") != getattr(request.state, "tenant_code", None)
+    ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Contexto do cliente ausente ou inválido.")
 
     result = await db.execute(
