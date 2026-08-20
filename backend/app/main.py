@@ -6,16 +6,17 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.api.v1.router import api_router
 from app.api.v1.endpoints.sankhya import root_router as sankhya_root_router
 from app.core.config import get_settings
-from app.core.logging_config import configure_logging
-from app.db.session import get_tenant_sessionmaker
+from app.db.session import AsyncSessionLocal, quote_schema
 from sqlalchemy import text
 from app.models.models import AuditLog
 from app.core.tenant import apply_tenant_from_cookie
-from app.services.health import database_is_ready
 
 settings = get_settings()
-configure_logging(settings.ENVIRONMENT)
-settings.validate_production_security()
+
+if settings.ENVIRONMENT == "production" and (
+    settings.JWT_SECRET == "change-me" or not settings.CREDENTIAL_ENCRYPTION_KEY or not settings.COOKIE_SECURE
+):
+    raise RuntimeError("Produção exige JWT_SECRET forte, CREDENTIAL_ENCRYPTION_KEY e COOKIE_SECURE=true")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -51,8 +52,8 @@ async def seguranca_http(request: Request, call_next):
     response = await call_next(request)
     user_id = getattr(request.state, "authenticated_user_id", None)
     if user_id and request.method in {"POST", "PUT", "PATCH", "DELETE"} and response.status_code < 400:
-        audit_factory = await get_tenant_sessionmaker(request.state.tenant_id)
-        async with audit_factory() as audit_db:
+        async with AsyncSessionLocal() as audit_db:
+            await audit_db.execute(text(f"SET search_path TO {quote_schema(request.state.tenant_schema)}, public"))
             audit_db.add(AuditLog(
                 user_id=user_id,
                 acao={"POST": "criar_executar", "PUT": "atualizar", "PATCH": "alterar", "DELETE": "excluir"}[request.method],
@@ -62,6 +63,8 @@ async def seguranca_http(request: Request, call_next):
                 ip_address=request.client.host if request.client else None,
                 user_agent=request.headers.get("user-agent", "")[:500] or None,
             ))
+            await audit_db.commit()
+            await audit_db.execute(text("RESET search_path"))
             await audit_db.commit()
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -78,7 +81,5 @@ app.include_router(sankhya_root_router)
 
 @app.get("/health")
 async def root_health():
-    """Readiness da API e de sua conexão com o PostgreSQL."""
-    if not await database_is_ready():
-        return JSONResponse({"status": "unavailable", "database": "error"}, status_code=503)
-    return {"status": "ok", "database": "ok"}
+    """Health check na raiz, usado pelo indicador 'Backend conectado' do frontend."""
+    return {"status": "ok"}

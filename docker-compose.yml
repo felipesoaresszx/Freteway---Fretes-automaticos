@@ -1,21 +1,4 @@
 services:
-  catalog_postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: frete_catalog
-      POSTGRES_PASSWORD: ${CATALOG_POSTGRES_PASSWORD:-frete_catalog_dev}
-      POSTGRES_DB: frete_catalog
-    expose:
-      - "5432"
-    volumes:
-      - catalog_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U frete_catalog -d frete_catalog"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -42,7 +25,6 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://frete:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@postgres:5432/frete
-      CATALOG_DATABASE_URL: postgresql+asyncpg://frete_catalog:${CATALOG_POSTGRES_PASSWORD:-frete_catalog_dev}@catalog_postgres:5432/frete_catalog
     ports:
       - "127.0.0.1:8000:8000"
     security_opt:
@@ -52,14 +34,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      catalog_postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
 
   frontend:
     build: ./frontend
@@ -75,11 +49,9 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
 
   # n8n e playwright entram a partir do Sprint 7/8, conforme o plano de sprints.
 
 volumes:
   postgres_data:
-  catalog_postgres_data:

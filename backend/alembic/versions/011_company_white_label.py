@@ -3,7 +3,7 @@
 Revision ID: 011_company_white_label
 Revises: 010_multitenancy
 """
-from alembic import context, op
+from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
@@ -14,8 +14,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    if context.get_x_argument(as_dictionary=True).get("database_per_tenant") == "true":
-        return
     # These are control-plane objects and must only be created once in public.
     inspector = sa.inspect(op.get_bind())
     if not inspector.has_table("company_themes", schema="public"):

@@ -79,7 +79,7 @@ Copy-Item frontend/.env.example frontend/.env
 
 Em Linux ou macOS, use `cp` no lugar de `Copy-Item`.
 
-2. Troque `JWT_SECRET=change-me` em `backend/.env` por um segredo aleatório com pelo menos 32 caracteres. Em `ENVIRONMENT=production`, a API recusa a inicialização se a variável estiver vazia, mantiver o valor padrão ou for curta demais.
+2. Troque `JWT_SECRET=change-me` em `backend/.env` por um segredo longo e aleatório.
 
 3. Construa e inicie os serviços:
 
@@ -139,24 +139,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 No Linux ou macOS, ative o ambiente com `source .venv/bin/activate`.
 
-### Migração da chave de credenciais
-
-Gere uma chave independente do JWT e grave-a no gerenciador de segredos do ambiente:
-
-```powershell
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-```
-
-Instalações novas precisam apenas definir o resultado em `CREDENTIALS_ENCRYPTION_KEY`. Se o desenvolvimento já possuir credenciais criptografadas pela chave antiga, faça backup do banco, mantenha a API parada e execute uma única vez, a partir de `backend`:
-
-```powershell
-$env:LEGACY_CREDENTIALS_ENCRYPTION_KEY="valor-atual-do-JWT_SECRET"
-$env:CREDENTIALS_ENCRYPTION_KEY="nova-chave-gerada"
-python -m scripts.reencrypt_credentials
-```
-
-O script recriptografa credenciais de integrações, APIs de transportadoras e segredos 2FA em todos os schemas. Só depois de concluí-lo, atualize o `.env`, remova `LEGACY_CREDENTIALS_ENCRYPTION_KEY` e rotacione `JWT_SECRET`. O script é transitório e pode ser excluído após a migração validada.
-
 ### Frontend
 
 Em outro terminal:
@@ -175,13 +157,9 @@ npm run dev
 | Variável | Finalidade | Padrão da aplicação |
 | --- | --- | --- |
 | `DATABASE_URL` | Conexão assíncrona com PostgreSQL | `postgresql+asyncpg://frete:frete@localhost:5432/frete` |
-| `JWT_SECRET` | Assinatura dos tokens JWT (mínimo de 32 caracteres em produção) | `change-me` |
-| `CREDENTIALS_ENCRYPTION_KEY` | Chave exclusiva para credenciais de integração e segredos 2FA | Sem padrão; obrigatória para criptografia e em produção |
+| `JWT_SECRET` | Assinatura dos tokens e chave derivada para proteger credenciais | `change-me` |
 | `JWT_ALGORITHM` | Algoritmo do JWT | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Expiração inicial do token | `60` |
-| `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | Janela do bloqueio de login em segundos | `900` |
-| `LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS` | Falhas permitidas por e-mail e tenant na janela | `5` |
-| `LOGIN_RATE_LIMIT_IP_ATTEMPTS` | Falhas permitidas por IP e tenant na janela | `20` |
 | `CORS_ORIGINS` | Lista JSON de origens autorizadas | `["http://localhost:5173"]` |
 | `CNPJ_CONSULTA_BASE_URL` | Provedor de consulta cadastral | BrasilAPI |
 | `CNPJ_CONSULTA_TIMEOUT_SECONDS` | Timeout da consulta de CNPJ | `10` |
@@ -265,40 +243,6 @@ O teste E2E cria uma tabela temporária, importa a fixture CSV, revisa, aprova, 
 
 ## Banco de dados e migrations
 
-### Onboarding de novo cliente
-
-Primeiro aplique a migration do catálogo isolado:
-
-```bash
-cd backend
-alembic -c alembic_catalog.ini upgrade head
-```
-
-Depois provisione o database operacional, branding e administrador inicial em um único comando:
-
-```bash
-python -m app.provision_tenant \
-  --codigo MODIAL \
-  --nome "Modial" \
-  --database-name frete_modial \
-  --admin-email administrador@cliente.com \
-  --admin-password "senha-temporaria-forte" \
-  --primary-color "#2563EB" \
-  --logo-url "https://cdn.exemplo.com/modial.svg"
-```
-
-O comando cria um banco físico, executa as migrations operacionais, cria somente o admin informado e registra no catálogo a URL criptografada. Não execute `app.seed` no banco provisionado. Entregue a senha temporária por canal seguro e troque-a no primeiro acesso.
-
-### Atenção na transição do single-tenant
-
-- O conteúdo atual de `tenants`/`company_themes` no banco operacional não é copiado para o novo catálogo. Cadastre novamente cada tenant com uma URL criptografada.
-- Tenants antigos baseados em schemas não são roteados automaticamente. Crie um database por cliente e faça uma migração de dados separada antes de ativá-lo.
-- Tokens antigos com claim `tsc` deixam de ser aceitos; todos os usuários precisam entrar novamente para receber `tid` e `tcd`.
-- `POST /auth/login` agora exige `codigo_cliente`; clientes de API antigos precisam atualizar o payload.
-- `python -m app.seed` continua existindo apenas para desenvolvimento e atua sobre `DATABASE_URL`; não o execute nos databases provisionados.
-- Alterações na URL de um tenant exigem reinício dos processos do backend para invalidar o cache de engines atual.
-- O provisionador pressupõe que o usuário de `DATABASE_URL` possa executar `CREATE DATABASE`; em PostgreSQL gerenciado, crie o database pela plataforma e adapte essa etapa.
-
 Aplicar todas as migrations:
 
 ```bash
@@ -321,60 +265,14 @@ O script `python -m app.seed` é idempotente para o administrador e para as tran
 
 ## Segurança e produção
 
-- [ ] `JWT_SECRET` exclusivo, aleatório e com pelo menos 32 caracteres; a API recusa iniciar em produção com valor vazio, curto ou `change-me`.
-- [ ] `CREDENTIALS_ENCRYPTION_KEY` definida, com pelo menos 32 caracteres e diferente do `JWT_SECRET`; guarde-a em um gerenciador de segredos e faça backup antes de rotacioná-la.
-- [ ] `CORS_ORIGINS` contém somente os domínios HTTPS efetivamente usados, sem `*`; uma configuração vazia ou curinga gera alerta no startup de produção.
-- [ ] Rate limiting do login está ativo e dimensionado por `LOGIN_RATE_LIMIT_*`; para múltiplos workers/instâncias, substitua o armazenamento em memória por Redis para ter contagem compartilhada.
-- [ ] Usuário/senha de administrador criados pelo seed foram removidos ou trocados imediatamente.
-- [ ] HTTPS está habilitado na aplicação e nas APIs de transportadoras, com `COOKIE_SECURE=true`; o adapter genérico rejeita URLs inseguras.
-- [ ] Arquivos `.env` e credenciais reais nunca são versionados.
+- Nunca versionar arquivos `.env` nem credenciais reais.
+- Definir um `JWT_SECRET` exclusivo, forte e estável; sua alteração invalida tokens e afeta a leitura de segredos já protegidos.
+- Remover ou trocar imediatamente o usuário e a senha do seed.
+- Restringir `CORS_ORIGINS` aos domínios efetivamente usados.
+- Usar HTTPS tanto na aplicação quanto nas APIs de transportadoras; o adapter genérico rejeita URLs inseguras.
 - Persistir e proteger os diretórios de documentos/logotipos em produção.
 - O frontend servido pelo Compose usa o servidor de desenvolvimento do Vite; para produção, gere `npm run build` e publique `frontend/dist` em um servidor web/CDN.
 - Configure backup, observabilidade e rotação de segredos para o PostgreSQL e para as integrações.
-
-### Deploy mínimo com Docker Compose
-
-1. Copie `backend/.env.example` para `backend/.env`. Defina `ENVIRONMENT=production`, `COOKIE_SECURE=true`, `JWT_SECRET`, `CREDENTIALS_ENCRYPTION_KEY`, `DATABASE_URL`/`MASTER_DATABASE_URL`, `TRUSTED_HOSTS`, `CORS_ORIGINS` e as chaves das integrações utilizadas. Na raiz, defina `POSTGRES_PASSWORD` no arquivo `.env`.
-2. Gere as imagens sem iniciar o servidor de desenvolvimento:
-
-   ```bash
-   docker compose -f docker-compose.prod.yml build
-   ```
-
-3. Inicie os bancos e aplique as duas cadeias de migrations:
-
-   ```bash
-   docker compose -f docker-compose.prod.yml up -d postgres catalog_postgres
-   docker compose -f docker-compose.prod.yml run --rm backend alembic -c alembic_catalog.ini upgrade head
-   docker compose -f docker-compose.prod.yml run --rm backend alembic -x database_per_tenant=true upgrade head
-   ```
-
-4. Inicie a aplicação:
-
-   ```bash
-   docker compose -f docker-compose.prod.yml up -d
-   ```
-
-Não execute `python -m app.seed` em produção. Esse comando cria dados de desenvolvimento, incluindo `admin@fretesystem.com`. Crie o administrador de produção por um procedimento controlado próprio, com senha temporária forte e troca obrigatória, e confirme que o usuário do seed não existe no banco.
-
-### Backup dos dados persistentes
-
-Crie backups regulares, mantenha cópias fora do host do Docker e teste a restauração. Para exportar o PostgreSQL em formato compactado:
-
-```bash
-mkdir -p backups
-docker compose -f docker-compose.prod.yml exec -T postgres \
-  pg_dump -U frete -d frete -Fc > backups/frete-$(date +%Y%m%d-%H%M%S).dump
-```
-
-O volume `backend_storage` é montado em `/app/storage`; por padrão, `TABELA_FRETE_STORAGE_DIR=storage/tabelas_frete` fica dentro dele. Para preservar documentos importados e os demais arquivos persistidos:
-
-```bash
-docker compose -f docker-compose.prod.yml exec -T backend \
-  tar -C /app/storage -czf - . > backups/frete-storage-$(date +%Y%m%d-%H%M%S).tar.gz
-```
-
-Faça o dump do banco e o arquivo do storage na mesma janela operacional. Antes de uma restauração, pare frontend e backend, valide os arquivos de backup e mantenha uma cópia anterior até confirmar a integridade dos dados restaurados.
 
 ## Observações atuais
 
@@ -382,3 +280,4 @@ Faça o dump do banco e o arquivo do storage na mesma janela operacional. Antes 
 - O endpoint de histórico de uma tabela de frete ainda responde `501 Not Implemented`.
 - A opção de exigir 2FA está modelada nas configurações, mas o fluxo de ativação de 2FA ainda não está disponível.
 - Parte das transportadoras iniciais usa adapter simulado enquanto não houver configuração real de tabela/API.
+

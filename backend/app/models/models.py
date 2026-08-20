@@ -208,14 +208,12 @@ class Cotacao(Base):
     peso: Mapped[float] = mapped_column(Float)
     cubagem_m3: Mapped[float] = mapped_column(Float, default=0.0)
     melhor_opcao_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    empresa_id: Mapped[str | None] = mapped_column(ForeignKey("empresas.id", ondelete="RESTRICT"), nullable=True, index=True)
     empresa_sankhya_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     numero_pedido_sankhya: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     volumes: Mapped[list["CotacaoVolume"]] = relationship(back_populates="cotacao", cascade="all, delete-orphan")
     resultados: Mapped[list["CotacaoResultado"]] = relationship(back_populates="cotacao", cascade="all, delete-orphan")
-    empresa: Mapped["Empresa | None"] = relationship(back_populates="cotacoes")
 
 
 class Empresa(Base):
@@ -229,7 +227,6 @@ class Empresa(Base):
     cnpj: Mapped[str] = mapped_column(String(14), unique=True, index=True)
     ativa: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    cotacoes: Mapped[list[Cotacao]] = relationship(back_populates="empresa")
 
 
 class CotacaoVolume(Base):

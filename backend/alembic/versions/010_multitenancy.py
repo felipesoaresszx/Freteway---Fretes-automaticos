@@ -3,7 +3,7 @@
 Revision ID: 010_multitenancy
 Revises: 009_security_hardening
 """
-from alembic import context, op
+from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
@@ -15,8 +15,7 @@ depends_on = None
 
 def upgrade() -> None:
     # Control plane always lives in public, independent of the tenant search_path.
-    database_per_tenant = context.get_x_argument(as_dictionary=True).get("database_per_tenant") == "true"
-    if not database_per_tenant and not sa.inspect(op.get_bind()).has_table("tenants", schema="public"):
+    if not sa.inspect(op.get_bind()).has_table("tenants", schema="public"):
       op.create_table("tenants",
         sa.Column("id", postgresql.UUID(as_uuid=False), primary_key=True),
         sa.Column("codigo_login", sa.String(40), nullable=False, unique=True),

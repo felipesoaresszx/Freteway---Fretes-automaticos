@@ -39,6 +39,7 @@ async def apply_tenant_from_cookie(request: Request) -> None:
             if not tenant.ativo or tenant.status_assinatura != "ativa":
                 raise HTTPException(status_code=403, detail="Assinatura do cliente suspensa.")
             request.state.tenant_id = tenant.id
+            request.state.tenant_schema = tenant.schema_name
             request.state.tenant_code = tenant.codigo_login
             return
     raw = request.cookies.get("access_token") or request.cookies.get("tenant_context")
@@ -49,7 +50,8 @@ async def apply_tenant_from_cookie(request: Request) -> None:
     if not payload or not payload.get("tid"):
         return
     tenant = await load_active_tenant(payload["tid"])
-    if payload.get("tcd") != tenant.codigo_login:
+    if payload.get("tsc") != tenant.schema_name:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Contexto do cliente inválido.")
     request.state.tenant_id = tenant.id
+    request.state.tenant_schema = tenant.schema_name
     request.state.tenant_code = tenant.codigo_login

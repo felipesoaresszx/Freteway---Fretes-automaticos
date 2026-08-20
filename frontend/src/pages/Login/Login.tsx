@@ -26,15 +26,9 @@ export function Login() {
     try { await identifyCompany(accessCode); }
     catch (error) { setIdentifyError(error instanceof Error ? error.message : "Código de empresa inválido. Verifique o código informado e tente novamente."); }
   }
-  async function identifyOnBlur() {
-    if (company || isIdentifying || accessCode.trim().length < 3) return;
-    setIdentifyError(null);
-    try { await identifyCompany(accessCode); }
-    catch (error) { setIdentifyError(error instanceof Error ? error.message : "Código de cliente inválido."); }
-  }
   async function submitLogin(event: React.FormEvent) {
     event.preventDefault();
-    await login({ codigo_cliente: accessCode.trim().toUpperCase(), email, password, otp: otp || undefined });
+    await login({ email, password, otp: otp || undefined });
     navigate("/dashboard");
   }
   async function switchCompany() {
@@ -46,7 +40,7 @@ export function Login() {
       <div className="mb-7 border-b border-border pb-5">{company ? <Brand /> : <FretewayBrand />}</div>
       {!company ? <form onSubmit={identify} className="space-y-4" noValidate>
         <div><h1 className="text-lg font-semibold">Acesse sua empresa</h1><p className="mt-1.5 text-xs leading-5 text-text-secondary">Informe o código de acesso fornecido pela FRETEWAY.</p></div>
-        <Field label="Código do cliente"><Input autoFocus autoCapitalize="characters" autoComplete="organization" value={accessCode} onBlur={() => void identifyOnBlur()} onChange={(event) => { setAccessCode(event.target.value.toUpperCase()); setIdentifyError(null); }} required maxLength={40} disabled={isIdentifying} aria-invalid={Boolean(identifyError)} aria-describedby={identifyError ? "company-code-error" : undefined} className={identifyError ? "border-state-error" : ""}/></Field>
+        <Field label="Código da empresa"><Input autoFocus autoCapitalize="characters" autoComplete="organization" value={accessCode} onChange={(event) => { setAccessCode(event.target.value.toUpperCase()); setIdentifyError(null); }} required maxLength={80} disabled={isIdentifying} aria-invalid={Boolean(identifyError)} aria-describedby={identifyError ? "company-code-error" : undefined} className={identifyError ? "border-state-error" : ""}/></Field>
         <div id="company-code-error" aria-live="polite">{identifyError && <p className="text-xs leading-5 text-state-error">{identifyError}</p>}</div>
         <button type="submit" disabled={isIdentifying || accessCode.trim().length < 3} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[var(--color-button)] text-sm font-medium text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">{isIdentifying && <LoaderCircle className="animate-spin" size={15}/>} {isIdentifying ? "Identificando empresa..." : "Continuar"}</button>
       </form> : <form onSubmit={submitLogin} className="space-y-4">

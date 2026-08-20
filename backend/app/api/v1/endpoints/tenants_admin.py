@@ -1,16 +1,15 @@
 import secrets
+import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.tenant import access_code_hash, api_key_hash
-from app.db.session import get_master_db, get_tenant_sessionmaker
+from app.db.session import get_master_db, quote_schema
 from app.models.master import CompanyTheme, Tenant, TenantEmpresa
-from app.models.models import Empresa
 from app.schemas.tenants import CompanyThemeUpdate, TenantCreate, TenantEmpresaCreate, TenantOut, TenantStatusUpdate
-from app.services.credenciais import criptografar
 
 router = APIRouter(prefix="/platform/tenants", tags=["platform-admin"])
 
@@ -32,19 +31,11 @@ async def create_tenant(payload: TenantCreate, db: AsyncSession = Depends(get_ma
         raise HTTPException(status_code=409, detail="Código do cliente já cadastrado.")
     tenant = Tenant(codigo_login=payload.codigo_login, access_code_hash=access_code_hash(payload.codigo_login),
                     nome=payload.nome, slug=payload.slug, razao_social=payload.razao_social, schema_name=payload.schema_name,
-                    database_url_encrypted=criptografar(payload.database_url),
+                    connection_string=payload.connection_string,
                     sankhya_api_key_hash=api_key_hash(payload.sankhya_api_key) if payload.sankhya_api_key else None)
     db.add(tenant)
     await db.commit()
     await db.refresh(tenant)
-    return tenant
-
-
-@router.get("/by-code/{codigo}", response_model=TenantOut, dependencies=[Depends(require_platform_admin)])
-async def get_tenant_by_code(codigo: str, db: AsyncSession = Depends(get_master_db)):
-    tenant = await db.scalar(select(Tenant).where(Tenant.codigo_login == codigo.strip().upper()))
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
     return tenant
 
 
@@ -81,18 +72,15 @@ async def add_company(tenant_id: str, payload: TenantEmpresaCreate, db: AsyncSes
     if not tenant:
         raise HTTPException(status_code=404, detail="Cliente não encontrado.")
     company = TenantEmpresa(tenant_id=tenant_id, **payload.model_dump())
-    tenant_factory = await get_tenant_sessionmaker(tenant_id)
-    async with tenant_factory() as tenant_db:
-        operational = await tenant_db.scalar(select(Empresa).where(
-            Empresa.codigo_empresa_sankhya == payload.codigo_empresa_sankhya
-        ))
-        if operational:
-            operational.razao_social = payload.razao_social
-            operational.cnpj = payload.cnpj
-            operational.ativa = True
-        else:
-            tenant_db.add(Empresa(**payload.model_dump(), ativa=True))
-        await tenant_db.commit()
     db.add(company)
+    # Mantém o cadastro operacional do schema em sincronia com o control plane.
+    await db.execute(text(f"SET LOCAL search_path TO {quote_schema(tenant.schema_name)}, public"))
+    await db.execute(text("""
+        INSERT INTO empresas (id, codigo_empresa_sankhya, razao_social, cnpj, ativa, created_at)
+        VALUES (:id, :codigo, :razao, :cnpj, true, now())
+        ON CONFLICT (codigo_empresa_sankhya) DO UPDATE
+        SET razao_social = EXCLUDED.razao_social, cnpj = EXCLUDED.cnpj, ativa = true
+    """), {"id": str(uuid.uuid4()), "codigo": payload.codigo_empresa_sankhya,
+            "razao": payload.razao_social, "cnpj": payload.cnpj})
     await db.commit()
     return {"id": company.id, **payload.model_dump()}

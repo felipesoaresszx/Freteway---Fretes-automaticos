@@ -1,6 +1,4 @@
 import asyncio
-import logging
-import time
 import uuid
 from datetime import datetime
 
@@ -15,21 +13,6 @@ from app.models.models import TabelaFrete, Transportadora, TransportadoraConfigu
 from app.schemas.cotacao import CotacaoCreate, ErroResultado, ResultadoTransportadora
 
 settings = get_settings()
-logger = logging.getLogger(__name__)
-
-
-def _log_integration_error(
-    transportadora_id: str, cotacao_id: str | None, error_type: str, started_at: float
-) -> None:
-    logger.error(
-        "transportadora_integration_error",
-        extra={
-            "transportadora_id": transportadora_id,
-            "cotacao_id": cotacao_id,
-            "error_type": error_type,
-            "response_time_ms": round((time.perf_counter() - started_at) * 1000, 2),
-        },
-    )
 
 # Sprint 1/2/3: todas as transportadoras usam o adapter mock. Cada uma será
 # substituída pelo adapter real na sua respectiva sprint (4, 5, 6...) sem
@@ -44,18 +27,14 @@ TRANSPORTADORAS_DISPONIVEIS = {
 }
 
 
-async def _cotar_uma(
-    transportadora_id: str, nome: str, payload: dict, cotacao_id: str | None = None
-) -> ResultadoTransportadora:
+async def _cotar_uma(transportadora_id: str, nome: str, payload: dict) -> ResultadoTransportadora:
     adapter = MockTransportadoraAdapter(nome)
     request_id = str(uuid.uuid4())
     timeout = settings.TIMEOUT_API_INTEGRACAO
-    started_at = time.perf_counter()
 
     try:
         resultado = await asyncio.wait_for(adapter.cotar(payload), timeout=timeout)
     except asyncio.TimeoutError:
-        _log_integration_error(transportadora_id, cotacao_id, "timeout", started_at)
         return ResultadoTransportadora(
             transportadora_id=transportadora_id,
             transportadora=nome,
@@ -75,9 +54,6 @@ async def _cotar_uma(
             request_id=request_id,
         )
 
-    _log_integration_error(
-        transportadora_id, cotacao_id, resultado.erro_codigo or "unknown_error", started_at
-    )
     return ResultadoTransportadora(
         transportadora_id=transportadora_id,
         transportadora=nome,
@@ -121,33 +97,20 @@ async def _cotar_por_api(
     transportadora: Transportadora,
     configuracao: TransportadoraConfiguracaoApi,
     payload: dict,
-    cotacao_id: str | None = None,
 ) -> ResultadoTransportadora:
     request_id = str(uuid.uuid4())
-    started_at = time.perf_counter()
     try:
         resultado = await asyncio.wait_for(
             ApiGenericaAdapter(configuracao).cotar(payload), timeout=settings.TIMEOUT_API_INTEGRACAO
         )
     except asyncio.TimeoutError:
         resultado = None
-    except Exception as exc:
-        _log_integration_error(transportadora.id, cotacao_id, type(exc).__name__, started_at)
-        return ResultadoTransportadora(
-            transportadora_id=transportadora.id,
-            transportadora=transportadora.nome,
-            status="error",
-            erro=ErroResultado(codigo="ERRO_API_TRANSPORTADORA", mensagem="Falha na integração"),
-            request_id=request_id,
-        )
     if resultado and resultado.status == "success":
         return ResultadoTransportadora(
             transportadora_id=transportadora.id, transportadora=transportadora.nome,
             status="success", valor_frete=resultado.valor_frete, prazo_dias=resultado.prazo_dias,
             moeda=resultado.moeda, request_id=request_id,
         )
-    error_type = "timeout" if resultado is None else (resultado.erro_codigo or "api_error")
-    _log_integration_error(transportadora.id, cotacao_id, error_type, started_at)
     return ResultadoTransportadora(
         transportadora_id=transportadora.id, transportadora=transportadora.nome,
         status="timeout" if resultado is None else "error",
@@ -161,7 +124,6 @@ async def _cotar_por_api(
 async def executar_cotacao(
     cotacao: CotacaoCreate,
     db_session: AsyncSession | None = None,
-    cotacao_id: str | None = None,
 ) -> list[ResultadoTransportadora]:
     """Dispara as consultas a todas as transportadoras selecionadas de forma
     concorrente. Uma falha isolada nunca derruba as demais (Sprint 3)."""
@@ -189,7 +151,7 @@ async def executar_cotacao(
     if db_session is None:
         ids = cotacao.transportadoras_ids or list(TRANSPORTADORAS_DISPONIVEIS.keys())
         tarefas = [
-            _cotar_uma(tid, TRANSPORTADORAS_DISPONIVEIS[tid], payload, cotacao_id)
+            _cotar_uma(tid, TRANSPORTADORAS_DISPONIVEIS[tid], payload)
             for tid in ids if tid in TRANSPORTADORAS_DISPONIVEIS
         ]
         return await asyncio.gather(*tarefas)
@@ -236,10 +198,8 @@ async def executar_cotacao(
                 TransportadoraConfiguracaoApi.transportadora_id == transportadora.id
             ))
             if configuracao and transportadora.status_integracao == "ativo":
-                tarefas.append(_cotar_por_api(transportadora, configuracao, payload, cotacao_id))
+                tarefas.append(_cotar_por_api(transportadora, configuracao, payload))
             else:
-                started_at = time.perf_counter()
-                _log_integration_error(transportadora.id, cotacao_id, "api_not_configured", started_at)
                 resultados_tabela.append(ResultadoTransportadora(
                     transportadora_id=transportadora.id, transportadora=transportadora.nome,
                     status="error", erro=ErroResultado(
@@ -248,8 +208,6 @@ async def executar_cotacao(
                     ), request_id=str(uuid.uuid4()),
                 ))
         else:
-            started_at = time.perf_counter()
-            _log_integration_error(transportadora.id, cotacao_id, "adapter_not_available", started_at)
             resultados_tabela.append(ResultadoTransportadora(
                 transportadora_id=transportadora.id, transportadora=transportadora.nome,
                 status="error", erro=ErroResultado(

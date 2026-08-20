@@ -2,7 +2,6 @@ from pydantic import BaseModel, EmailStr
 
 
 class LoginRequest(BaseModel):
-    codigo_cliente: str
     email: EmailStr
     password: str
     otp: str | None = None
@@ -19,8 +18,6 @@ class TenantResolveResponse(BaseModel):
 
 class TokenResponse(BaseModel):
     authenticated: bool = True
-    tenant_id: str | None = None
-    tenant_code: str | None = None
 
 
 class TotpCodeRequest(BaseModel):

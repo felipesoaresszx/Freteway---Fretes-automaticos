@@ -1,5 +1,4 @@
 export interface LoginRequest {
-  codigo_cliente: string;
   email: string;
   password: string;
   otp?: string;
@@ -12,8 +11,6 @@ export interface TenantResolveResponse {
 
 export interface TokenResponse {
   authenticated: boolean;
-  tenant_id: string;
-  tenant_code: string;
 }
 
 export interface User {
