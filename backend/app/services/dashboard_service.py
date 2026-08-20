@@ -1,10 +1,10 @@
 from collections import defaultdict
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.models import Cotacao, CotacaoResultado, TabelaFrete, Transportadora
+from app.models.models import Cotacao, CotacaoResultado, ProcessamentoJob, TabelaFrete, Transportadora
 
 
 def agregar_resultados(resultados: list[CotacaoResultado]) -> tuple[float, float, float]:
@@ -41,6 +41,23 @@ async def obter_dashboard(db: AsyncSession) -> dict:
     ) or 0
     tabelas_ativas = await db.scalar(
         select(func.count()).select_from(TabelaFrete).where(TabelaFrete.status == "active")
+    ) or 0
+    agora = datetime.utcnow()
+    tabelas_vencendo = await db.scalar(
+        select(func.count()).select_from(TabelaFrete).where(
+            TabelaFrete.status == "active",
+            TabelaFrete.data_fim >= agora,
+            TabelaFrete.data_fim <= agora + timedelta(days=30),
+        )
+    ) or 0
+    jobs_com_erro = await db.scalar(
+        select(func.count()).select_from(ProcessamentoJob).where(ProcessamentoJob.status == "failed")
+    ) or 0
+    jobs_atrasados = await db.scalar(
+        select(func.count()).select_from(ProcessamentoJob).where(
+            ProcessamentoJob.status == "processing",
+            ProcessamentoJob.bloqueado_em < agora - timedelta(minutes=5),
+        )
     ) or 0
     distribuicao = dict(
         (await db.execute(select(Cotacao.status, func.count()).group_by(Cotacao.status))).all()
@@ -92,6 +109,9 @@ async def obter_dashboard(db: AsyncSession) -> dict:
         "economia_potencial_hoje": economia,
         "transportadoras_ativas": int(transportadoras_ativas),
         "tabelas_ativas": int(tabelas_ativas),
+        "tabelas_vencendo_30_dias": int(tabelas_vencendo),
+        "jobs_com_erro": int(jobs_com_erro),
+        "jobs_atrasados": int(jobs_atrasados),
         "distribuicao_status": distribuicao,
         "cotacoes_recentes": itens_recentes,
         "atualizado_em": datetime.utcnow(),

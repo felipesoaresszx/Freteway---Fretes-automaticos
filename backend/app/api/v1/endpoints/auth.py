@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user
 from app.core.config import get_settings
-from app.core.security import create_access_token, generate_totp_secret, verify_password, verify_totp
+from app.core.security import DUMMY_PASSWORD_HASH, create_access_token, generate_totp_secret, verify_password, verify_totp
 from app.db.session import get_db, get_master_db
 from app.models.master import Tenant
 from app.models.models import Role, SystemSetting, User
@@ -64,7 +64,8 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
     result = await db.execute(select(User).where(User.email == payload.email).options(selectinload(User.roles).selectinload(Role.permissions)))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(payload.password, user.password_hash):
+    senha_valida = verify_password(payload.password, user.password_hash if user else DUMMY_PASSWORD_HASH)
+    if not user or not senha_valida:
         _tentativas[chave].append(datetime.utcnow())
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciais inválidas.")
     if not user.ativa:

@@ -1,3 +1,7 @@
+import logging
+import time
+import uuid
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,11 +16,18 @@ from app.models.models import AuditLog
 from app.core.tenant import apply_tenant_from_cookie
 
 settings = get_settings()
+logger = logging.getLogger("freteway.http")
 
 if settings.ENVIRONMENT == "production" and (
-    settings.JWT_SECRET == "change-me" or not settings.CREDENTIAL_ENCRYPTION_KEY or not settings.COOKIE_SECURE
+    len(settings.JWT_SECRET) < 32
+    or not settings.CREDENTIAL_ENCRYPTION_KEY
+    or len(settings.CREDENTIAL_ENCRYPTION_KEY) < 32
+    or settings.CREDENTIAL_ENCRYPTION_KEY == settings.JWT_SECRET
+    or not settings.COOKIE_SECURE
 ):
-    raise RuntimeError("Produção exige JWT_SECRET forte, CREDENTIAL_ENCRYPTION_KEY e COOKIE_SECURE=true")
+    raise RuntimeError(
+        "Produção exige segredos JWT/credenciais distintos com 32+ caracteres e COOKIE_SECURE=true"
+    )
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -38,6 +49,9 @@ app.add_middleware(
 
 @app.middleware("http")
 async def seguranca_http(request: Request, call_next):
+    request_id = request.headers.get("x-request-id", "")[:100] or str(uuid.uuid4())
+    request.state.request_id = request_id
+    inicio = time.perf_counter()
     try:
         if request.url.path != f"{settings.API_V1_PREFIX}/companies/identify":
             await apply_tenant_from_cookie(request)
@@ -73,6 +87,12 @@ async def seguranca_http(request: Request, call_next):
     response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
     if settings.COOKIE_SECURE:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "request_completed request_id=%s method=%s path=%s status=%s duration_ms=%.2f tenant_id=%s",
+        request_id, request.method, request.url.path, response.status_code,
+        (time.perf_counter() - inicio) * 1000, getattr(request.state, "tenant_id", None),
+    )
     return response
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)

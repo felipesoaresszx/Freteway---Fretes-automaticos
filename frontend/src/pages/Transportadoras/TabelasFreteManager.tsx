@@ -6,6 +6,7 @@ import type { TabelaFreteCreate } from "../../types/tabelaFrete";
 import { TabelaFreteCard } from "./TabelaFreteCard";
 import { TabelaFreteForm } from "./TabelaFreteForm";
 import { TabelaFreteRevisao } from "./TabelaFreteRevisao";
+import { getErrorMessage } from "../../api/client";
 
 interface Props {
   transportadoraId: string;
@@ -31,8 +32,7 @@ export function TabelasFreteManager({ transportadoraId, transportadoraNome, onCl
       setExibirForm(false);
       setTabelaEmRevisao(tabela.id);
     } catch (error) {
-      const detalhe = (error as any)?.response?.data?.detail;
-      setErro(detalhe || (error instanceof Error ? error.message : "Não foi possível criar e analisar a tabela."));
+      setErro(getErrorMessage(error, "Não foi possível criar e analisar a tabela."));
     }
   }
 

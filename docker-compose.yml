@@ -35,6 +35,22 @@ services:
       postgres:
         condition: service_healthy
 
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://frete:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@postgres:5432/frete
+    command: python -m app.worker
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   frontend:
     build: ./frontend
     restart: unless-stopped
@@ -55,3 +71,5 @@ services:
 
 volumes:
   postgres_data:
+    name: frete-system_postgres_data
+    external: true

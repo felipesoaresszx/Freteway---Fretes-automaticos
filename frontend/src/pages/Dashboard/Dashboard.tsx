@@ -42,6 +42,16 @@ export function Dashboard() {
 
       {data && (
         <>
+          {(data.tabelas_vencendo_30_dias > 0 || data.jobs_com_erro > 0 || data.jobs_atrasados > 0) && (
+            <Card className="border-state-warning/40 bg-state-warning/5">
+              <h2 className="text-sm font-medium text-state-warning">Atenção operacional</h2>
+              <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-secondary">
+                {data.tabelas_vencendo_30_dias > 0 && <span>{data.tabelas_vencendo_30_dias} tabela(s) vencem em até 30 dias</span>}
+                {data.jobs_com_erro > 0 && <span>{data.jobs_com_erro} processamento(s) falharam</span>}
+                {data.jobs_atrasados > 0 && <span>{data.jobs_atrasados} processamento(s) estão atrasados</span>}
+              </div>
+            </Card>
+          )}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
               <div className="flex items-start justify-between"><span className="text-xs text-text-secondary">Cotações hoje</span><Clock3 size={17} className="text-state-info" /></div>

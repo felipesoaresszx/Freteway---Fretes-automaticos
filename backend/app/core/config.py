@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # Timeouts de integração (segundos), conforme definido no Sprint 1
     TIMEOUT_API_INTEGRACAO: int = 15
     TIMEOUT_BROWSER_INTEGRACAO: int = 60
+    INTEGRATION_RETRY_ATTEMPTS: int = 3
+    INTEGRATION_MAX_CONCURRENCY: int = 10
+    INTEGRATION_CIRCUIT_FAILURES: int = 5
+    INTEGRATION_CIRCUIT_RESET_SECONDS: int = 60
 
     # Credencial de entrada usada pelo Sankhya para consumir o FRETEWAY.
     # Deve ser diferente das credenciais usadas para chamar transportadoras.

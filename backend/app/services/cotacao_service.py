@@ -6,9 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.resilience import CircuitOpenError, executar_resiliente
 from app.integrations.transportadoras.mock.client import MockTransportadoraAdapter
 from app.integrations.transportadoras.api_generica import ApiGenericaAdapter
 from app.integrations.transportadoras.tabela_frete import TabelaFreteAdapter
+from app.integrations.transportadoras.jamef import JamefAdapter
 from app.models.models import TabelaFrete, Transportadora, TransportadoraConfiguracaoApi
 from app.schemas.cotacao import CotacaoCreate, ErroResultado, ResultadoTransportadora
 
@@ -99,12 +101,32 @@ async def _cotar_por_api(
     payload: dict,
 ) -> ResultadoTransportadora:
     request_id = str(uuid.uuid4())
+    adapter = (
+        JamefAdapter(configuracao)
+        if transportadora.nome.strip().casefold().startswith("jamef")
+        else ApiGenericaAdapter(configuracao)
+    )
     try:
-        resultado = await asyncio.wait_for(
-            ApiGenericaAdapter(configuracao).cotar(payload), timeout=settings.TIMEOUT_API_INTEGRACAO
+        resultado = await executar_resiliente(
+            transportadora.id,
+            lambda: adapter.cotar(payload),
+            should_retry=lambda item: item.status == "error" and item.erro_codigo == "ERRO_API_TRANSPORTADORA",
+            attempts=settings.INTEGRATION_RETRY_ATTEMPTS,
+            timeout=settings.TIMEOUT_API_INTEGRACAO,
+            max_concurrency=settings.INTEGRATION_MAX_CONCURRENCY,
+            circuit_failures=settings.INTEGRATION_CIRCUIT_FAILURES,
+            circuit_reset_seconds=settings.INTEGRATION_CIRCUIT_RESET_SECONDS,
         )
     except asyncio.TimeoutError:
         resultado = None
+    except CircuitOpenError:
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", erro=ErroResultado(
+                codigo="CIRCUIT_BREAKER_ABERTO",
+                mensagem="Integração temporariamente suspensa após falhas consecutivas.",
+            ), request_id=request_id,
+        )
     if resultado and resultado.status == "success":
         return ResultadoTransportadora(
             transportadora_id=transportadora.id, transportadora=transportadora.nome,
@@ -224,6 +246,15 @@ def determinar_melhor_opcao(resultados: list[ResultadoTransportadora]) -> str | 
         return None
     melhor = min(sucessos, key=lambda r: r.valor_frete)
     return melhor.transportadora_id
+
+
+def explicar_recomendacao(resultados: list[ResultadoTransportadora], transportadora_id: str | None) -> str | None:
+    sucessos = [item for item in resultados if item.status == "success" and item.valor_frete is not None]
+    escolhido = next((item for item in sucessos if item.transportadora_id == transportadora_id), None)
+    if not escolhido:
+        return None
+    prazo = f", com prazo de {escolhido.prazo_dias} dia(s)" if escolhido.prazo_dias is not None else ""
+    return f"Menor valor entre {len(sucessos)} proposta(s) válida(s){prazo}."
 
 
 def determinar_status_geral(resultados: list[ResultadoTransportadora]) -> str:

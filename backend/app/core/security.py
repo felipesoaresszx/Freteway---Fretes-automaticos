@@ -13,6 +13,7 @@ from app.core.config import get_settings
 
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+DUMMY_PASSWORD_HASH = pwd_context.hash("freteway-invalid-password-placeholder")
 
 
 def hash_password(password: str) -> str:

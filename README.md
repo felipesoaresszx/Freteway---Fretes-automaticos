@@ -23,7 +23,7 @@ Sistema web para centralizar cotações de frete, comparar propostas de transpor
 | Backend | Python 3.12, FastAPI, SQLAlchemy assíncrono, Pydantic, JWT e Alembic |
 | Banco de dados | PostgreSQL 16 |
 | Documentos | OpenPyXL, xlrd, pypdf, python-docx, Pillow e Tesseract OCR |
-| Infraestrutura | Docker e Docker Compose |
+| Infraestrutura | Docker, Docker Compose e worker com fila persistente no PostgreSQL |
 | Testes | Pytest, Vitest e fluxo E2E em PowerShell |
 
 ## Estrutura do projeto
@@ -73,6 +73,7 @@ Para executar sem Docker:
 1. Crie os arquivos de ambiente:
 
 ```powershell
+Copy-Item .env.example .env
 Copy-Item backend/.env.example backend/.env
 Copy-Item frontend/.env.example frontend/.env
 ```
@@ -169,6 +170,10 @@ npm run dev
 | `EMPRESA_LOGO_MAX_BYTES` | Limite do logotipo | `2097152` (2 MiB) |
 | `TIMEOUT_API_INTEGRACAO` | Timeout de integração via API | `15` segundos |
 | `TIMEOUT_BROWSER_INTEGRACAO` | Timeout de automação de navegador | `60` segundos |
+| `INTEGRATION_RETRY_ATTEMPTS` | Tentativas para falhas transitórias de transportadoras | `3` |
+| `INTEGRATION_MAX_CONCURRENCY` | Limite de chamadas externas simultâneas por processo | `10` |
+| `INTEGRATION_CIRCUIT_FAILURES` | Falhas consecutivas antes de suspender uma integração | `5` |
+| `INTEGRATION_CIRCUIT_RESET_SECONDS` | Tempo para testar novamente uma integração suspensa | `60` |
 | `N8N_BASE_URL` | URL de uma futura/externa instância n8n | `http://n8n:5678` |
 
 O Compose substitui `DATABASE_URL` para usar o hostname interno `postgres`. Os valores `JAMEF_API_KEY`, `JADLOG_TOKEN`, `BRASPRESS_USER`, `BRASPRESS_PASSWORD` e `PLAYWRIGHT_HEADLESS` presentes no exemplo são reservados para adapters/automação.
@@ -185,9 +190,10 @@ O Compose substitui `DATABASE_URL` para usar o hostname interno `postgres`. Os v
 
 1. O usuário informa origem, destino, nota fiscal, peso, volumes e transportadoras.
 2. O backend recalcula a cubagem para não depender de valores enviados pelo navegador.
-3. As consultas são executadas em paralelo e a cotação começa com status `processing`.
-4. O frontend consulta o resultado até chegar a `completed`, `completed_with_errors` ou `failed`.
-5. Uma proposta bem-sucedida pode ser selecionada como vencedora.
+3. A cotação é gravada junto com uma tarefa persistente e começa com status `processing`.
+4. O worker executa as consultas em paralelo, com timeout, retentativas e circuit breaker.
+5. O frontend consulta o resultado até chegar a `completed`, `completed_with_errors` ou `failed`.
+6. Uma proposta bem-sucedida pode ser selecionada como vencedora.
 
 Transportadoras com `metodo_calculo=tabela_propria` utilizam a tabela ativa e vigente. Integrações do tipo API usam a configuração cadastrada; os demais métodos sem adapter disponível retornam um erro controlado.
 

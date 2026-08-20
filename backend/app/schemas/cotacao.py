@@ -47,6 +47,7 @@ class CotacaoOut(BaseModel):
     status: str  # processing | completed | completed_with_errors | failed
     cubagem_m3: float
     melhor_opcao_id: str | None = None
+    recomendacao_motivo: str | None = None
     resultados: list[ResultadoTransportadora] = []
 
 

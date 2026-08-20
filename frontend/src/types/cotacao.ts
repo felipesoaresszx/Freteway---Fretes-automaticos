@@ -45,6 +45,7 @@ export interface CotacaoOut {
   status: StatusCotacao;
   cubagem_m3: number;
   melhor_opcao_id: string | null;
+  recomendacao_motivo?: string | null;
   resultados: ResultadoTransportadora[];
 }
 

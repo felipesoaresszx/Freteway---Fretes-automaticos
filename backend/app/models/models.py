@@ -164,6 +164,11 @@ class TransportadoraConfiguracaoApi(Base):
     tipo_autenticacao: Mapped[str] = mapped_column(String(30), default="bearer")
     nome_header: Mapped[str | None] = mapped_column(String(120), nullable=True)
     credencial_criptografada: Mapped[str | None] = mapped_column(Text, nullable=True)
+    usuario_integracao: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    auth_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    documento_devedor: Mapped[str | None] = mapped_column(String(14), nullable=True)
+    filial_origem: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    tipo_transporte: Mapped[str | None] = mapped_column(String(2), nullable=True)
     campo_valor: Mapped[str] = mapped_column(String(200), default="valor_frete")
     campo_prazo: Mapped[str] = mapped_column(String(200), default="prazo_dias")
     ativa: Mapped[bool] = mapped_column(default=False)
@@ -269,6 +274,25 @@ class LogIntegracao(Base):
     etapa: Mapped[str] = mapped_column(String(60))  # ex: fastapi, n8n, playwright
     mensagem: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ProcessamentoJob(Base):
+    """Fila durável por tenant para tarefas que não devem depender do processo HTTP."""
+
+    __tablename__ = "processamento_jobs"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    tipo: Mapped[str] = mapped_column(String(50), index=True)
+    recurso_id: Mapped[str] = mapped_column(String(50), index=True)
+    payload: Mapped[dict] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    tentativas: Mapped[int] = mapped_column(Integer, default=0)
+    max_tentativas: Mapped[int] = mapped_column(Integer, default=3)
+    disponivel_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    bloqueado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ultimo_erro: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 # ============================================================================

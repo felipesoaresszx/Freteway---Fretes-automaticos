@@ -1,4 +1,4 @@
-import { apiClient } from "../api/client";
+import { apiClient, getErrorStatus } from "../api/client";
 import type { ConfiguracaoApi, ConfiguracaoApiInput, ConsultaCnpj, MapeamentoSankhya, MapeamentoSankhyaInput, Transportadora, TransportadoraInput } from "../types/transportadora";
 
 export const transportadoraService = {
@@ -29,8 +29,8 @@ export const transportadoraService = {
     try {
       const { data } = await apiClient.get<ConfiguracaoApi>(`/transportadoras/${id}/configuracao-api`);
       return data;
-    } catch (error: any) {
-      if (error?.response?.status === 404) return null;
+    } catch (error: unknown) {
+      if (getErrorStatus(error) === 404) return null;
       throw error;
     }
   },

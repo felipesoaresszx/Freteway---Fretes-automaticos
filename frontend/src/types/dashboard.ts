@@ -17,6 +17,9 @@ export interface DashboardData {
   economia_potencial_hoje: number;
   transportadoras_ativas: number;
   tabelas_ativas: number;
+  tabelas_vencendo_30_dias: number;
+  jobs_com_erro: number;
+  jobs_atrasados: number;
   distribuicao_status: Record<string, number>;
   cotacoes_recentes: DashboardCotacaoRecente[];
   atualizado_em: string;

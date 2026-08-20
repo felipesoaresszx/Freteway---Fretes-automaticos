@@ -1,7 +1,7 @@
 """Schemas Pydantic para Tabela de Frete Universal e seus componentes."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -383,7 +383,7 @@ class TabelaFreteRevisaoAtualizar(BaseModel):
 class TabelaFreteStatus(BaseModel):
     """Mudança de status de uma tabela."""
 
-    novo_status: str = Field(..., description="draft, processing, review, approved, active, expired, cancelled")
+    novo_status: Literal["draft", "processing", "review", "approved", "active", "expired", "cancelled"]
     motivo: Optional[str] = Field(None, max_length=500)
 
 

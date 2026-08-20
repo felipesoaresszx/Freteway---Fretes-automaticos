@@ -221,21 +221,27 @@ export function NovaCotacao() {
                     </span>
                   )}
                   {(r.status === "error" || r.status === "timeout") && (
-                    <Badge tone={r.status === "timeout" ? "warning" : "error"}>
-                      {r.status === "timeout" ? "Timeout" : "Erro"}
-                    </Badge>
+                    <div className="max-w-md text-right">
+                      <Badge tone={r.status === "timeout" ? "warning" : "error"}>
+                        {r.status === "timeout" ? "Timeout" : "Erro"}
+                      </Badge>
+                      {r.erro?.mensagem && <p className="mt-1 text-xs text-state-error">{r.erro.mensagem}</p>}
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
           {todosFinalizados && cotacao.melhor_opcao_id && (
-            <button
-              onClick={() => selecionar(cotacao.melhor_opcao_id as string)}
-              className="w-full h-9 rounded text-sm font-medium mt-3 bg-state-success text-bg"
-            >
-              Selecionar melhor opção
-            </button>
+            <div className="mt-3">
+              {cotacao.recomendacao_motivo && <p className="mb-2 text-xs text-text-secondary">Recomendação: {cotacao.recomendacao_motivo}</p>}
+              <button
+                onClick={() => selecionar(cotacao.melhor_opcao_id as string)}
+                className="w-full h-9 rounded text-sm font-medium bg-state-success text-bg"
+              >
+                Selecionar melhor opção
+              </button>
+            </div>
           )}
         </Card>
       )}

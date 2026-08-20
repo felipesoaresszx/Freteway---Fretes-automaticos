@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, require_permission
 from app.core.config import get_settings
-from app.models.models import DocumentoFrete, TabelaFrete, Transportadora, User
+from app.models.models import AuditoriaTabela, DocumentoFrete, ProcessamentoJob, TabelaFrete, Transportadora, User
 from app.schemas.tabela_frete import (
     TabelaFreteCreate,
     TabelaFreteDetalhada,
@@ -29,14 +29,16 @@ from app.schemas.tabela_frete import (
 )
 from app.services.tabela_frete.analise import (
     AnaliseDocumentoError,
-    adicionar_diagnostico_confianca,
-    analisar_documento_local,
     carregar_revisao,
     metadados_revisao,
     persistir_revisao,
 )
 from app.services.tabela_frete.documentos import DocumentoInvalidoError, armazenar_documento
-from app.services.tabela_frete.tabela_import import normalizar_preview
+from app.services.tabela_frete.fluxo import (
+    registrar_evento_status,
+    validar_transicao,
+    validar_vigencia_para_ativacao,
+)
 
 router = APIRouter(prefix="/tabelas-frete", tags=["Tabelas de Frete"])
 
@@ -363,18 +365,34 @@ async def analisar_documento(
     )
     if not documento:
         raise HTTPException(status_code=404, detail="Documento não encontrado")
-    try:
-        resultado = analisar_documento_local(
-            documento, tabela, Path(get_settings().TABELA_FRETE_STORAGE_DIR)
-        )
-    except AnaliseDocumentoError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    resultado["preview_estruturado"] = normalizar_preview(resultado["dados_extraidos"])
-    resultado = adicionar_diagnostico_confianca(resultado)
-    documento.metadata_json = metadados_revisao(resultado)
-    tabela.status = "review"
+    status_anterior = tabela.status
+    validar_transicao(status_anterior, "processing")
+    tabela.status = "processing"
+    job = ProcessamentoJob(
+        tipo="tabela_analise", recurso_id=tabela.id,
+        payload={"documento_id": documento.id, "usuario_id": usuario.id},
+    )
+    db.add(job)
+    db.add(registrar_evento_status(
+        tabela, usuario, status_anterior, "processing", acao="analise_enfileirada"
+    ))
     await db.commit()
-    return {"status": "review", "documento_id": documento.id, **resultado}
+    return {"job_id": job.id, "status": "pending", "documento_id": documento.id}
+
+
+@router.get("/jobs/{job_id}")
+async def obter_status_job(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+    usuario: User = Depends(require_permission("transportadoras.view")),
+):
+    job = await db.get(ProcessamentoJob, job_id)
+    if not job or job.tipo != "tabela_analise":
+        raise HTTPException(status_code=404, detail="Processamento não encontrado")
+    return {
+        "id": job.id, "status": job.status, "tentativas": job.tentativas,
+        "ultimo_erro": job.ultimo_erro if job.status == "failed" else None,
+    }
 
 
 # ============================================================================
@@ -478,10 +496,14 @@ async def aprovar_tabela_frete(
         await persistir_revisao(db, tabela, carregar_revisao(documento)["dados_extraidos"])
     except AnaliseDocumentoError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    validar_transicao(tabela.status, "approved")
     tabela.status = "approved"
     tabela.approved_by_id = usuario.id
     tabela.approved_at = datetime.utcnow()
     tabela.observacoes = f"Aprovação: {dados.motivo}\n{dados.observacoes or tabela.observacoes or ''}"
+    db.add(registrar_evento_status(
+        tabela, usuario, "review", "approved", motivo=dados.motivo, acao="aprovada"
+    ))
 
     await db.commit()
     await db.refresh(tabela)
@@ -515,10 +537,14 @@ async def confirmar_importacao(
         await persistir_revisao(db, tabela, dados.dados_extraidos)
     except AnaliseDocumentoError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    validar_transicao(tabela.status, "approved")
     tabela.status = "approved"
     tabela.approved_by_id = usuario.id
     tabela.approved_at = datetime.utcnow()
     tabela.observacoes = f"Importação confirmada: {dados.motivo}\n{dados.observacoes or tabela.observacoes or ''}"
+    db.add(registrar_evento_status(
+        tabela, usuario, "review", "approved", motivo=dados.motivo, acao="importacao_confirmada"
+    ))
     await db.commit()
     await db.refresh(tabela)
     return tabela
@@ -534,7 +560,7 @@ async def ativar_tabela_frete(
 
     Status muda de APPROVED para ACTIVE.
     """
-    stmt = select(TabelaFrete).where(TabelaFrete.id == tabela_id)
+    stmt = select(TabelaFrete).where(TabelaFrete.id == tabela_id).with_for_update()
     tabela = await db.scalar(stmt)
 
     if not tabela:
@@ -546,7 +572,33 @@ async def ativar_tabela_frete(
             detail=f"Apenas tabelas em status 'approved' podem ser ativadas. Status atual: {tabela.status}",
         )
 
+    validar_transicao(tabela.status, "active")
+    validar_vigencia_para_ativacao(tabela)
+
+    # Serializa ativações da mesma transportadora, inclusive quando ainda não
+    # existe outra tabela ativa para ser bloqueada.
+    await db.scalar(
+        select(Transportadora.id)
+        .where(Transportadora.id == tabela.transportadora_id)
+        .with_for_update()
+    )
+
+    anteriores = await db.scalars(
+        select(TabelaFrete).where(
+            TabelaFrete.transportadora_id == tabela.transportadora_id,
+            TabelaFrete.status == "active",
+            TabelaFrete.id != tabela.id,
+        ).with_for_update()
+    )
+    for anterior in anteriores:
+        anterior.status = "expired"
+        db.add(registrar_evento_status(
+            anterior, usuario, "active", "expired",
+            motivo=f"Substituída pela tabela {tabela.id}", acao="expirada",
+        ))
+
     tabela.status = "active"
+    db.add(registrar_evento_status(tabela, usuario, "approved", "active", acao="ativada"))
 
     await db.commit()
     await db.refresh(tabela)
@@ -571,14 +623,13 @@ async def cancelar_tabela_frete(
     if not tabela:
         raise HTTPException(status_code=404, detail="Tabela não encontrada")
 
-    if tabela.status == "cancelled":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tabela já está cancelada",
-        )
-
+    validar_transicao(tabela.status, "cancelled")
+    status_anterior = tabela.status
     tabela.status = "cancelled"
     tabela.observacoes = f"Cancelada: {motivo}\n{tabela.observacoes or ''}"
+    db.add(registrar_evento_status(
+        tabela, usuario, status_anterior, "cancelled", motivo=motivo, acao="cancelada"
+    ))
 
     await db.commit()
     await db.refresh(tabela)
@@ -600,8 +651,22 @@ async def mudar_status_tabela(
     if not tabela:
         raise HTTPException(status_code=404, detail="Tabela não encontrada")
 
-    # TODO: Implementar validações de transição de status
+    validar_transicao(tabela.status, mudanca.novo_status)
+    transicoes_manuais = {
+        ("draft", "processing"),
+        ("processing", "draft"),
+        ("active", "expired"),
+    }
+    if (tabela.status, mudanca.novo_status) not in transicoes_manuais:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Use o endpoint específico para análise, aprovação, ativação ou cancelamento",
+        )
+    status_anterior = tabela.status
     tabela.status = mudanca.novo_status
+    db.add(registrar_evento_status(
+        tabela, usuario, status_anterior, mudanca.novo_status, motivo=mudanca.motivo
+    ))
 
     await db.commit()
     await db.refresh(tabela)
@@ -621,8 +686,26 @@ async def obter_historico(
     usuario: User = Depends(require_permission("transportadoras.view")),
 ):
     """Obtém histórico completo de alterações de uma tabela."""
-    # TODO: Implementar
-    raise HTTPException(status_code=501, detail="Histórico não implementado nesta versão")
+    if not await db.scalar(select(TabelaFrete.id).where(TabelaFrete.id == tabela_id)):
+        raise HTTPException(status_code=404, detail="Tabela não encontrada")
+    resultado = await db.execute(
+        select(AuditoriaTabela, User.nome)
+        .outerjoin(User, User.id == AuditoriaTabela.usuario_id)
+        .where(AuditoriaTabela.tabela_frete_id == tabela_id)
+        .order_by(AuditoriaTabela.created_at.desc())
+    )
+    return [
+        {
+            "id": evento.id,
+            "acao": evento.acao,
+            "descricao": evento.descricao,
+            "alteracoes": evento.alteracoes,
+            "usuario_id": evento.usuario_id,
+            "usuario_nome": usuario_nome,
+            "created_at": evento.created_at,
+        }
+        for evento, usuario_nome in resultado.all()
+    ]
 
 
 @router.get("/{tabela_id}/documentos")

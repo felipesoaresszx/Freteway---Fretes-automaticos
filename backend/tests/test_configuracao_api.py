@@ -16,3 +16,18 @@ def test_configuracao_api_normaliza_metodo_e_auth():
     )
     assert dados.metodo_http == "POST"
     assert dados.tipo_autenticacao == "bearer"
+
+
+def test_configuracao_api_aceita_login_jamef():
+    dados = ConfiguracaoApiUpdate(
+        base_url="https://api.jamef.com.br/calculo-frete/v1",
+        auth_url="https://api.jamef.com.br/auth/v1",
+        tipo_autenticacao="JAMEF_LOGIN",
+        usuario_integracao="usuario-teste",
+        credencial="senha-teste",
+        documento_devedor="12345678000195",
+        tipo_transporte="1",
+    )
+
+    assert dados.tipo_autenticacao == "jamef_login"
+    assert dados.tipo_transporte == "1"

@@ -22,6 +22,9 @@ class DashboardResponse(BaseModel):
     economia_potencial_hoje: float
     transportadoras_ativas: int
     tabelas_ativas: int
+    tabelas_vencendo_30_dias: int
+    jobs_com_erro: int
+    jobs_atrasados: int
     distribuicao_status: dict[str, int]
     cotacoes_recentes: list[DashboardCotacaoRecente]
     atualizado_em: datetime

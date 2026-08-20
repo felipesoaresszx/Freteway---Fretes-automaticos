@@ -22,8 +22,9 @@ _max_attempts = 10
 
 
 def _client_key(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-    return forwarded or (request.client.host if request.client else "unknown")
+    # Cabeçalhos forwarded só devem ser interpretados pelo proxy confiável que
+    # inicia o servidor; aceitar o valor diretamente permitiria burlar o limite.
+    return request.client.host if request.client else "unknown"
 
 
 def _check_rate_limit(key: str) -> None:

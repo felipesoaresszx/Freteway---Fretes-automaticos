@@ -223,11 +223,16 @@ def _configuracao_out(configuracao: TransportadoraConfiguracaoApi) -> Configurac
         metodo_http=configuracao.metodo_http,
         tipo_autenticacao=configuracao.tipo_autenticacao,
         nome_header=configuracao.nome_header,
+        usuario_integracao=configuracao.usuario_integracao,
+        auth_url=configuracao.auth_url,
+        documento_devedor=configuracao.documento_devedor,
+        filial_origem=configuracao.filial_origem,
+        tipo_transporte=configuracao.tipo_transporte,
         campo_valor=configuracao.campo_valor,
         campo_prazo=configuracao.campo_prazo,
         ativa=configuracao.ativa,
         credencial_configurada=bool(configuracao.credencial_criptografada),
-        credencial_mascarada=f"••••••{segredo[-4:]}" if segredo else None,
+        credencial_mascarada="••••••" if segredo else None,
     )
 
 
@@ -261,6 +266,7 @@ async def salvar_configuracao_api(
     ))
     valores = dados.model_dump(exclude={"credencial"})
     valores["base_url"] = str(dados.base_url).rstrip("/")
+    valores["auth_url"] = str(dados.auth_url).rstrip("/") if dados.auth_url else None
     if configuracao is None:
         configuracao = TransportadoraConfiguracaoApi(transportadora_id=transportadora_id, **valores)
         db.add(configuracao)
@@ -269,6 +275,14 @@ async def salvar_configuracao_api(
             setattr(configuracao, campo, valor)
     if dados.credencial:
         configuracao.credencial_criptografada = criptografar(dados.credencial)
+    if dados.tipo_autenticacao == "jamef_login" and dados.ativa:
+        if not configuracao.usuario_integracao or not configuracao.documento_devedor:
+            raise HTTPException(status_code=422, detail="Informe usuário e documento pagador da JAMEF")
+    if transportadora.nome.strip().lower().startswith("alfa") and dados.ativa:
+        raise HTTPException(
+            status_code=422,
+            detail="A integração Alfa aguarda chave, documentação privada e homologação do contrato técnico",
+        )
     if dados.ativa and dados.tipo_autenticacao != "nenhuma" and not configuracao.credencial_criptografada:
         raise HTTPException(status_code=422, detail="Informe a chave/token antes de ativar a API")
     transportadora.status_integracao = "ativo" if configuracao.ativa else "pendente_credencial"

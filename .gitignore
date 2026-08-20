@@ -19,6 +19,8 @@ pip-wheel-metadata/
 .python-version
 .env
 .env.*
+!.env.example
+!**/.env.example
 .pytest_cache/
 .mypy_cache/
 .coverage
