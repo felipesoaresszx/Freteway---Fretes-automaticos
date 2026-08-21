@@ -133,9 +133,11 @@ class Transportadora(Base):
     __tablename__ = "transportadoras"
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    codigo: Mapped[str | None] = mapped_column(String(80), unique=True, index=True, nullable=True)
     nome: Mapped[str] = mapped_column(String(120), unique=True)
+    nome_fantasia: Mapped[str | None] = mapped_column(String(120), nullable=True)
     razao_social: Mapped[str] = mapped_column(String(255))
-    cnpj_cpf: Mapped[str] = mapped_column(String(14), unique=True, index=True)
+    cnpj_cpf: Mapped[str | None] = mapped_column(String(14), unique=True, index=True, nullable=True)
     segmento: Mapped[str] = mapped_column(String(80))
     tipo_integracao: Mapped[str] = mapped_column(String(50))  # api | webservice | soap | edi | n8n | playwright
     metodo_calculo: Mapped[str] = mapped_column(String(40), default="manual")
@@ -146,9 +148,130 @@ class Transportadora(Base):
     taxa_sucesso: Mapped[float] = mapped_column(Float, default=0.0)
     tempo_medio_ms: Mapped[int] = mapped_column(Integer, default=0)
     ultima_consulta: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    codigo_importacao: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    status_cnpj: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    integracao_disponivel: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    site: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+    portal_cotacao: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    api_documentacao: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    email_comercial: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    telefone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    logradouro: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    numero: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    complemento: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    bairro: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    cidade: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    uf: Mapped[str | None] = mapped_column(String(2), nullable=True, index=True)
+    cep: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    cnae_principal: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    rntrc: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    cobertura_resumo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    precisa_revisao: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    status_validacao: Mapped[str] = mapped_column(String(30), default="A_VALIDAR", index=True)
+    observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     configuracao_api: Mapped["TransportadoraConfiguracaoApi | None"] = relationship(
         back_populates="transportadora", cascade="all, delete-orphan", uselist=False
     )
+
+
+class CarrierService(Base):
+    __tablename__ = "carrier_services"
+    __table_args__ = (UniqueConstraint("carrier_id", "code", name="uq_carrier_services_carrier_code"),)
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    carrier_id: Mapped[str] = mapped_column(ForeignKey("transportadoras.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    code: Mapped[str] = mapped_column(String(80))
+    external_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    service_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    carrier: Mapped["Transportadora"] = relationship()
+
+
+class CarrierIntegration(Base):
+    __tablename__ = "carrier_integrations"
+    __table_args__ = (UniqueConstraint("carrier_id", "integration_type", "priority", name="uq_carrier_integrations_type_priority"),)
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    carrier_id: Mapped[str] = mapped_column(ForeignKey("transportadoras.id", ondelete="CASCADE"), index=True)
+    integration_type: Mapped[str] = mapped_column(String(20), index=True)
+    adapter_code: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    priority: Mapped[int] = mapped_column(Integer, default=100)
+    configuration: Mapped[dict] = mapped_column(JSONB, default=dict)
+    status: Mapped[str] = mapped_column(String(30), default="not_configured", index=True)
+    last_validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    carrier: Mapped["Transportadora"] = relationship()
+    credentials: Mapped[list["CarrierCredential"]] = relationship(back_populates="integration", cascade="all, delete-orphan")
+
+
+class CarrierCredential(Base):
+    __tablename__ = "carrier_credentials"
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    integration_id: Mapped[str] = mapped_column(ForeignKey("carrier_integrations.id", ondelete="CASCADE"), index=True)
+    encrypted_payload: Mapped[str] = mapped_column(Text)
+    key_names: Mapped[list] = mapped_column(JSONB, default=list)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    integration: Mapped["CarrierIntegration"] = relationship(back_populates="credentials")
+
+
+class TransportadoraImportacao(Base):
+    __tablename__ = "transportadoras_importacoes"
+
+    id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    arquivo_nome: Mapped[str] = mapped_column(String(255))
+    usuario_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    total_registros: Mapped[int] = mapped_column(Integer, default=0)
+    novos: Mapped[int] = mapped_column(Integer, default=0)
+    atualizados: Mapped[int] = mapped_column(Integer, default=0)
+    ignorados: Mapped[int] = mapped_column(Integer, default=0)
+    erros: Mapped[int] = mapped_column(Integer, default=0)
+    revisao: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(30), default="PREVIEW", index=True)
+    fontes: Mapped[list] = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    itens: Mapped[list["TransportadoraImportacaoItem"]] = relationship(
+        back_populates="importacao", cascade="all, delete-orphan", order_by="TransportadoraImportacaoItem.linha"
+    )
+
+
+class TransportadoraImportacaoItem(Base):
+    __tablename__ = "transportadoras_importacoes_itens"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    importacao_id: Mapped[str] = mapped_column(ForeignKey("transportadoras_importacoes.id", ondelete="CASCADE"), index=True)
+    linha: Mapped[int] = mapped_column(Integer)
+    codigo_importacao: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    cnpj: Mapped[str | None] = mapped_column(String(14), nullable=True, index=True)
+    nome_transportadora: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    resultado: Mapped[str] = mapped_column(String(30), index=True)
+    dados_originais: Mapped[dict] = mapped_column(JSONB, default=dict)
+    dados_normalizados: Mapped[dict] = mapped_column(JSONB, default=dict)
+    erros: Mapped[list] = mapped_column(JSONB, default=list)
+    avisos: Mapped[list] = mapped_column(JSONB, default=list)
+    importacao: Mapped[TransportadoraImportacao] = relationship(back_populates="itens")
+
+
+class TransportadoraFonte(Base):
+    __tablename__ = "transportadoras_fontes"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    transportadora_id: Mapped[str] = mapped_column(ForeignKey("transportadoras.id", ondelete="CASCADE"), index=True)
+    tipo_fonte: Mapped[str] = mapped_column(String(80))
+    url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    data_pesquisa: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class TransportadoraConfiguracaoApi(Base):

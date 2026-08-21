@@ -46,7 +46,9 @@ async def run_migrations_online() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
-    async with connectable.connect() as connection:
+    # ``connect()`` inicia implicitamente uma transação ao executar SET/DDL e a
+    # descarta no fechamento. ``begin()`` garante commit das migrations por tenant.
+    async with connectable.begin() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
 

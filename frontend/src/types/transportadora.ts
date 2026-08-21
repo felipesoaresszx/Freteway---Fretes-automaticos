@@ -11,6 +11,10 @@ export interface Transportadora {
   ativa: boolean;
   taxa_sucesso: number;
   tempo_medio_ms: number;
+  precisa_revisao?: boolean;
+  status_validacao?: string;
+  cidade?: string | null;
+  uf?: string | null;
 }
 
 export type TipoIntegracao = "api" | "tabela" | "webservice" | "soap" | "edi" | "n8n" | "playwright";
@@ -87,3 +91,13 @@ export interface MapeamentoSankhya {
 }
 
 export type MapeamentoSankhyaInput = Omit<MapeamentoSankhya, "id">;
+
+export type ResultadoImportacao = "NOVO" | "ATUALIZACAO" | "IGNORADO" | "REVISAO" | "ERRO" | "DUPLICADO";
+export interface ImportacaoItem { linha: number; codigo_importacao: string | null; nome_transportadora: string | null; cnpj: string | null; resultado: ResultadoImportacao; avisos: string[]; erros: string[]; dados_normalizados: Record<string, unknown>; }
+export interface ImportacaoPreview { import_id: string; total: number; novos: number; atualizacoes: number; ignorados: number; revisao: number; erros: number; registros: ImportacaoItem[]; }
+export interface ImportacaoResultado { import_id: string; status: string; resultado: Record<string, number>; }
+
+export type CarrierIntegrationType = "API" | "TABLE" | "HYBRID" | "MANUAL" | "RPA";
+export interface CarrierService { id: string; carrier_id: string; name: string; code: string; external_code: string | null; description: string | null; service_type: string | null; active: boolean; }
+export interface CarrierIntegration { id: string; carrier_id: string; integration_type: CarrierIntegrationType; adapter_code: string | null; active: boolean; priority: number; configuration: Record<string, unknown>; status: "not_configured" | "configured" | "validated" | "error" | "inactive"; credential_keys: string[]; }
+export interface CredentialStatus { configured: boolean; keys: string[]; masked: Record<string, string>; }

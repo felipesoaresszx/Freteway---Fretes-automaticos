@@ -38,7 +38,7 @@ def documento_valido(valor: str) -> bool:
 class TransportadoraBase(BaseModel):
     nome: str = Field(min_length=2, max_length=120)
     razao_social: str = Field(min_length=2, max_length=255)
-    cnpj_cpf: str
+    cnpj_cpf: str | None
     segmento: str = Field(min_length=2, max_length=80)
     tipo_integracao: str
     metodo_calculo: str | None = None
@@ -51,7 +51,9 @@ class TransportadoraBase(BaseModel):
 
     @field_validator("cnpj_cpf")
     @classmethod
-    def validar_documento(cls, valor: str) -> str:
+    def validar_documento(cls, valor: str | None) -> str | None:
+        if valor is None:
+            return None
         normalizado = somente_digitos(valor)
         if not documento_valido(normalizado):
             raise ValueError("CPF ou CNPJ inválido")
@@ -152,6 +154,19 @@ class TransportadoraOut(TransportadoraBase):
     taxa_sucesso: float
     tempo_medio_ms: int
     status_integracao: str
+    codigo_importacao: str | None = None
+    status_cnpj: str | None = None
+    integracao_disponivel: str | None = None
+    site: str | None = None
+    portal_cotacao: str | None = None
+    api_documentacao: str | None = None
+    email_comercial: str | None = None
+    telefone: str | None = None
+    cidade: str | None = None
+    uf: str | None = None
+    cep: str | None = None
+    precisa_revisao: bool = False
+    status_validacao: str = "A_VALIDAR"
 
 
 class ConfiguracaoApiUpdate(BaseModel):
@@ -216,3 +231,37 @@ class StatusIntegracaoOut(BaseModel):
     status_integracao: str
     pronta_para_cotacao: bool
     mensagem: str
+
+
+class ImportacaoItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    linha: int
+    codigo_importacao: str | None
+    nome_transportadora: str | None
+    cnpj: str | None
+    resultado: str
+    avisos: list[str]
+    erros: list[str]
+    dados_normalizados: dict
+
+
+class ImportacaoPreviewOut(BaseModel):
+    import_id: str
+    total: int
+    novos: int
+    atualizacoes: int
+    ignorados: int
+    revisao: int
+    erros: int
+    registros: list[ImportacaoItemOut]
+
+
+class ImportacaoConfirmIn(BaseModel):
+    atualizar_existentes: bool = True
+    importar_em_revisao: bool = False
+
+
+class ImportacaoResultadoOut(BaseModel):
+    import_id: str
+    status: str
+    resultado: dict[str, int]

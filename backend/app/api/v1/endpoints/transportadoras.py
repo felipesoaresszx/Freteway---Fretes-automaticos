@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import or_, select
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_permission
 from app.db.session import get_db
-from app.models.models import Transportadora, TransportadoraConfiguracaoApi
+from app.models.models import Transportadora, TransportadoraConfiguracaoApi, TransportadoraImportacao
 from app.schemas.transportadora import (
     ConsultaCnpjOut,
     TransportadoraCreate,
@@ -16,6 +17,10 @@ from app.schemas.transportadora import (
     ConfiguracaoApiUpdate,
     CredencialUpdate,
     StatusIntegracaoOut,
+    ImportacaoConfirmIn,
+    ImportacaoItemOut,
+    ImportacaoPreviewOut,
+    ImportacaoResultadoOut,
 )
 from app.schemas.transportadora import documento_valido, somente_digitos
 from app.services.consulta_cnpj import consultar_cnpj
@@ -24,6 +29,8 @@ from app.services.transportadora_exclusao import (
     excluir_transportadora_definitivamente,
     remover_arquivos_transportadora,
 )
+from app.services.transportadoras.import_service import confirm_import, create_preview
+from app.services.transportadoras.normalization import normalize_cnpj
 
 router = APIRouter()
 
@@ -59,13 +66,57 @@ async def _validar_unicidade(
 
 @router.get("/transportadoras", response_model=list[TransportadoraOut])
 async def listar_transportadoras(
+    search: str | None = None,
+    cnpj: str | None = None,
+    uf: str | None = None,
+    metodo_operacao: str | None = None,
+    status_validacao: str | None = None,
+    precisa_revisao: bool | None = None,
+    ativo: bool | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     _user=Depends(require_permission("transportadoras.view")),
 ):
-    result = await db.execute(
-        select(Transportadora).where(Transportadora.deleted_at.is_(None)).order_by(Transportadora.nome)
-    )
+    stmt = select(Transportadora).where(Transportadora.deleted_at.is_(None))
+    if search:
+        term = f"%{search.strip()}%"; digits = normalize_cnpj(search)
+        filters = [Transportadora.nome.ilike(term), Transportadora.razao_social.ilike(term), Transportadora.cidade.ilike(term), Transportadora.uf.ilike(term)]
+        if digits: filters.append(Transportadora.cnpj_cpf.ilike(f"%{digits}%"))
+        stmt = stmt.where(or_(*filters))
+    if cnpj: stmt = stmt.where(Transportadora.cnpj_cpf == normalize_cnpj(cnpj))
+    if uf: stmt = stmt.where(Transportadora.uf == uf.upper())
+    if metodo_operacao: stmt = stmt.where(Transportadora.metodo_calculo == metodo_operacao.lower())
+    if status_validacao: stmt = stmt.where(Transportadora.status_validacao == status_validacao.upper())
+    if precisa_revisao is not None: stmt = stmt.where(Transportadora.precisa_revisao == precisa_revisao)
+    if ativo is not None: stmt = stmt.where(Transportadora.ativa == ativo)
+    result = await db.execute(stmt.order_by(Transportadora.nome).offset((page-1)*page_size).limit(page_size))
     return result.scalars().all()
+
+
+@router.post("/transportadoras/import/preview", response_model=ImportacaoPreviewOut)
+async def preview_importacao_transportadoras(
+    file: UploadFile = File(...), db: AsyncSession = Depends(get_db),
+    user=Depends(require_permission("transportadoras.manage")),
+):
+    operation = await create_preview(db, file, user.id)
+    return ImportacaoPreviewOut(
+        import_id=operation.id, total=operation.total_registros, novos=operation.novos,
+        atualizacoes=operation.atualizados, ignorados=operation.ignorados,
+        revisao=operation.revisao, erros=operation.erros,
+        registros=[ImportacaoItemOut.model_validate(item) for item in operation.itens],
+    )
+
+
+@router.post("/transportadoras/import/{import_id}/confirm", response_model=ImportacaoResultadoOut)
+async def confirmar_importacao_transportadoras(
+    import_id: str, options: ImportacaoConfirmIn, db: AsyncSession = Depends(get_db),
+    _user=Depends(require_permission("transportadoras.manage")),
+):
+    operation = await db.scalar(select(TransportadoraImportacao).where(TransportadoraImportacao.id == import_id).options(selectinload(TransportadoraImportacao.itens)))
+    if not operation: raise HTTPException(404, "Importação não encontrada")
+    result = await confirm_import(db, operation, options.atualizar_existentes, options.importar_em_revisao)
+    return ImportacaoResultadoOut(import_id=operation.id, status=operation.status, resultado=result)
 
 
 @router.get("/transportadoras/consulta-cnpj/{cnpj}", response_model=ConsultaCnpjOut)
@@ -136,6 +187,7 @@ async def criar_transportadora(
     return transportadora
 
 
+@router.patch("/transportadoras/{transportadora_id}", response_model=TransportadoraOut)
 @router.put("/transportadoras/{transportadora_id}", response_model=TransportadoraOut)
 async def atualizar_transportadora(
     transportadora_id: str,
