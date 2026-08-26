@@ -18,6 +18,7 @@ export interface CotacaoCreate {
   valor_nf: number;
   peso: number;
   volumes: VolumeIn[];
+  documento_destinatario?: string | null;
   transportadoras_ids?: string[] | null;
 }
 

@@ -254,6 +254,15 @@ def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, sto
         dados = extrair_documento_generico(caminho, documento.tipo_arquivo)
     except ValueError as exc:
         raise AnaliseDocumentoError(str(exc)) from exc
+    if dados.get("formato") in {"transwells_tabela_v1", "transwells_pracas_v1"}:
+        complementar = "relação de praças" if dados["formato"] == "transwells_tabela_v1" else "tabela tarifária"
+        return {
+            "dados_extraidos": dados, "confianca_extracao": 0.92,
+            "erros_validacao": [],
+            "avisos": [f"Documento reconhecido. Anexe também a {complementar} para consolidar o cálculo."],
+            "campos_com_duvida": ["documento_complementar"],
+            "resumo": dados.get("estatisticas", {}),
+        }
     return {
         "dados_extraidos": dados, "confianca_extracao": 0.65,
         "erros_validacao": [],
@@ -263,8 +272,87 @@ def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, sto
     }
 
 
+def combinar_resultados_documentos(resultados: list[dict]) -> dict:
+    """Combina até duas extrações complementares sem descartar dados reconhecidos."""
+    if not resultados:
+        raise AnaliseDocumentoError("Nenhum documento foi informado para análise")
+    if len(resultados) == 1:
+        return resultados[0]
+
+    por_formato = {
+        item.get("dados_extraidos", {}).get("formato"): item.get("dados_extraidos", {})
+        for item in resultados
+    }
+    if "transwells_tabela_v1" in por_formato and "transwells_pracas_v1" in por_formato:
+        from app.services.tabela_frete.transwells_pdf import consolidar
+
+        dados = consolidar(por_formato["transwells_tabela_v1"], por_formato["transwells_pracas_v1"])
+        pendencias = dados.get("itens_para_revisao", [])
+        return {
+            "dados_extraidos": dados,
+            "confianca_extracao": 1.0 if not pendencias else 0.9,
+            "erros_validacao": [],
+            "avisos": ["Tabela tarifária e relação de praças extraídas e consolidadas."],
+            "campos_com_duvida": [item["campo"] for item in pendencias],
+            "resumo": dados["estatisticas"], "quantidade_documentos": len(resultados),
+        }
+
+    prioridade = {"documento_generico_v1": 0, "uf_zona_peso_v1": 2, "rodonaves_km_peso_v1": 2}
+    ordenados = sorted(resultados, key=lambda item: prioridade.get(
+        item.get("dados_extraidos", {}).get("formato"), 1
+    ), reverse=True)
+    combinado = dict(ordenados[0])
+    dados = dict(combinado.get("dados_extraidos", {}))
+
+    def mesclar(destino: dict, origem: dict) -> None:
+        for chave, valor in origem.items():
+            atual = destino.get(chave)
+            if isinstance(atual, dict) and isinstance(valor, dict):
+                mesclar(atual, valor)
+            elif isinstance(atual, list) and isinstance(valor, list):
+                atual.extend(item for item in valor if item not in atual)
+            elif atual in (None, "", [], {}):
+                destino[chave] = valor
+
+    for resultado in ordenados[1:]:
+        complemento = resultado.get("dados_extraidos", {})
+        if complemento.get("formato") == dados.get("formato"):
+            mesclar(dados, complemento)
+        else:
+            dados.setdefault("documentos_complementares", []).append(complemento)
+            for chave in ("valores_detectados", "ceps_detectados", "prazos_detectados"):
+                if complemento.get(chave):
+                    dados.setdefault(chave, [])
+                    mesclar(dados, {chave: complemento[chave]})
+
+    combinado["dados_extraidos"] = dados
+    combinado["confianca_extracao"] = max(float(item.get("confianca_extracao", 0)) for item in resultados)
+    combinado["erros_validacao"] = list(dict.fromkeys(erro for item in resultados for erro in item.get("erros_validacao", [])))
+    combinado["avisos"] = list(dict.fromkeys(aviso for item in resultados for aviso in item.get("avisos", [])))
+    combinado["avisos"].append(f"{len(resultados)} documentos analisados em conjunto como fontes complementares.")
+    combinado["campos_com_duvida"] = list(dict.fromkeys(campo for item in resultados for campo in item.get("campos_com_duvida", [])))
+    combinado["quantidade_documentos"] = len(resultados)
+    return combinado
+
+
 async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) -> None:
     """Substitui regras da tabela pelos dados humanos revisados."""
+    if dados.get("formato") == "transwells_pracas_peso_v1":
+        if dados.get("itens_para_revisao"):
+            raise AnaliseDocumentoError("Resolva os itens pendentes da consolidação antes de confirmar")
+        if not dados.get("rotas") or not dados.get("consolidacao"):
+            raise AnaliseDocumentoError("Tabela consolidada precisa conter rotas e praças")
+        await db.execute(
+            delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
+        )
+        estatisticas = dados.get("estatisticas") or {}
+        db.add(TabelaFreteDadosImportados(
+            tabela_frete_id=tabela.id, formato=dados["formato"], dados=dados,
+            quantidade_coberturas=int(estatisticas.get("cidades", 0)),
+            quantidade_tarifas=int(estatisticas.get("rotas", 0) * len(dados.get("faixas_peso_kg", []))),
+        ))
+        tabela.fator_cubagem = float(dados.get("fator_cubagem") or tabela.fator_cubagem)
+        return
     if dados.get("formato") == "uf_zona_peso_v1":
         if not dados.get("tarifas_por_zona"):
             raise AnaliseDocumentoError("Nenhuma tarifa por zona foi informada")

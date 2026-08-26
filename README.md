@@ -8,11 +8,12 @@ Sistema web para centralizar cotações de frete, comparar propostas de transpor
 - Dashboard com indicadores operacionais e desempenho das transportadoras.
 - Cadastro, edição, ativação e exclusão de transportadoras, com consulta pública de CNPJ.
 - Métodos de cálculo por tabela própria, API, web service ou fluxo manual.
-- Configuração de APIs por transportadora, credenciais criptografadas e teste de status.
-- Criação de cotações com cálculo de cubagem e consulta paralela às transportadoras.
+- Configuração de APIs por transportadora, credenciais criptografadas, validação com mensagem persistida e teste de status.
+- Providers nativos para SSW, Risso/Senior TMS, Correios, Braspress e Jamef, além do adapter de API genérica.
+- Criação de cotações com cálculo de cubagem, CPF/CNPJ opcional do destinatário e consulta paralela às transportadoras.
 - Histórico de cotações com busca, filtros e paginação.
-- Importação de tabelas de frete em CSV, XLS, XLSX, PDF, DOCX e imagens PNG/JPEG.
-- Extração, revisão, aprovação, vigência e ativação de tabelas tarifárias.
+- Importação de até dois documentos complementares por tabela em CSV, XLS, XLSX, PDF, DOCX e imagens PNG/JPEG.
+- Extração consolidada, revisão com acesso aos documentos de origem, aprovação, vigência e ativação de tabelas tarifárias.
 - Configurações da empresa, parâmetros de cotação, notificações, segurança, integrações globais e auditoria.
 
 ## Tecnologias
@@ -32,6 +33,7 @@ Sistema web para centralizar cotações de frete, comparar propostas de transpor
 frete-system/
 ├── backend/
 │   ├── alembic/                 # migrations do banco
+│   ├── docs/integracoes/        # guias específicos dos providers
 │   ├── app/
 │   │   ├── api/v1/endpoints/    # endpoints REST
 │   │   ├── core/                # configurações, autenticação e dependências
@@ -188,14 +190,28 @@ O Compose substitui `DATABASE_URL` para usar o hostname interno `postgres`. Os v
 
 ### Cotação
 
-1. O usuário informa origem, destino, nota fiscal, peso, volumes e transportadoras.
+1. O usuário informa origem, destino, nota fiscal, CPF/CNPJ do destinatário quando exigido pelo provider, volumes e transportadoras.
 2. O backend recalcula a cubagem para não depender de valores enviados pelo navegador.
 3. A cotação é gravada junto com uma tarefa persistente e começa com status `processing`.
 4. O worker executa as consultas em paralelo, com timeout, retentativas e circuit breaker.
 5. O frontend consulta o resultado até chegar a `completed`, `completed_with_errors` ou `failed`.
 6. Uma proposta bem-sucedida pode ser selecionada como vencedora.
 
-Transportadoras com `metodo_calculo=tabela_propria` utilizam a tabela ativa e vigente. Integrações do tipo API usam a configuração cadastrada; os demais métodos sem adapter disponível retornam um erro controlado.
+Transportadoras com `metodo_calculo=tabela_propria` utilizam a tabela ativa e vigente. Integrações do tipo API são resolvidas pelo `adapter_code` no registry compartilhado. SSW, Risso e Correios usam o contrato universal de cotação; Jamef e Braspress também possuem seleção dedicada no fluxo legado de configuração de API. Uma falha fica isolada no resultado daquela transportadora e não interrompe as demais consultas.
+
+### Integrações de transportadoras
+
+| Provider | Configuração principal | Observações |
+| --- | --- | --- |
+| SSW | Domínio, login, senha, CNPJ pagador e mercadoria padrão | SOAP assíncrono, consulta de mercadorias, teste de conexão e importação de transportadoras em massa |
+| Risso / Senior TMS | URLs TMS/Bridge, usuário, senha, CNPJ remetente e tipo de frete | Login Senior com token em memória; requer CPF/CNPJ do destinatário para cotar |
+| Correios | URL da API, usuário Meu Correios, senha do componente, cartão de postagem e serviços | Autentica pelo cartão de postagem e consulta preço e prazo de cada serviço configurado |
+| Braspress | Usuário, senha e parâmetros da API | Autenticação Basic própria e uso do documento do destinatário |
+| Jamef | Credenciais e parâmetros da API | Mantém o adapter dedicado já existente |
+
+As telas específicas ficam em **Integrações**. Segredos são armazenados em `carrier_credentials`, protegidos pelo mecanismo de criptografia da aplicação, e não são devolvidos ao frontend. A configuração não secreta, o status, a data e a mensagem da última validação ficam em `carrier_integrations`.
+
+Documentação detalhada: [`backend/docs/integracoes/ssw.md`](backend/docs/integracoes/ssw.md) e [`backend/docs/integracoes/risso.md`](backend/docs/integracoes/risso.md).
 
 ### Tabela de frete
 
@@ -204,7 +220,7 @@ draft → upload/análise → review → approved → active
                                     └──────→ cancelled
 ```
 
-O documento passa por validação, extração e diagnóstico de confiança. Os dados podem ser revisados antes da aprovação. A ativação só é permitida depois que a tabela estiver aprovada.
+Cada tabela aceita um ou dois documentos. Quando dois arquivos são enviados, eles entram no mesmo job, são analisados em conjunto e os dados complementares são consolidados em uma única revisão. A API preserva `documento_original` por compatibilidade e também retorna `documentos_originais` e `documento_ids`. Os dados podem ser revisados antes da aprovação; a ativação só é permitida depois que a tabela estiver aprovada.
 
 ## API
 
@@ -215,8 +231,9 @@ Todos os endpoints de negócio usam o prefixo `/api/v1` e, exceto o login e os h
 | Autenticação | `POST /auth/login`, `GET /auth/me` |
 | Dashboard | `GET /dashboard` |
 | Cotações | `POST/GET /cotacoes`, `GET /cotacoes/{id}`, `POST /cotacoes/{id}/selecionar` |
-| Transportadoras | CRUD em `/transportadoras`, consulta de CNPJ e configuração/status de API |
-| Tabelas de frete | CRUD, upload, análise, revisão, aprovação, ativação, cancelamento e documentos em `/tabelas-frete` |
+| Transportadoras | CRUD em `/transportadoras`, consulta de CNPJ, integrações universais e configuração/status de API |
+| SSW | Listagem, configuração, teste, mercadorias, cotação direta e importação em massa em `/transportadoras/.../ssw` |
+| Tabelas de frete | CRUD, upload, análise de um ou dois documentos, revisão consolidada, aprovação, ativação, cancelamento e documentos em `/tabelas-frete` |
 | Configurações | Empresa, cotação, notificações, segurança, usuários, perfis, integrações e auditoria em `/configuracoes` |
 
 O contrato completo, parâmetros, exemplos e respostas ficam disponíveis no Swagger após iniciar o backend.
@@ -235,6 +252,8 @@ Localmente:
 ```powershell
 cd backend
 pytest
+pytest tests/test_ssw_client.py tests/test_ssw_parser.py tests/test_ssw_provider.py
+pytest tests/test_risso_provider.py tests/test_correios_provider.py tests/test_braspress_adapter.py
 
 cd ../frontend
 npm test
@@ -246,6 +265,8 @@ O teste E2E cria uma tabela temporária, importa a fixture CSV, revisa, aprova, 
 ```powershell
 .\e2e\tabela_frete_flow.ps1
 ```
+
+Os testes reais de SSW e Risso ficam desabilitados por padrão para evitar chamadas externas. Consulte os guias em `backend/docs/integracoes` para habilitá-los explicitamente com credenciais de teste.
 
 ## Banco de dados e migrations
 
@@ -269,9 +290,12 @@ docker compose exec backend alembic current
 
 O script `python -m app.seed` é idempotente para o administrador e para as transportadoras iniciais. As migrations também preparam perfis, permissões, configurações padrão e integrações globais.
 
+As migrations mais recentes adicionam a mensagem de validação das integrações (`018`) e cadastram Risso/Senior (`019`) e Correios (`020`) com seus respectivos `adapter_code`. Depois de atualizar o código, execute obrigatoriamente `alembic upgrade head` antes de configurar esses providers.
+
 ## Segurança e produção
 
 - Nunca versionar arquivos `.env` nem credenciais reais.
+- Nunca enviar credenciais de transportadora no payload da cotação; use a tela/rota de configuração da integração.
 - Definir um `JWT_SECRET` exclusivo, forte e estável; sua alteração invalida tokens e afeta a leitura de segredos já protegidos.
 - Remover ou trocar imediatamente o usuário e a senha do seed.
 - Restringir `CORS_ORIGINS` aos domínios efetivamente usados.
@@ -285,5 +309,6 @@ O script `python -m app.seed` é idempotente para o administrador e para as tran
 - O Compose não inclui n8n nem Playwright; esses serviços precisam ser adicionados quando os respectivos adapters forem habilitados.
 - O endpoint de histórico de uma tabela de frete ainda responde `501 Not Implemented`.
 - A opção de exigir 2FA está modelada nas configurações, mas o fluxo de ativação de 2FA ainda não está disponível.
-- Parte das transportadoras iniciais usa adapter simulado enquanto não houver configuração real de tabela/API.
+- Providers sem credenciais válidas permanecem pendentes e não devem ser usados em produção até passarem pelo teste da tela de Integrações.
+- Parte das transportadoras iniciais ainda usa adapter simulado enquanto não houver configuração real de tabela/API.
 

@@ -56,6 +56,8 @@ export interface DocumentoFrete {
 export interface RevisaoTabelaFrete {
   tabela_frete_id: string;
   documento_original: DocumentoFrete;
+  documentos_originais?: DocumentoFrete[];
+  documento_ids?: string[];
   dados_extraidos: Record<string, unknown>;
   confianca_extracao: number;
   erros_validacao: string[];
@@ -104,5 +106,10 @@ export interface RevisaoTabelaFrete {
     prazos_entrega?: Record<string, unknown>;
     pendencias?: string[];
     estatisticas?: Record<string, unknown>;
+    faixas_peso_kg?: number[];
+    rotas?: Array<{ codigo: string; origem: string; destino: string }>;
+    consolidacao?: Array<{ rota_codigo: string; destino_tabela: string; cidades_cobertas: Array<{ cidade: string; prazo_dias_uteis: number }> }>;
+    regras_gerais?: Record<string, unknown>;
+    itens_para_revisao?: unknown[];
   };
 }

@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import FileResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, require_permission
@@ -234,8 +234,8 @@ async def deletar_tabela_frete(
 ):
     """Deleta uma tabela de frete.
 
-    Apenas tabelas em status DRAFT podem ser deletadas.
-    Tabelas aprovadas ou ativas devem ser canceladas, não deletadas (para auditoria).
+    Apenas tabelas que ainda não foram aprovadas podem ser deletadas.
+    Tabelas aprovadas, ativas ou expiradas são preservadas para auditoria.
     """
     stmt = select(TabelaFrete).where(TabelaFrete.id == tabela_id)
     tabela = await db.scalar(stmt)
@@ -243,12 +243,22 @@ async def deletar_tabela_frete(
     if not tabela:
         raise HTTPException(status_code=404, detail="Tabela não encontrada")
 
-    if tabela.status != "draft":
+    status_excluiveis = {"draft", "processing", "review", "cancelled"}
+    if tabela.status not in status_excluiveis:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Apenas tabelas em status 'draft' podem ser deletadas. Use o endpoint de cancelamento para outras.",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Apenas tabelas com erro ou que ainda não foram aprovadas podem ser excluídas.",
         )
 
+    await db.execute(
+        update(ProcessamentoJob)
+        .where(
+            ProcessamentoJob.tipo == "tabela_analise",
+            ProcessamentoJob.recurso_id == tabela.id,
+            ProcessamentoJob.status.in_(["pending", "processing"]),
+        )
+        .values(status="failed", bloqueado_em=None, ultimo_erro="Tabela excluída pelo usuário")
+    )
     await db.delete(tabela)
     await db.commit()
 
@@ -342,7 +352,8 @@ async def upload_documento(
 @router.post("/{tabela_id}/analisar", status_code=status.HTTP_202_ACCEPTED)
 async def analisar_documento(
     tabela_id: str,
-    documento_id: str = Query(...),
+    documento_id: str | None = Query(None),
+    documento_ids: list[str] | None = Query(None),
     db: AsyncSession = Depends(get_db),
     usuario: User = Depends(require_permission("transportadoras.manage")),
 ):
@@ -357,27 +368,27 @@ async def analisar_documento(
     tabela = await db.scalar(select(TabelaFrete).where(TabelaFrete.id == tabela_id))
     if not tabela:
         raise HTTPException(status_code=404, detail="Tabela não encontrada")
-    documento = await db.scalar(
-        select(DocumentoFrete).where(
-            DocumentoFrete.id == documento_id,
-            DocumentoFrete.tabela_frete_id == tabela_id,
-        )
-    )
-    if not documento:
-        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    ids = list(dict.fromkeys(documento_ids or ([documento_id] if documento_id else [])))
+    if not ids or len(ids) > 2:
+        raise HTTPException(status_code=422, detail="Informe um ou dois documentos para análise")
+    documentos = (await db.scalars(select(DocumentoFrete).where(
+        DocumentoFrete.id.in_(ids), DocumentoFrete.tabela_frete_id == tabela_id,
+    ))).all()
+    if len(documentos) != len(ids):
+        raise HTTPException(status_code=404, detail="Um ou mais documentos não foram encontrados")
     status_anterior = tabela.status
     validar_transicao(status_anterior, "processing")
     tabela.status = "processing"
     job = ProcessamentoJob(
         tipo="tabela_analise", recurso_id=tabela.id,
-        payload={"documento_id": documento.id, "usuario_id": usuario.id},
+        payload={"documento_id": ids[0], "documento_ids": ids, "usuario_id": usuario.id},
     )
     db.add(job)
     db.add(registrar_evento_status(
         tabela, usuario, status_anterior, "processing", acao="analise_enfileirada"
     ))
     await db.commit()
-    return {"job_id": job.id, "status": "pending", "documento_id": documento.id}
+    return {"job_id": job.id, "status": "pending", "documento_id": ids[0], "documento_ids": ids}
 
 
 @router.get("/jobs/{job_id}")
@@ -424,14 +435,25 @@ async def obter_dados_revisao(
         revisao = carregar_revisao(documento)
     except AnaliseDocumentoError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    ids_revisao = revisao.get("documento_ids") or [documento.id]
+    encontrados = (await db.scalars(
+        select(DocumentoFrete).where(DocumentoFrete.id.in_(ids_revisao))
+    )).all()
+    por_id = {item.id: item for item in encontrados}
+    documentos = [por_id[item_id] for item_id in ids_revisao if item_id in por_id]
+
+    def serializar(item: DocumentoFrete) -> dict:
+        return {
+            "id": item.id, "nome_arquivo": item.nome_arquivo,
+            "tipo_arquivo": item.tipo_arquivo, "tamanho_bytes": item.tamanho_bytes,
+            "hash_conteudo": item.hash_conteudo, "quantidade_paginas": item.quantidade_paginas,
+            "origem": item.origem, "created_at": item.created_at,
+        }
+
     return {
         "tabela_frete_id": tabela_id,
-        "documento_original": {
-            "id": documento.id, "nome_arquivo": documento.nome_arquivo,
-            "tipo_arquivo": documento.tipo_arquivo, "tamanho_bytes": documento.tamanho_bytes,
-            "hash_conteudo": documento.hash_conteudo, "quantidade_paginas": documento.quantidade_paginas,
-            "origem": documento.origem, "created_at": documento.created_at,
-        },
+        "documento_original": serializar(documentos[0]),
+        "documentos_originais": [serializar(item) for item in documentos],
         **revisao,
     }
 

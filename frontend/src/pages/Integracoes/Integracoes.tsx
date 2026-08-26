@@ -16,6 +16,9 @@ import {
 } from "../../hooks/useTransportadoras";
 import type { MetodoCalculo, TipoIntegracao, Transportadora, TransportadoraInput } from "../../types/transportadora";
 import { ConfiguracaoApiForm } from "./ConfiguracaoApiForm";
+import { ConfiguracaoSswForm } from "./ConfiguracaoSswForm";
+import { ConfiguracaoRissoForm } from "./ConfiguracaoRissoForm";
+import { ConfiguracaoCorreiosForm } from "./ConfiguracaoCorreiosForm";
 import { SankhyaMapeamentos } from "./SankhyaMapeamentos";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -78,7 +81,8 @@ function mensagemApi(error: unknown) {
   return error instanceof Error ? error.message : "Não foi possível salvar.";
 }
 
-function formatarDocumento(valor: string) {
+function formatarDocumento(valor: string | null | undefined) {
+  if (!valor) return "—";
   const d = somenteDigitos(valor);
   return d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
 }
@@ -91,10 +95,13 @@ function formatarEntradaDocumento(valor: string) {
   return d.replace(/(\d{2})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1/$2").replace(/(\d{4})(\d{1,2})$/, "$1-$2");
 }
 
-function Formulario({ editando, onClose }: { editando: Transportadora | null; onClose: () => void }) {
+const isRisso = (item: Transportadora) => item.codigo?.toLowerCase() === "risso" || item.nome.toLowerCase().includes("risso");
+
+function Formulario({ editando, onClose, onConfigureRisso }: { editando: Transportadora | null; onClose: () => void; onConfigureRisso: (item: Transportadora) => void }) {
+  const risso = Boolean(editando && isRisso(editando));
   const criar = useCriarTransportadora();
   const atualizar = useAtualizarTransportadora();
-  const configuracao = useConfiguracaoApi(editando?.metodo_calculo === "api" ? editando.id : null);
+  const configuracao = useConfiguracaoApi(editando?.metodo_calculo === "api" && !risso ? editando.id : null);
   const consultaCnpj = useConsultaCnpj();
   const [erroApi, setErroApi] = useState("");
   const [mensagemCnpj, setMensagemCnpj] = useState<{ tipo: "sucesso" | "aviso" | "erro"; texto: string } | null>(null);
@@ -104,17 +111,17 @@ function Formulario({ editando, onClose }: { editando: Transportadora | null; on
 
   useEffect(() => {
     setDados(editando ? {
-      nome: editando.nome, razao_social: editando.razao_social, cnpj_cpf: editando.cnpj_cpf,
+      nome: editando.nome, razao_social: editando.razao_social, cnpj_cpf: editando.cnpj_cpf ?? "",
       segmento: editando.segmento, tipo_integracao: editando.tipo_integracao,
       metodo_calculo: editando.metodo_calculo,
-      api_base_url: configuracao.data?.base_url ?? "", api_key: "",
+      api_base_url: risso ? "" : configuracao.data?.base_url ?? "", api_key: "",
       api_ambiente: editando.api_ambiente ?? "producao",
     } : { ...valoresVazios });
     setErros({});
     setErroApi("");
     setMensagemCnpj(null);
     setUltimoCnpjConsultado("");
-  }, [editando, configuracao.data]);
+  }, [editando, configuracao.data, risso]);
 
   function alterar<K extends keyof FormData>(campo: K, valor: FormData[K]) {
     setDados((atual) => ({ ...atual, [campo]: valor }));
@@ -215,14 +222,18 @@ function Formulario({ editando, onClose }: { editando: Transportadora | null; on
         </div>
         <div><Field label="Segmento"><Input value={dados.segmento} onChange={(e) => alterar("segmento", e.target.value)} placeholder="Ex.: fracionado" /></Field>{erros.segmento && <p className="mt-1 text-xs text-state-error">{erros.segmento}</p>}</div>
         <Field label="Forma de cálculo do frete">
-          <select value={dados.metodo_calculo} onChange={(e) => alterar("metodo_calculo", e.target.value as MetodoCalculo)} className={inputClass}>{METODOS.map((metodo) => <option key={metodo.valor} value={metodo.valor}>{metodo.label}</option>)}</select>
+          <select disabled={risso} value={dados.metodo_calculo} onChange={(e) => alterar("metodo_calculo", e.target.value as MetodoCalculo)} className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-70`}>{METODOS.map((metodo) => <option key={metodo.valor} value={metodo.valor}>{metodo.label}</option>)}</select>
         </Field>
-        {dados.metodo_calculo === "api" && <>
+        {dados.metodo_calculo === "api" && !risso && <>
           <div><Field label="URL base da API"><Input type="url" value={dados.api_base_url ?? ""} onChange={(e) => alterar("api_base_url", e.target.value)} placeholder="https://api.transportadora.com" /></Field>{erros.api_base_url && <p className="mt-1 text-xs text-state-error">{erros.api_base_url}</p>}</div>
           <Field label="Chave de API / Token"><Input type="password" value={dados.api_key ?? ""} onChange={(e) => alterar("api_key", e.target.value)} placeholder={configuracao.data?.credencial_mascarada ?? "Pode ser preenchida depois"} /></Field>
           <Field label="Ambiente"><select value={dados.api_ambiente} onChange={(e) => alterar("api_ambiente", e.target.value as "producao" | "homologacao")} className={inputClass}><option value="producao">Produção</option><option value="homologacao">Homologação</option></select></Field>
         </>}
-        <div className="flex items-end"><p className="pb-2 text-xs text-text-secondary">{dados.metodo_calculo === "tabela_propria" ? "Após salvar, use “Gerenciar tabela” para enviar o documento comercial." : dados.metodo_calculo === "api" ? "Sem token, ficará pendente e não será consultada." : "A forma selecionada será usada pelo backend."}</p></div>
+        {risso && dados.metodo_calculo === "api" && <div className="sm:col-span-2 rounded border border-state-info/40 bg-state-info/5 p-3">
+          <p className="text-xs text-text-secondary">A Risso usa autenticação Senior com usuário e senha. As credenciais ficam protegidas na integração e não usam os campos genéricos de chave/token.</p>
+          <button type="button" onClick={() => { onClose(); onConfigureRisso(editando!); }} className="mt-3 inline-flex h-9 items-center gap-2 rounded border border-state-info/40 px-3 text-sm text-state-info"><KeyRound size={14} /> Configurar credenciais Risso</button>
+        </div>}
+        <div className="flex items-end"><p className="pb-2 text-xs text-text-secondary">{dados.metodo_calculo === "tabela_propria" ? "Após salvar, use “Gerenciar tabela” para enviar o documento comercial." : risso ? "API / Integração direta é o método correto para o provider Risso." : dados.metodo_calculo === "api" ? "Sem token, ficará pendente e não será consultada." : "A forma selecionada será usada pelo backend."}</p></div>
         <div className="sm:col-span-2 lg:col-span-3">
           {erros.metodo_calculo && <p className="text-xs text-state-error">{erros.metodo_calculo}</p>}
           {erroApi && <p className="text-xs text-state-error">{erroApi}</p>}
@@ -242,6 +253,9 @@ export function Integracoes() {
   const [formAberto, setFormAberto] = useState(false);
   const [editando, setEditando] = useState<Transportadora | null>(null);
   const [configurandoApi, setConfigurandoApi] = useState<Transportadora | null>(null);
+  const [configurandoSsw, setConfigurandoSsw] = useState<Transportadora | null>(null);
+  const [configurandoRisso, setConfigurandoRisso] = useState<Transportadora | null>(null);
+  const [configurandoCorreios, setConfigurandoCorreios] = useState<Transportadora | null>(null);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState<Transportadora | null>(null);
   const [erroExclusao, setErroExclusao] = useState("");
 
@@ -261,8 +275,11 @@ export function Integracoes() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3"><div><h1 className="text-lg font-medium">Integrações</h1><p className="mt-1 text-xs text-text-secondary">Cadastre transportadoras e defina como participam das cotações.</p></div><button onClick={() => { setEditando(null); setFormAberto(true); }} className="inline-flex h-9 items-center gap-2 rounded bg-state-info px-3 text-sm text-white"><Plus size={15} /> Nova transportadora</button></div>
-      {formAberto && <Formulario editando={editando} onClose={fechar} />}
+      {formAberto && <Formulario editando={editando} onClose={fechar} onConfigureRisso={setConfigurandoRisso} />}
       {configurandoApi && <ConfiguracaoApiForm transportadora={configurandoApi} onClose={() => setConfigurandoApi(null)} />}
+      {configurandoSsw && <ConfiguracaoSswForm transportadora={configurandoSsw} onClose={() => setConfigurandoSsw(null)} />}
+      {configurandoRisso && <ConfiguracaoRissoForm transportadora={configurandoRisso} onClose={() => setConfigurandoRisso(null)} />}
+      {configurandoCorreios && <ConfiguracaoCorreiosForm transportadora={configurandoCorreios} onClose={() => setConfigurandoCorreios(null)} />}
       {confirmandoExclusao && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
         <Card className="w-full max-w-md border-state-error/40">
           <div className="flex items-start gap-3"><div className="rounded bg-state-error/10 p-2 text-state-error"><Trash2 size={18} /></div><div><h2 className="text-sm font-medium">Excluir transportadora definitivamente?</h2><p className="mt-2 text-sm text-text-secondary"><strong className="text-text-primary">{confirmandoExclusao.nome}</strong> será removida completamente do banco de dados.</p><p className="mt-2 text-xs text-state-error">Esta ação também apaga tabelas de frete, documentos, configurações, resultados e registros vinculados. Não poderá ser desfeita.</p></div></div>
@@ -277,7 +294,7 @@ export function Integracoes() {
           <Card key={item.id} className={!item.ativa ? "opacity-70" : ""}>
             <div className="flex items-start justify-between gap-3"><div><h2 className="text-sm font-medium">{item.nome}</h2><p className="mt-1 text-xs text-text-secondary">{item.razao_social}</p></div><Badge tone={item.ativa ? "success" : "warning"}>{item.ativa ? "Ativa" : "Inativa"}</Badge></div>
             <dl className="mt-4 grid grid-cols-2 gap-3 text-xs"><div><dt className="text-text-secondary">CNPJ/CPF</dt><dd className="mt-1">{formatarDocumento(item.cnpj_cpf)}</dd></div><div><dt className="text-text-secondary">Segmento</dt><dd className="mt-1 capitalize">{item.segmento}</dd></div><div><dt className="text-text-secondary">Cálculo do frete</dt><dd className="mt-1">{METODOS.find((metodo) => metodo.valor === item.metodo_calculo)?.label ?? item.metodo_calculo}</dd>{item.metodo_calculo === "api" && <dd className={`mt-1 ${item.status_integracao === "ativo" ? "text-state-success" : "text-state-warning"}`}>{item.status_integracao === "ativo" ? "API pronta" : "Aguardando credencial"}</dd>}</div><div><dt className="text-text-secondary">Desempenho</dt><dd className="mt-1">{item.taxa_sucesso.toFixed(1)}% · {item.tempo_medio_ms} ms</dd></div></dl>
-            <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => editar(item)} className="inline-flex h-8 items-center gap-2 rounded border border-border px-3 text-xs"><Edit3 size={13} /> Editar</button><button disabled={status.isPending} onClick={() => status.mutate({ id: item.id, ativa: !item.ativa })} className={`inline-flex h-8 items-center gap-2 rounded border px-3 text-xs ${item.ativa ? "border-state-error/40 text-state-error" : "border-state-success/40 text-state-success"}`}><Power size={13} /> {item.ativa ? "Inativar" : "Ativar"}</button>{item.metodo_calculo === "tabela_propria" && <button onClick={() => navigate(`/transportadoras?transportadora=${item.id}`)} className="inline-flex h-8 items-center gap-2 rounded border border-state-info/40 px-3 text-xs text-state-info"><FileSpreadsheet size={13} /> Gerenciar tabela</button>}{item.metodo_calculo === "api" && <button onClick={() => setConfigurandoApi(item)} className="inline-flex h-8 items-center gap-2 rounded border border-state-info/40 px-3 text-xs text-state-info"><KeyRound size={13} /> Configuração avançada</button>}<button onClick={() => { setErroExclusao(""); setConfirmandoExclusao(item); }} className="inline-flex h-8 items-center gap-2 rounded border border-state-error/40 px-3 text-xs text-state-error"><Trash2 size={13} /> Excluir</button></div>
+            <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => editar(item)} className="inline-flex h-8 items-center gap-2 rounded border border-border px-3 text-xs"><Edit3 size={13} /> Editar</button><button disabled={status.isPending} onClick={() => status.mutate({ id: item.id, ativa: !item.ativa })} className={`inline-flex h-8 items-center gap-2 rounded border px-3 text-xs ${item.ativa ? "border-state-error/40 text-state-error" : "border-state-success/40 text-state-success"}`}><Power size={13} /> {item.ativa ? "Inativar" : "Ativar"}</button>{item.metodo_calculo === "tabela_propria" && <button onClick={() => navigate(`/transportadoras?transportadora=${item.id}`)} className="inline-flex h-8 items-center gap-2 rounded border border-state-info/40 px-3 text-xs text-state-info"><FileSpreadsheet size={13} /> Gerenciar tabela</button>}{item.codigo === "correios" || item.nome.toLowerCase() === "correios" ? <button onClick={() => setConfigurandoCorreios(item)} className="inline-flex h-8 items-center gap-2 rounded border border-state-info/40 px-3 text-xs text-state-info"><KeyRound size={13} /> Configurar Correios</button> : isRisso(item) ? <button onClick={() => setConfigurandoRisso(item)} className="inline-flex h-8 items-center gap-2 rounded border border-state-info/40 px-3 text-xs text-state-info"><KeyRound size={13} /> Configurar Risso</button> : item.metodo_calculo === "api" && <button onClick={() => setConfigurandoApi(item)} className="inline-flex h-8 items-center gap-2 rounded border border-state-info/40 px-3 text-xs text-state-info"><KeyRound size={13} /> Configuração avançada</button>}<button onClick={() => setConfigurandoSsw(item)} className="inline-flex h-8 items-center gap-2 rounded border border-state-info/40 px-3 text-xs text-state-info"><KeyRound size={13} /> Configurar SSW</button><button onClick={() => { setErroExclusao(""); setConfirmandoExclusao(item); }} className="inline-flex h-8 items-center gap-2 rounded border border-state-error/40 px-3 text-xs text-state-error"><Trash2 size={13} /> Excluir</button></div>
           </Card>
         ))}
       </div>

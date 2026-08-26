@@ -330,6 +330,9 @@ async def salvar_configuracao_api(
     if dados.tipo_autenticacao == "jamef_login" and dados.ativa:
         if not configuracao.usuario_integracao or not configuracao.documento_devedor:
             raise HTTPException(status_code=422, detail="Informe usuário e documento pagador da JAMEF")
+    if transportadora.nome.strip().lower().startswith("braspress") and dados.ativa:
+        if dados.tipo_autenticacao != "braspress_basic" or not configuracao.usuario_integracao or not configuracao.documento_devedor:
+            raise HTTPException(status_code=422, detail="Informe usuario, senha e CNPJ remetente da Braspress")
     if transportadora.nome.strip().lower().startswith("alfa") and dados.ativa:
         raise HTTPException(
             status_code=422,

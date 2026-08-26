@@ -30,9 +30,10 @@ export const tabelaFreteService = {
     return response.data;
   },
 
-  async analisar(tabelaId: string, documentoId: string) {
+  async analisar(tabelaId: string, documentoIds: string[]) {
     const response = await apiClient.post(`/tabelas-frete/${tabelaId}/analisar`, undefined, {
-      params: { documento_id: documentoId },
+      params: { documento_ids: documentoIds },
+      paramsSerializer: { indexes: null },
     });
     const jobId = response.data.job_id as string;
     for (let tentativa = 0; tentativa < 120; tentativa += 1) {
@@ -68,5 +69,9 @@ export const tabelaFreteService = {
   async ativar(tabelaId: string) {
     const response = await apiClient.post(`/tabelas-frete/${tabelaId}/ativar`);
     return response.data;
+  },
+
+  async excluir(tabelaId: string) {
+    await apiClient.delete(`/tabelas-frete/${tabelaId}`);
   },
 };

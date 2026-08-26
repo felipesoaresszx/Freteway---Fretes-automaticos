@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.schemas.transportadora import documento_valido, somente_digitos
 
 
 class Endereco(BaseModel):
@@ -23,7 +25,18 @@ class CotacaoCreate(BaseModel):
     valor_nf: float = Field(gt=0)
     peso: float = Field(gt=0)
     volumes: list[VolumeIn]
+    documento_destinatario: str | None = None
     transportadoras_ids: list[str] | None = None  # None = todas as ativas
+
+    @field_validator("documento_destinatario")
+    @classmethod
+    def validar_documento_destinatario(cls, valor: str | None) -> str | None:
+        if not valor:
+            return None
+        normalizado = somente_digitos(valor)
+        if not documento_valido(normalizado):
+            raise ValueError("CPF ou CNPJ do destinatario invalido")
+        return normalizado
 
 
 class ErroResultado(BaseModel):

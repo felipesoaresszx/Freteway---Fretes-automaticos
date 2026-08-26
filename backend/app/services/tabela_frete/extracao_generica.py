@@ -22,8 +22,19 @@ def _resumo(texto: str, formato: str) -> dict:
 
 def extrair_documento_generico(caminho: Path, tipo: str) -> dict:
     if tipo == "pdf":
-        from pypdf import PdfReader
-        texto = "\n".join(pagina.extract_text() or "" for pagina in PdfReader(str(caminho)).pages)
+        from app.services.tabela_frete.transwells_pdf import (
+            classificar_texto, extrair_pracas, extrair_tabela, extrair_texto_pdf_com_ocr,
+        )
+        texto, usou_ocr = extrair_texto_pdf_com_ocr(caminho)
+        formato_especial = classificar_texto(texto)
+        if formato_especial == "transwells_tabela_v1":
+            dados = extrair_tabela(texto)
+            dados["fonte"] = {"tipo": tipo, "ocr": usou_ocr}
+            return dados
+        if formato_especial == "transwells_pracas_v1":
+            dados = extrair_pracas(texto)
+            dados["fonte"] = {"tipo": tipo, "ocr": usou_ocr}
+            return dados
     elif tipo == "docx":
         from docx import Document
         documento = Document(str(caminho))

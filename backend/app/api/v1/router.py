@@ -1,11 +1,12 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, carriers, companies, configuracoes, cotacoes, dashboard, enderecos, health, sankhya, transportadoras, tabelas_frete, tenants_admin
+from app.api.v1.endpoints import auth, carriers, companies, configuracoes, cotacoes, dashboard, enderecos, health, sankhya, ssw, transportadoras, tabelas_frete, tenants_admin
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
 api_router.include_router(auth.router, tags=["auth"])
 api_router.include_router(dashboard.router, tags=["dashboard"])
+api_router.include_router(ssw.router)
 api_router.include_router(transportadoras.router, tags=["transportadoras"])
 api_router.include_router(carriers.router, tags=["carriers"])
 api_router.include_router(tabelas_frete.router, tags=["tabelas-frete"])

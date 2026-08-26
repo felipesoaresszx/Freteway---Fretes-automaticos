@@ -37,6 +37,12 @@ class CarrierIntegrationManager:
         self.db, self.repo, self.registry = db, CarrierIntegrationRepository(db), adapter_registry
 
     async def save_credentials(self, integration: CarrierIntegration, credentials: dict[str, str]) -> CarrierCredential:
+        if integration.adapter_code == "risso":
+            from app.integrations.risso.schemas import RissoCredentials
+            credentials = RissoCredentials.model_validate(credentials).model_dump(mode="json")
+        elif integration.adapter_code == "correios":
+            from app.integrations.correios.schemas import CorreiosCredentials
+            credentials = CorreiosCredentials.model_validate(credentials).model_dump(mode="json")
         current = await self.repo.credential(integration.id)
         payload = criptografar(json.dumps(credentials, separators=(",", ":")))
         if current:
@@ -44,6 +50,9 @@ class CarrierIntegrationManager:
         else:
             current = CarrierCredential(integration_id=integration.id, encrypted_payload=payload, key_names=sorted(credentials)); self.db.add(current)
         integration.status = "configured"
+        carrier = await self.db.get(Transportadora, integration.carrier_id)
+        if carrier:
+            carrier.status_integracao = "ativo" if integration.active else "pendente_credencial"
         await self.db.flush(); return current
 
     async def credentials(self, integration: CarrierIntegration) -> dict[str, str]:
@@ -56,6 +65,9 @@ class CarrierIntegrationManager:
         if not integration.adapter_code: raise LookupError("Integração API sem adapter")
         valid = await self.registry.get(integration.adapter_code).validate_credentials(await self.credentials(integration))
         integration.status = "validated" if valid else "error"
+        carrier = await self.db.get(Transportadora, integration.carrier_id)
+        if carrier:
+            carrier.status_integracao = "ativo" if valid else "erro"
         integration.last_validated_at = datetime.utcnow()
         await self.db.flush(); return valid
 

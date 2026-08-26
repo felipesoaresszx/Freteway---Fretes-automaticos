@@ -13,6 +13,7 @@ from app.models.models import AuditoriaTabela, DocumentoFrete, TabelaFrete
 from app.services.tabela_frete.analise import (
     adicionar_diagnostico_confianca,
     analisar_documento_local,
+    combinar_resultados_documentos,
     metadados_revisao,
 )
 from app.services.tabela_frete.tabela_import import normalizar_preview
@@ -47,15 +48,19 @@ async def executar_job_cotacao(db: AsyncSession, job: ProcessamentoJob) -> None:
 
 async def executar_job_analise_tabela(db: AsyncSession, job: ProcessamentoJob) -> None:
     tabela = await db.get(TabelaFrete, job.recurso_id)
-    documento = await db.get(DocumentoFrete, job.payload["documento_id"])
-    if not tabela or not documento or documento.tabela_frete_id != tabela.id:
+    documento_ids = job.payload.get("documento_ids") or [job.payload["documento_id"]]
+    documentos = [await db.get(DocumentoFrete, documento_id) for documento_id in documento_ids]
+    if not tabela or any(not documento or documento.tabela_frete_id != tabela.id for documento in documentos):
         raise ValueError("Tabela ou documento da análise não encontrado")
-    resultado = analisar_documento_local(
-        documento, tabela, Path(get_settings().TABELA_FRETE_STORAGE_DIR)
-    )
+    resultado = combinar_resultados_documentos([
+        analisar_documento_local(documento, tabela, Path(get_settings().TABELA_FRETE_STORAGE_DIR))
+        for documento in documentos
+    ])
+    resultado["documento_ids"] = documento_ids
     resultado["preview_estruturado"] = normalizar_preview(resultado["dados_extraidos"])
     resultado = adicionar_diagnostico_confianca(resultado)
-    documento.metadata_json = metadados_revisao(resultado)
+    for documento in documentos:
+        documento.metadata_json = metadados_revisao(resultado)
     tabela.status = "review"
     db.add(AuditoriaTabela(
         tabela_frete_id=tabela.id, usuario_id=job.payload.get("usuario_id"),

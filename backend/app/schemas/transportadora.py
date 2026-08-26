@@ -180,7 +180,7 @@ class ConfiguracaoApiUpdate(BaseModel):
     auth_url: HttpUrl | None = None
     documento_devedor: str | None = Field(None, min_length=11, max_length=14)
     filial_origem: str | None = Field(None, max_length=10)
-    tipo_transporte: Literal["1", "2"] | None = None
+    tipo_transporte: Literal["1", "2", "R", "A"] | None = None
     campo_valor: str = Field(default="valor_frete", min_length=1, max_length=200)
     campo_prazo: str = Field(default="prazo_dias", min_length=1, max_length=200)
     ativa: bool = False
@@ -197,7 +197,7 @@ class ConfiguracaoApiUpdate(BaseModel):
     @classmethod
     def validar_autenticacao(cls, valor: str) -> str:
         normalizado = valor.lower()
-        if normalizado not in {"bearer", "api_key", "basic", "nenhuma", "jamef_login"}:
+        if normalizado not in {"bearer", "api_key", "basic", "nenhuma", "jamef_login", "braspress_basic"}:
             raise ValueError("Tipo de autenticação inválido")
         return normalizado
 

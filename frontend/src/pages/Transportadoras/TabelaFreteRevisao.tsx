@@ -53,7 +53,7 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
 
   async function handleReanalisar() {
     if (!revisao.data) return;
-    await reanalisar.mutateAsync({ tabelaId, documentoId: revisao.data.documento_original.id });
+    await reanalisar.mutateAsync({ tabelaId, documentoIds: revisao.data.documentos_originais?.map((item) => item.id) ?? [revisao.data.documento_original.id] });
     await revisao.refetch();
   }
 
@@ -62,6 +62,7 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
   const preview = revisao.data.preview_estruturado;
   const diagnostico = revisao.data.diagnostico_confianca;
   const formatoUfZona = preview?.formato === "uf_zona_peso_v1";
+  const formatoTranswells = preview?.formato === "transwells_pracas_peso_v1";
   const requerMapeamento = preview?.requer_mapeamento_tarifario ?? true;
   const valores = (revisao.data.dados_extraidos.valores_detectados ?? []) as string[];
   const ceps = (revisao.data.dados_extraidos.ceps_detectados ?? []) as string[];
@@ -115,10 +116,33 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
         </div>
       )}
       <div className="grid gap-4 lg:grid-cols-3">
-        <DocumentoViewer documento={revisao.data.documento_original} />
+        <div className="space-y-3">
+          {(revisao.data.documentos_originais ?? [revisao.data.documento_original]).map((documento, indice, todos) => (
+            <div key={documento.id}>
+              {todos.length > 1 && <p className="mb-1 text-xs font-medium text-state-info">Documento {indice + 1} de {todos.length}</p>}
+              <DocumentoViewer documento={documento} />
+            </div>
+          ))}
+        </div>
         <div className="lg:col-span-2">
           <label className="text-xs font-medium text-text-secondary">Dados estruturados editáveis</label>
-          {preview && formatoUfZona ? (
+          {preview && formatoTranswells ? (
+            <div className="mt-1 space-y-4 rounded border border-border bg-surface2 p-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <p className="text-sm"><strong>{preview.rotas?.length ?? 0}</strong><br /><span className="text-xs text-text-secondary">rotas tarifárias</span></p>
+                <p className="text-sm"><strong>{preview.faixas_peso_kg?.length ?? 0}</strong><br /><span className="text-xs text-text-secondary">faixas de peso</span></p>
+                <p className="text-sm"><strong>{(preview.estatisticas?.cidades as number) ?? 0}</strong><br /><span className="text-xs text-text-secondary">cidades com prazo</span></p>
+              </div>
+              <div className="max-h-72 overflow-auto rounded border border-border">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-surface"><tr><th className="px-2 py-2">Código</th><th className="px-2 py-2">Destino tarifário</th><th className="px-2 py-2">Cidades cobertas</th></tr></thead>
+                  <tbody>{preview.consolidacao?.map((item) => <tr key={item.rota_codigo} className="border-t border-border"><td className="px-2 py-2">{item.rota_codigo}</td><td className="px-2 py-2">{item.destino_tabela}</td><td className="px-2 py-2">{item.cidades_cobertas.length}</td></tr>)}</tbody>
+                </table>
+              </div>
+              <p className="text-xs text-state-success">Tabela de frete e relação de praças consolidadas. Confira os totais e confirme a importação.</p>
+              <details><summary className="cursor-pointer text-xs text-state-info">Dados técnicos extraídos</summary><textarea value={json} onChange={(e) => setJson(e.target.value)} className="mt-2 h-80 w-full rounded border border-border bg-surface p-3 font-mono text-xs outline-none focus:ring-1 focus:ring-state-info" /></details>
+            </div>
+          ) : preview && formatoUfZona ? (
             <div className="mt-1 space-y-4 rounded border border-border bg-surface2 p-4">
               <div className="grid gap-3 sm:grid-cols-3">
                 <p className="text-sm"><strong>{preview.tarifas_por_zona?.length ?? 0}</strong><br /><span className="text-xs text-text-secondary">UF/regiões extraídas</span></p>
@@ -164,7 +188,7 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
       {revisao.data.avisos.map((aviso) => <p key={aviso} className="text-xs text-state-warning">{aviso}</p>)}
       {erro && <p className="text-xs text-state-error">{erro}</p>}
       <div className="flex justify-end gap-2">
-        <button disabled={reanalisar.isPending} onClick={handleReanalisar} className="h-9 rounded border border-state-info/40 px-3 text-sm text-state-info disabled:opacity-40">{reanalisar.isPending ? "Reanalisando..." : "Reanalisar documento"}</button>
+        <button disabled={reanalisar.isPending} onClick={handleReanalisar} className="h-9 rounded border border-state-info/40 px-3 text-sm text-state-info disabled:opacity-40">{reanalisar.isPending ? "Reanalisando..." : `Reanalisar ${(revisao.data.documentos_originais?.length ?? 1) > 1 ? "documentos juntos" : "documento"}`}</button>
         {!requerMapeamento && <button disabled={salvar.isPending} onClick={handleSalvar} className="h-9 rounded border border-border px-3 text-sm">Salvar revisão</button>}
         <button disabled={!mapeamentoPreenchido || confirmar.isPending || salvar.isPending} onClick={handleAprovar} className="h-9 rounded bg-state-success px-3 text-sm text-white disabled:opacity-40">{mapeamentoPreenchido ? "Confirmar importação" : formatoUfZona ? "Aguardando regiões e prazos" : "Complete faixas e praças"}</button>
       </div>

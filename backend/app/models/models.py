@@ -206,6 +206,7 @@ class CarrierIntegration(Base):
     configuration: Mapped[dict] = mapped_column(JSONB, default=dict)
     status: Mapped[str] = mapped_column(String(30), default="not_configured", index=True)
     last_validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    validation_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     carrier: Mapped["Transportadora"] = relationship()

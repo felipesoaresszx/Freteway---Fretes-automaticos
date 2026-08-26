@@ -128,7 +128,11 @@ async def update_integration(carrier_id: str, integration_id: str, data: Integra
 async def save_credentials(carrier_id: str, integration_id: str, data: CredentialInput, db: AsyncSession = Depends(get_db), _=Depends(require_permission("integrations.manage"))):
     manager = CarrierIntegrationManager(db); item = await manager.repo.get(carrier_id, integration_id)
     if not item: raise HTTPException(404, "Integração não encontrada")
-    row = await manager.save_credentials(item, data.credentials); await db.commit()
+    try:
+        row = await manager.save_credentials(item, data.credentials); await db.commit()
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(422, "Preencha corretamente todos os campos obrigatórios da integração") from exc
     return CredentialOut(configured=True, keys=row.key_names, masked={key:"••••••••••" for key in row.key_names})
 
 
@@ -154,7 +158,14 @@ async def validate_integration(carrier_id: str, integration_id: str, db: AsyncSe
     try: valid = await manager.validate(item); await db.commit()
     except (LookupError, ValueError): return ValidationResult(success=False, message="Configuração da integração inválida")
     except Exception: return ValidationResult(success=False, message="Falha na autenticação da transportadora")
-    return ValidationResult(success=valid, message="Credenciais válidas" if valid else "Falha na autenticação da transportadora")
+    carrier_name = "Risso Transportes" if item.adapter_code == "risso" else "transportadora"
+    return ValidationResult(
+        success=valid,
+        message=(
+            f"Conexão com {carrier_name} realizada com sucesso."
+            if valid else f"Não foi possível autenticar na {carrier_name}."
+        ),
+    )
 
 
 @router.post("/{carrier_id}/integrations/{integration_id}/sync-services", response_model=list[CarrierServiceOut])

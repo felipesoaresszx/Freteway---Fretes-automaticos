@@ -25,6 +25,7 @@ export function NovaCotacao() {
   const [cepErros, setCepErros] = useState<{ origem?: string; destino?: string }>({});
   const cepRequests = useRef({ origem: 0, destino: 0 });
   const [valorNf, setValorNf] = useState("");
+  const [documentoDestinatario, setDocumentoDestinatario] = useState("");
   const [volumes, setVolumes] = useState<VolumeForm[]>([volumeVazio()]);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
 
@@ -79,6 +80,7 @@ export function NovaCotacao() {
       origem,
       destino,
       valor_nf: Number(valorNf),
+      documento_destinatario: documentoDestinatario || null,
       peso: pesoTotal,
       volumes: volumes.map(({ id: _id, ...rest }) => ({
         quantidade: Number(rest.quantidade), comprimento_cm: Number(rest.comprimento_cm),
@@ -128,8 +130,9 @@ export function NovaCotacao() {
 
       <Card>
         <p className="text-sm font-medium mb-3">Dados da NF</p>
-        <div className="grid sm:grid-cols-3 gap-3">
+        <div className="grid sm:grid-cols-4 gap-3">
           <Field label="Valor NF (R$)"><Input autoComplete="off" type="number" value={valorNf} onChange={(e) => setValorNf(e.target.value)} /></Field>
+          <Field label="CPF/CNPJ destinatário"><Input inputMode="numeric" maxLength={14} value={documentoDestinatario} onChange={(e) => setDocumentoDestinatario(e.target.value.replace(/\D/g, "").slice(0, 14))} placeholder="Exigido por integrações como Risso e Braspress" /></Field>
           <Field label="Peso total calculado">
             <div className="h-9 rounded px-3 text-sm flex items-center bg-surface2 border border-border text-text-secondary">
               {possuiDadosVolume ? `${pesoTotal.toFixed(2)} kg` : "—"}

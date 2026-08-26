@@ -1,8 +1,9 @@
 export interface Transportadora {
   id: string;
+  codigo?: string | null;
   nome: string;
   razao_social: string;
-  cnpj_cpf: string;
+  cnpj_cpf: string | null;
   segmento: string;
   tipo_integracao: TipoIntegracao;
   metodo_calculo: MetodoCalculo;
@@ -49,13 +50,13 @@ export interface ConfiguracaoApi {
   base_url: string;
   endpoint_cotacao: string;
   metodo_http: "GET" | "POST";
-  tipo_autenticacao: "bearer" | "api_key" | "basic" | "nenhuma" | "jamef_login";
+  tipo_autenticacao: "bearer" | "api_key" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic";
   nome_header: string | null;
   usuario_integracao?: string | null;
   auth_url?: string | null;
   documento_devedor?: string | null;
   filial_origem?: string | null;
-  tipo_transporte?: "1" | "2" | null;
+  tipo_transporte?: "1" | "2" | "R" | "A" | null;
   campo_valor: string;
   campo_prazo: string;
   ativa: boolean;
@@ -67,14 +68,14 @@ export interface ConfiguracaoApiInput {
   base_url: string;
   endpoint_cotacao: string;
   metodo_http: "GET" | "POST";
-  tipo_autenticacao: "bearer" | "api_key" | "basic" | "nenhuma" | "jamef_login";
+  tipo_autenticacao: "bearer" | "api_key" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic";
   nome_header?: string | null;
   credencial?: string | null;
   usuario_integracao?: string | null;
   auth_url?: string | null;
   documento_devedor?: string | null;
   filial_origem?: string | null;
-  tipo_transporte?: "1" | "2" | null;
+  tipo_transporte?: "1" | "2" | "R" | "A" | null;
   campo_valor: string;
   campo_prazo: string;
   ativa: boolean;
@@ -101,3 +102,26 @@ export type CarrierIntegrationType = "API" | "TABLE" | "HYBRID" | "MANUAL" | "RP
 export interface CarrierService { id: string; carrier_id: string; name: string; code: string; external_code: string | null; description: string | null; service_type: string | null; active: boolean; }
 export interface CarrierIntegration { id: string; carrier_id: string; integration_type: CarrierIntegrationType; adapter_code: string | null; active: boolean; priority: number; configuration: Record<string, unknown>; status: "not_configured" | "configured" | "validated" | "error" | "inactive"; credential_keys: string[]; }
 export interface CredentialStatus { configured: boolean; keys: string[]; masked: Record<string, string>; }
+
+export interface SSWIntegration {
+  transportadora_id: string;
+  provider: "SSW";
+  dominio: string;
+  login: string;
+  cnpj_pagador: string;
+  mercadoria_padrao: number;
+  ativo: boolean;
+  credencial_configurada: boolean;
+  ultimo_teste: string | null;
+  status_ultima_validacao: "NAO_TESTADA" | "VALIDA" | "INVALIDA";
+  mensagem_ultima_validacao: string | null;
+}
+
+export interface SSWIntegrationInput {
+  dominio: string;
+  login: string;
+  senha?: string | null;
+  cnpj_pagador: string;
+  mercadoria_padrao: number;
+  ativo: boolean;
+}

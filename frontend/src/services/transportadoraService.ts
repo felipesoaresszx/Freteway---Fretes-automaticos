@@ -1,5 +1,5 @@
 import { apiClient, getErrorStatus } from "../api/client";
-import type { CarrierIntegration, CarrierIntegrationType, CarrierService, ConfiguracaoApi, ConfiguracaoApiInput, CredentialStatus, ConsultaCnpj, ImportacaoPreview, ImportacaoResultado, MapeamentoSankhya, MapeamentoSankhyaInput, Transportadora, TransportadoraInput } from "../types/transportadora";
+import type { CarrierIntegration, CarrierIntegrationType, CarrierService, ConfiguracaoApi, ConfiguracaoApiInput, CredentialStatus, ConsultaCnpj, ImportacaoPreview, ImportacaoResultado, MapeamentoSankhya, MapeamentoSankhyaInput, SSWIntegration, SSWIntegrationInput, Transportadora, TransportadoraInput } from "../types/transportadora";
 
 export const transportadoraService = {
   async listar(): Promise<Transportadora[]> {
@@ -58,4 +58,14 @@ export const transportadoraService = {
   async salvarCredenciais(id: string, integrationId: string, credentials: Record<string, string>): Promise<CredentialStatus> { return (await apiClient.put(`/carriers/${id}/integrations/${integrationId}/credentials`, { credentials })).data; },
   async validarIntegracao(id: string, integrationId: string): Promise<{success:boolean; message:string}> { return (await apiClient.post(`/carriers/${id}/integrations/${integrationId}/validate`)).data; },
   async sincronizarServicos(id: string, integrationId: string): Promise<CarrierService[]> { return (await apiClient.post(`/carriers/${id}/integrations/${integrationId}/sync-services`)).data; },
+  async obterSsw(id: string): Promise<SSWIntegration | null> {
+    try { return (await apiClient.get<SSWIntegration>(`/transportadoras/${id}/integracoes/ssw`)).data; }
+    catch (error: unknown) { if (getErrorStatus(error) === 404) return null; throw error; }
+  },
+  async salvarSsw(id: string, payload: SSWIntegrationInput, exists: boolean): Promise<SSWIntegration> {
+    return (await apiClient.request<SSWIntegration>({ method: exists ? "PUT" : "POST", url: `/transportadoras/${id}/integracoes/ssw`, data: payload })).data;
+  },
+  async testarSsw(id: string): Promise<{ sucesso: boolean; status: string; mensagem: string }> {
+    return (await apiClient.post(`/transportadoras/${id}/integracoes/ssw/testar`)).data;
+  },
 };

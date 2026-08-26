@@ -28,8 +28,16 @@ export function useUploadTabelaFrete() {
 export function useAnalisarTabelaFrete(transportadoraId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ tabelaId, documentoId }: { tabelaId: string; documentoId: string }) =>
-      tabelaFreteService.analisar(tabelaId, documentoId),
+    mutationFn: ({ tabelaId, documentoIds }: { tabelaId: string; documentoIds: string[] }) =>
+      tabelaFreteService.analisar(tabelaId, documentoIds),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["tabelas-frete", transportadoraId] }),
+  });
+}
+
+export function useExcluirTabelaFrete(transportadoraId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: tabelaFreteService.excluir,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tabelas-frete", transportadoraId] }),
   });
 }

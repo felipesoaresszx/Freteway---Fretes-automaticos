@@ -11,7 +11,14 @@ from app.integrations.transportadoras.mock.client import MockTransportadoraAdapt
 from app.integrations.transportadoras.api_generica import ApiGenericaAdapter
 from app.integrations.transportadoras.tabela_frete import TabelaFreteAdapter
 from app.integrations.transportadoras.jamef import JamefAdapter
-from app.models.models import TabelaFrete, Transportadora, TransportadoraConfiguracaoApi
+from app.integrations.transportadoras.braspress import BraspressAdapter
+from app.integrations.ssw.provider import SSWProvider
+from app.integrations.ssw.schemas import SSWQuoteRequest
+from app.integrations.transportadoras.registry import registry
+from app.models.models import CarrierIntegration, TabelaFrete, Transportadora, TransportadoraConfiguracaoApi
+from app.schemas.carrier import FreightQuoteRequest
+from app.services.carrier_management import CarrierIntegrationManager
+from app.services.ssw_service import SSWIntegrationService
 from app.schemas.cotacao import CotacaoCreate, ErroResultado, ResultadoTransportadora
 
 settings = get_settings()
@@ -101,11 +108,13 @@ async def _cotar_por_api(
     payload: dict,
 ) -> ResultadoTransportadora:
     request_id = str(uuid.uuid4())
-    adapter = (
-        JamefAdapter(configuracao)
-        if transportadora.nome.strip().casefold().startswith("jamef")
-        else ApiGenericaAdapter(configuracao)
-    )
+    nome = transportadora.nome.strip().casefold()
+    if nome.startswith("jamef"):
+        adapter = JamefAdapter(configuracao)
+    elif nome.startswith("braspress"):
+        adapter = BraspressAdapter(configuracao)
+    else:
+        adapter = ApiGenericaAdapter(configuracao)
     try:
         resultado = await executar_resiliente(
             transportadora.id,
@@ -143,6 +152,74 @@ async def _cotar_por_api(
     )
 
 
+async def _cotar_por_ssw(transportadora: Transportadora, payload: dict, credenciais: dict[str, str]) -> ResultadoTransportadora:
+    request_id = str(uuid.uuid4())
+    try:
+        result = await SSWProvider().cotar(transportadora.id, transportadora.nome, SSWQuoteRequest(
+            cep_origem=payload["origem_cep"], cep_destino=payload["destino_cep"],
+            valor_nf=payload["valor_nf"], quantidade=payload["quantidade_volumes"],
+            peso=payload["peso"], volume=payload["volume_total_m3"],
+            mercadoria=int(credenciais.get("mercadoria_padrao", "1")),
+            cnpj_destinatario=payload.get("documento_destinatario"),
+        ), credenciais)
+        return ResultadoTransportadora(transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="success", valor_frete=float(result.valor_total), prazo_dias=result.prazo_dias,
+            moeda="BRL", request_id=request_id)
+    except Exception as exc:
+        return ResultadoTransportadora(transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", erro=ErroResultado(codigo="SSW_COTACAO_ERRO", mensagem=str(exc)), request_id=request_id)
+
+
+async def _cotar_por_provider(
+    transportadora: Transportadora,
+    integration: CarrierIntegration,
+    payload: dict,
+    credentials: dict[str, str],
+) -> ResultadoTransportadora:
+    request_id = str(uuid.uuid4())
+    try:
+        request = FreightQuoteRequest(
+            origin_zipcode=payload["origem_cep"],
+            destination_zipcode=payload["destino_cep"],
+            weight_kg=payload["peso"],
+            volumes=payload["quantidade_volumes"],
+            total_value=payload["valor_nf"],
+            cubage_m3=payload["volume_total_m3"],
+            products=[{
+                "documento_destinatario": payload.get("documento_destinatario"),
+                "volumes": payload.get("volumes", []),
+            }],
+        )
+        results = await registry.get(integration.adapter_code or "").quote(request, credentials)
+        if not results:
+            raise ValueError("Provider não retornou opções de frete")
+        result = min(results, key=lambda item: item.price)
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id,
+            transportadora=transportadora.nome,
+            status="success",
+            valor_frete=float(result.price),
+            prazo_dias=result.delivery_days,
+            moeda="BRL",
+            request_id=request_id,
+        )
+    except TimeoutError:
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="timeout", erro=ErroResultado(codigo="TRANSPORTADORA_TIMEOUT", mensagem="Tempo limite excedido"),
+            request_id=request_id,
+        )
+    except Exception as exc:
+        mensagem = str(exc).strip() or type(exc).__name__
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", erro=ErroResultado(
+                codigo="ERRO_API_TRANSPORTADORA",
+                mensagem=f"Falha no provider {integration.adapter_code}: {mensagem}",
+            ), request_id=request_id,
+        )
+
+
 async def executar_cotacao(
     cotacao: CotacaoCreate,
     db_session: AsyncSession | None = None,
@@ -168,6 +245,8 @@ async def executar_cotacao(
             volume.comprimento_cm * volume.largura_cm * volume.altura_cm * volume.quantidade / 1_000_000
             for volume in cotacao.volumes
         ),
+        "documento_destinatario": cotacao.documento_destinatario,
+        "volumes": [volume.model_dump() for volume in cotacao.volumes],
     }
 
     if db_session is None:
@@ -216,6 +295,18 @@ async def executar_cotacao(
                 )
             )
         elif transportadora.metodo_calculo == "api":
+            registered_integration = await db_session.scalar(select(CarrierIntegration).where(
+                CarrierIntegration.carrier_id == transportadora.id,
+                CarrierIntegration.adapter_code.in_(registry.codes()),
+                CarrierIntegration.active.is_(True),
+            ).order_by(CarrierIntegration.priority).limit(1))
+            if registered_integration:
+                segredos = await CarrierIntegrationManager(db_session).credentials(registered_integration)
+                # Providers recebem a configuração pública e os segredos guardados
+                # separadamente. O SSW precisa de ambos para montar a chamada.
+                credenciais = {**(registered_integration.configuration or {}), **segredos}
+                tarefas.append(_cotar_por_provider(transportadora, registered_integration, payload, credenciais))
+                continue
             configuracao = await db_session.scalar(select(TransportadoraConfiguracaoApi).where(
                 TransportadoraConfiguracaoApi.transportadora_id == transportadora.id
             ))

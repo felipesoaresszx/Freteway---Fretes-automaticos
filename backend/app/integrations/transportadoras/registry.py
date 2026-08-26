@@ -2,6 +2,9 @@ from collections.abc import Callable
 
 from app.integrations.transportadoras.carrier_base import CarrierAdapter
 from app.integrations.transportadoras.mock_adapter import MockCarrierAdapter
+from app.integrations.ssw.provider import SSWProvider
+from app.integrations.risso.provider import RissoProvider
+from app.integrations.correios.provider import CorreiosProvider
 
 
 class AdapterRegistry:
@@ -23,4 +26,7 @@ class AdapterRegistry:
 
 registry = AdapterRegistry()
 registry.register("mock", MockCarrierAdapter)
+registry.register("ssw", SSWProvider)
+registry.register("risso", RissoProvider)
+registry.register("correios", CorreiosProvider)
 ADAPTER_REGISTRY = registry

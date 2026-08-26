@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,6 +45,17 @@ class CarrierIntegrationRepository:
 
     async def get(self, carrier_id: str, integration_id: str) -> CarrierIntegration | None:
         return await self.db.scalar(select(CarrierIntegration).where(CarrierIntegration.id == integration_id, CarrierIntegration.carrier_id == carrier_id))
+
+    async def by_adapter(self, carrier_id: str, adapter_code: str) -> CarrierIntegration | None:
+        return await self.db.scalar(select(CarrierIntegration).where(
+            CarrierIntegration.carrier_id == carrier_id,
+            CarrierIntegration.adapter_code == adapter_code.lower(),
+        ).order_by(CarrierIntegration.priority).limit(1))
+
+    async def list_by_adapter(self, adapter_code: str) -> list[CarrierIntegration]:
+        return list((await self.db.scalars(select(CarrierIntegration).where(
+            CarrierIntegration.adapter_code == adapter_code.lower()
+        ).order_by(CarrierIntegration.created_at))).all())
 
     async def credential(self, integration_id: str) -> CarrierCredential | None:
         return await self.db.scalar(select(CarrierCredential).where(CarrierCredential.integration_id == integration_id, CarrierCredential.active.is_(True)).order_by(CarrierCredential.updated_at.desc()).limit(1))

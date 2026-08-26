@@ -40,6 +40,7 @@ env/
 backend/__pycache__/
 backend/*.py[cod]
 backend/storage/
+backend/tmp/
 
 # Frontend
 frontend/node_modules/

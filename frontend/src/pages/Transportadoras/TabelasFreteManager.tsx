@@ -23,12 +23,15 @@ export function TabelasFreteManager({ transportadoraId, transportadoraNome, onCl
   const upload = useUploadTabelaFrete();
   const analisar = useAnalisarTabelaFrete(transportadoraId);
 
-  async function salvar(dados: TabelaFreteCreate, arquivo: File) {
+  async function salvar(dados: TabelaFreteCreate, arquivos: File[]) {
     setErro("");
     try {
       const tabela = await criar.mutateAsync(dados);
-      const documento = await upload.mutateAsync({ tabelaId: tabela.id, arquivo });
-      await analisar.mutateAsync({ tabelaId: tabela.id, documentoId: documento.documento_id });
+      const documentos = [];
+      for (const arquivo of arquivos) {
+        documentos.push(await upload.mutateAsync({ tabelaId: tabela.id, arquivo }));
+      }
+      await analisar.mutateAsync({ tabelaId: tabela.id, documentoIds: documentos.map((item) => item.documento_id) });
       setExibirForm(false);
       setTabelaEmRevisao(tabela.id);
     } catch (error) {

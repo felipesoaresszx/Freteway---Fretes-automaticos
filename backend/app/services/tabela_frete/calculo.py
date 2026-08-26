@@ -33,6 +33,7 @@ from app.models.models import (
 from app.services.cubagem import calcular_cubagem
 from app.services.tabela_frete.calculo_rodonaves import CalculoRodonavesError, calcular_rodonaves
 from app.services.tabela_frete.calculo_uf_zona import CalculoUfZonaError, calcular_uf_zona
+from app.services.tabela_frete.calculo_transwells import CalculoTranswellsError, calcular_transwells
 
 
 class TabelaFreteCalculoService:
@@ -88,6 +89,12 @@ class TabelaFreteCalculoService:
                     return calcular_uf_zona(tabela.dados_importados.dados, dados_cotacao)
                 except CalculoUfZonaError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_UF_ZONA", "erro_mensagem": str(exc)}
+
+            if tabela.dados_importados and tabela.dados_importados.formato == "transwells_pracas_peso_v1":
+                try:
+                    return calcular_transwells(tabela.dados_importados.dados, dados_cotacao)
+                except CalculoTranswellsError as exc:
+                    return {"status": "error", "erro_codigo": "REGRA_TABELA_TRANSWELLS", "erro_mensagem": str(exc)}
 
             # 2. Valida dados de entrada
             erro = self._validar_dados_entrada(dados_cotacao)
