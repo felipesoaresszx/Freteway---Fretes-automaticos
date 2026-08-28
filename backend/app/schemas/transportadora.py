@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
@@ -150,6 +151,7 @@ class TransportadoraOut(TransportadoraBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    nome_fantasia: str | None = None
     ativa: bool
     taxa_sucesso: float
     tempo_medio_ms: int
@@ -165,8 +167,28 @@ class TransportadoraOut(TransportadoraBase):
     cidade: str | None = None
     uf: str | None = None
     cep: str | None = None
+    rntrc: str | None = None
     precisa_revisao: bool = False
     status_validacao: str = "A_VALIDAR"
+    origem_cadastro: str = "MANUAL"
+    imported_at: datetime | None = None
+
+
+class AnttTransportadoraOut(BaseModel):
+    nome: str
+    cnpj: str
+    rntrc: str
+    situacao: str
+    categoria: str
+    municipio: str | None = None
+    uf: str | None = None
+    cep: str | None = None
+    ja_cadastrada: bool = False
+
+
+class AnttTransportadoraAddIn(BaseModel):
+    cnpj: str = Field(min_length=14, max_length=18)
+    rntrc: str = Field(min_length=3, max_length=30)
 
 
 class ConfiguracaoApiUpdate(BaseModel):
@@ -259,9 +281,11 @@ class ImportacaoPreviewOut(BaseModel):
 class ImportacaoConfirmIn(BaseModel):
     atualizar_existentes: bool = True
     importar_em_revisao: bool = False
+    ativar_importadas: bool = False
 
 
 class ImportacaoResultadoOut(BaseModel):
     import_id: str
     status: str
     resultado: dict[str, int]
+    transportadora_ids: list[str] = []

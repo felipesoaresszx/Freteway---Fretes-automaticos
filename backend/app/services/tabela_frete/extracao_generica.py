@@ -22,6 +22,10 @@ def _resumo(texto: str, formato: str) -> dict:
 
 def extrair_documento_generico(caminho: Path, tipo: str) -> dict:
     if tipo == "pdf":
+        from app.services.document_intelligence import DocumentIntelligenceEngine
+        structured = DocumentIntelligenceEngine().analyze(caminho, tipo)
+        if structured:
+            return structured
         from app.services.tabela_frete.transwells_pdf import (
             classificar_texto, extrair_pracas, extrair_tabela, extrair_texto_pdf_com_ocr,
         )

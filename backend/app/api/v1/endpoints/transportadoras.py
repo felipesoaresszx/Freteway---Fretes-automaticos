@@ -1,4 +1,10 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from collections import defaultdict, deque
+from datetime import datetime, timedelta
+import httpx
+import csv
+import io
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +27,8 @@ from app.schemas.transportadora import (
     ImportacaoItemOut,
     ImportacaoPreviewOut,
     ImportacaoResultadoOut,
+    AnttTransportadoraAddIn,
+    AnttTransportadoraOut,
 )
 from app.schemas.transportadora import documento_valido, somente_digitos
 from app.services.consulta_cnpj import consultar_cnpj
@@ -31,8 +39,18 @@ from app.services.transportadora_exclusao import (
 )
 from app.services.transportadoras.import_service import confirm_import, create_preview
 from app.services.transportadoras.normalization import normalize_cnpj
+from app.services.antt_rntrc import AnttRntrcService
 
 router = APIRouter()
+_antt_requests: dict[str, deque[datetime]] = defaultdict(deque)
+
+
+def _check_antt_rate_limit(key: str) -> None:
+    now = datetime.utcnow(); window = now - timedelta(minutes=1); attempts = _antt_requests[key]
+    while attempts and attempts[0] < window: attempts.popleft()
+    if len(attempts) >= 30:
+        raise HTTPException(status_code=429, detail="Muitas pesquisas. Aguarde um minuto e tente novamente.")
+    attempts.append(now)
 
 
 async def _obter_ou_404(db: AsyncSession, transportadora_id: str) -> Transportadora:
@@ -115,8 +133,74 @@ async def confirmar_importacao_transportadoras(
 ):
     operation = await db.scalar(select(TransportadoraImportacao).where(TransportadoraImportacao.id == import_id).options(selectinload(TransportadoraImportacao.itens)))
     if not operation: raise HTTPException(404, "Importação não encontrada")
-    result = await confirm_import(db, operation, options.atualizar_existentes, options.importar_em_revisao)
-    return ImportacaoResultadoOut(import_id=operation.id, status=operation.status, resultado=result)
+    result, carrier_ids = await confirm_import(db, operation, options.atualizar_existentes, options.importar_em_revisao, options.ativar_importadas)
+    return ImportacaoResultadoOut(import_id=operation.id, status=operation.status, resultado=result, transportadora_ids=carrier_ids)
+
+
+@router.get("/transportadoras/import/template")
+async def modelo_importacao_transportadoras(_user=Depends(require_permission("transportadoras.view"))):
+    output=io.StringIO(); writer=csv.writer(output); writer.writerow(["cnpj","razao_social","nome_fantasia","rntrc","cep","cidade","uf","telefone","email","site"])
+    return StreamingResponse(iter([output.getvalue().encode("utf-8-sig")]),media_type="text/csv",headers={"Content-Disposition":"attachment; filename=modelo_transportadoras.csv"})
+
+
+@router.get("/transportadoras/import/{import_id}/report")
+async def relatorio_importacao_transportadoras(import_id:str,db:AsyncSession=Depends(get_db),_user=Depends(require_permission("transportadoras.view"))):
+    operation=await db.scalar(select(TransportadoraImportacao).where(TransportadoraImportacao.id==import_id).options(selectinload(TransportadoraImportacao.itens)))
+    if not operation: raise HTTPException(404,"Importação não encontrada")
+    output=io.StringIO(); writer=csv.writer(output); writer.writerow(["linha","cnpj","nome","resultado","motivo","transportadora_id"])
+    for item in operation.itens: writer.writerow([item.linha,item.cnpj or "",item.nome_transportadora or "",item.resultado,"; ".join([*item.erros,*item.avisos]),item.transportadora_id or ""])
+    return StreamingResponse(iter([output.getvalue().encode("utf-8-sig")]),media_type="text/csv",headers={"Content-Disposition":f"attachment; filename=relatorio_{import_id}.csv"})
+
+
+@router.get("/transportadoras/search/antt", response_model=list[AnttTransportadoraOut])
+async def buscar_transportadoras_antt(
+    request: Request,
+    q: str = Query(min_length=3, max_length=120),
+    limit: int = Query(20, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+    user=Depends(require_permission("transportadoras.view")),
+):
+    _check_antt_rate_limit(f"{user.id}:{request.client.host if request.client else 'unknown'}")
+    try:
+        found = await AnttRntrcService().search(q, limit=limit)
+    except (httpx.HTTPError, ValueError, OSError) as exc:
+        raise HTTPException(status_code=503, detail="A base da ANTT está temporariamente indisponível.") from exc
+    documents = [item.cnpj for item in found]
+    existing = set(await db.scalars(select(Transportadora.cnpj_cpf).where(
+        Transportadora.cnpj_cpf.in_(documents), Transportadora.deleted_at.is_(None)
+    ))) if documents else set()
+    return [AnttTransportadoraOut(**item.__dict__, ja_cadastrada=item.cnpj in existing) for item in found]
+
+
+@router.post("/transportadoras/from-antt", response_model=TransportadoraOut, status_code=status.HTTP_201_CREATED)
+async def adicionar_transportadora_antt(
+    data: AnttTransportadoraAddIn,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_permission("transportadoras.manage")),
+):
+    try:
+        source = await AnttRntrcService().find(cnpj=data.cnpj, rntrc=data.rntrc)
+    except (httpx.HTTPError, ValueError, OSError) as exc:
+        raise HTTPException(status_code=503, detail="A base da ANTT está temporariamente indisponível.") from exc
+    if not source:
+        raise HTTPException(status_code=404, detail="Transportadora não encontrada na base oficial da ANTT.")
+    await _validar_unicidade(db, source.nome, source.cnpj)
+    carrier = Transportadora(
+        nome=source.nome[:120], nome_fantasia=source.nome[:120], razao_social=source.nome[:255],
+        cnpj_cpf=source.cnpj, segmento="Transporte rodoviário de cargas", tipo_integracao="n8n",
+        metodo_calculo="manual", status_integracao="nao_aplicavel", ativa=False,
+        taxa_sucesso=0, tempo_medio_ms=0, rntrc=source.rntrc, cidade=source.municipio,
+        uf=source.uf, cep=source.cep, status_validacao=source.situacao.upper()[:30],
+        enrichment_status="NOT_STARTED", origem_cadastro="ANTT", imported_at=datetime.utcnow(),
+        metadata_json={"fonte_cadastro": "ANTT_RNTRC", "categoria_antt": source.categoria},
+    )
+    db.add(carrier)
+    try:
+        await db.commit(); await db.refresh(carrier)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Transportadora já cadastrada nesta empresa.") from exc
+    return carrier
 
 
 @router.get("/transportadoras/consulta-cnpj/{cnpj}", response_model=ConsultaCnpjOut)

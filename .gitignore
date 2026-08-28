@@ -21,6 +21,7 @@ pip-wheel-metadata/
 .env.*
 !.env.example
 !**/.env.example
+!**/.env.production.example
 .pytest_cache/
 .mypy_cache/
 .coverage
@@ -57,6 +58,7 @@ frontend/pnpm-debug.log*
 # Docker
 docker-compose.override.yml
 docker-compose.*.yml
+!docker-compose.production.yml
 *.env
 
 # IDEs and editors

@@ -8,8 +8,10 @@ from sqlalchemy import or_, select, text
 
 from app.db.session import AsyncSessionLocal, MasterSessionLocal, quote_schema
 from app.models.master import Tenant
-from app.models.models import AuditoriaTabela, Cotacao, ProcessamentoJob, TabelaFrete
+from app.models.models import AuditoriaTabela, Cotacao, ProcessamentoJob, TabelaFrete, Transportadora
 from app.services.cotacao_jobs import executar_job_analise_tabela, executar_job_cotacao, reagendar_job
+from app.services.enrichment import CarrierEnrichmentService
+from app.services.enrichment.search_provider import DuckDuckGoSearchProvider
 from app.services.tabela_frete.analise import AnaliseDocumentoError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -22,7 +24,7 @@ async def processar_schema(schema: str) -> bool:
         agora = datetime.utcnow()
         job = await db.scalar(
             select(ProcessamentoJob).where(
-                ProcessamentoJob.tipo.in_(["cotacao", "tabela_analise"]),
+                ProcessamentoJob.tipo.in_(["cotacao", "tabela_analise", "carrier_enrichment"]),
                 ProcessamentoJob.disponivel_em <= agora,
                 or_(
                     ProcessamentoJob.status == "pending",
@@ -35,6 +37,9 @@ async def processar_schema(schema: str) -> bool:
             return False
         job.status = "processing"
         job.bloqueado_em = agora
+        job.started_at = agora
+        job.progress = 5
+        job.current_step = "crawler" if job.tipo == "carrier_enrichment" else job.tipo
         await db.commit()
         # Preserve scalar values before a possible rollback expires the ORM object.
         job_id = job.id
@@ -45,8 +50,15 @@ async def processar_schema(schema: str) -> bool:
                 await executar_job_cotacao(db, job)
             elif job_type == "tabela_analise":
                 await executar_job_analise_tabela(db, job)
+            elif job_type == "carrier_enrichment":
+                await CarrierEnrichmentService(
+                    db, search_provider=DuckDuckGoSearchProvider()
+                ).run(resource_id, job=job)
             job.status = "completed"
             job.bloqueado_em = None
+            job.progress = 100
+            job.current_step = "completed"
+            job.finished_at = datetime.utcnow()
             await db.commit()
             logger.info("job_completed schema=%s job_id=%s recurso_id=%s", schema, job.id, job.recurso_id)
         except Exception as exc:
@@ -60,6 +72,9 @@ async def processar_schema(schema: str) -> bool:
             if job_type == "tabela_analise" and isinstance(exc, AnaliseDocumentoError):
                 job.tentativas = job.max_tentativas - 1
             reagendar_job(job, exc)
+            if job.status == "failed":
+                job.finished_at = datetime.utcnow()
+                job.current_step = "failed"
             if job.status == "failed" and job_type == "cotacao":
                 cotacao = await db.get(Cotacao, resource_id)
                 if cotacao and cotacao.status == "processing":
@@ -68,6 +83,11 @@ async def processar_schema(schema: str) -> bool:
                 tabela = await db.get(TabelaFrete, resource_id)
                 if tabela and tabela.status == "processing":
                     tabela.status = "draft"
+            elif job.status == "failed" and job_type == "carrier_enrichment":
+                carrier = await db.get(Transportadora, resource_id)
+                if carrier:
+                    carrier.enrichment_status = "ERROR"
+                    carrier.enrichment_finished_at = datetime.utcnow()
             await db.commit()
             logger.exception("job_failed schema=%s job_id=%s", schema, job_id)
         return True

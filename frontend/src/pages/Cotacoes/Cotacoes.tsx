@@ -2,7 +2,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, FilterX, RefreshCw, Search } fro
 import { useState } from "react";
 
 import { Badge, Card, Field, Input } from "../../components/ui";
-import { useCotacoes } from "../../hooks/useCotacoes";
+import { useCotacoes, useReprocessarCotacao } from "../../hooks/useCotacoes";
 import { useTransportadoras } from "../../hooks/useTransportadoras";
 import type { CotacaoFiltros } from "../../types/cotacao";
 
@@ -20,6 +20,7 @@ export function Cotacoes() {
   const [filtros, setFiltros] = useState<CotacaoFiltros>(filtrosIniciais);
   const [busca, setBusca] = useState("");
   const cotacoes = useCotacoes(filtros);
+  const reprocessar = useReprocessarCotacao();
   const { data: transportadoras } = useTransportadoras();
   const data = cotacoes.data;
 
@@ -85,7 +86,7 @@ export function Cotacoes() {
         {data && data.items.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="border-b border-border bg-surface2 text-xs text-text-secondary"><tr><th className="px-4 py-3 font-medium">Data</th><th className="px-4 py-3 font-medium">Trecho</th><th className="px-4 py-3 font-medium">Carga</th><th className="px-4 py-3 font-medium">Melhor opção</th><th className="px-4 py-3 font-medium">Retornos</th><th className="px-4 py-3 font-medium">Status</th></tr></thead>
+              <thead className="border-b border-border bg-surface2 text-xs text-text-secondary"><tr><th className="px-4 py-3 font-medium">Data</th><th className="px-4 py-3 font-medium">Trecho</th><th className="px-4 py-3 font-medium">Carga</th><th className="px-4 py-3 font-medium">Melhor opção</th><th className="px-4 py-3 font-medium">Retornos</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Ações</th></tr></thead>
               <tbody className="divide-y divide-border">
                 {data.items.map((item) => {
                   const status = statusConfig[item.status] ?? statusConfig.processing;
@@ -96,6 +97,7 @@ export function Cotacoes() {
                     <td className="whitespace-nowrap px-4 py-3">{item.melhor_frete != null ? <><p className="font-medium">{dinheiro.format(item.melhor_frete)}</p><p className="mt-1 text-xs text-text-secondary">{item.transportadora} · {item.prazo_dias} {item.prazo_dias === 1 ? "dia útil" : "dias úteis"}</p></> : <span className="text-text-secondary">Sem proposta válida</span>}</td>
                     <td className="whitespace-nowrap px-4 py-3"><span className="text-state-success">{item.resultados_sucesso}</span><span className="text-text-secondary">/{item.total_resultados} válidos</span></td>
                     <td className="px-4 py-3"><Badge tone={status.tone}>{status.label}</Badge></td>
+                    <td className="px-4 py-3"><button disabled={item.status === "processing" || reprocessar.isPending} onClick={() => reprocessar.mutate(item.id)} className="inline-flex h-8 items-center gap-1 rounded border border-border px-2 text-xs text-text-secondary disabled:opacity-40"><RefreshCw size={12} className={reprocessar.isPending && reprocessar.variables === item.id ? "animate-spin" : ""} /> Reprocessar</button></td>
                   </tr>;
                 })}
               </tbody>

@@ -171,6 +171,13 @@ class Transportadora(Base):
     precisa_revisao: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     status_validacao: Mapped[str] = mapped_column(String(30), default="A_VALIDAR", index=True)
     observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    enrichment_status: Mapped[str] = mapped_column(String(30), default="NOT_STARTED", index=True)
+    enrichment_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    enrichment_finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_enrichment_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    origem_cadastro: Mapped[str] = mapped_column(String(20), default="MANUAL", index=True)
+    imported_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    source_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     configuracao_api: Mapped["TransportadoraConfiguracaoApi | None"] = relationship(
@@ -207,6 +214,16 @@ class CarrierIntegration(Base):
     status: Mapped[str] = mapped_column(String(30), default="not_configured", index=True)
     last_validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     validation_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    endpoint_base: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    documentation_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    requirements: Mapped[dict] = mapped_column(JSONB, default=dict)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     carrier: Mapped["Transportadora"] = relationship()
@@ -230,6 +247,7 @@ class TransportadoraImportacao(Base):
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     arquivo_nome: Mapped[str] = mapped_column(String(255))
+    origem: Mapped[str] = mapped_column(String(20), default="FILE", index=True)
     usuario_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     total_registros: Mapped[int] = mapped_column(Integer, default=0)
     novos: Mapped[int] = mapped_column(Integer, default=0)
@@ -260,6 +278,7 @@ class TransportadoraImportacaoItem(Base):
     dados_normalizados: Mapped[dict] = mapped_column(JSONB, default=dict)
     erros: Mapped[list] = mapped_column(JSONB, default=list)
     avisos: Mapped[list] = mapped_column(JSONB, default=list)
+    transportadora_id: Mapped[str | None] = mapped_column(ForeignKey("transportadoras.id", ondelete="SET NULL"), nullable=True, index=True)
     importacao: Mapped[TransportadoraImportacao] = relationship(back_populates="itens")
 
 
@@ -272,6 +291,69 @@ class TransportadoraFonte(Base):
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     data_pesquisa: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class TransportadoraCoverage(Base):
+    __tablename__ = "transportadoras_coberturas"
+    __table_args__ = (UniqueConstraint("transportadora_id", "coverage_type", "uf", "city", "cep_start", "cep_end", "pickup_available", "delivery_available", name="uq_transportadora_coverage"),)
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    transportadora_id: Mapped[str] = mapped_column(ForeignKey("transportadoras.id", ondelete="CASCADE"), index=True)
+    coverage_type: Mapped[str] = mapped_column(String(20), index=True)
+    uf: Mapped[str | None] = mapped_column(String(2), nullable=True, index=True)
+    city: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    cep_start: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
+    cep_end: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
+    pickup_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    delivery_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    minimum_deadline: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    maximum_deadline: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    restrictions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence_score: Mapped[float] = mapped_column(Float)
+    source_url: Mapped[str] = mapped_column(String(500))
+    verified_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class TransportadoraBranch(Base):
+    __tablename__ = "transportadoras_filiais"
+    __table_args__ = (UniqueConstraint("transportadora_id", "cnpj", "cep", "address", name="uq_transportadora_branch"),)
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    transportadora_id: Mapped[str] = mapped_column(ForeignKey("transportadoras.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    cnpj: Mapped[str | None] = mapped_column(String(14), nullable=True)
+    cep: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    uf: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    pickup_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    delivery_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    source_url: Mapped[str] = mapped_column(String(500))
+    confidence_score: Mapped[float] = mapped_column(Float)
+    verified_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class EnrichmentEvidence(Base):
+    __tablename__ = "enrichment_evidences"
+    __table_args__ = (UniqueConstraint("transportadora_id", "evidence_type", "value", "source_url", name="uq_enrichment_evidence"),)
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    transportadora_id: Mapped[str] = mapped_column(ForeignKey("transportadoras.id", ondelete="CASCADE"), index=True)
+    evidence_type: Mapped[str] = mapped_column(String(50), index=True)
+    value: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[dict] = mapped_column(JSONB, default=dict)
+    source: Mapped[str] = mapped_column(String(80))
+    source_url: Mapped[str] = mapped_column(String(500))
+    discovery_method: Mapped[str] = mapped_column(String(80))
+    confidence_score: Mapped[float] = mapped_column(Float)
+    review_status: Mapped[str] = mapped_column(String(20), default="PENDING", index=True)
+    reviewed_by_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    verified_at: Mapped[datetime] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -415,6 +497,10 @@ class ProcessamentoJob(Base):
     disponivel_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     bloqueado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     ultimo_erro: Mapped[str | None] = mapped_column(Text, nullable=True)
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    current_step: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -503,6 +589,35 @@ class TabelaFreteDadosImportados(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     tabela_frete: Mapped[TabelaFrete] = relationship(back_populates="dados_importados")
+
+
+class DocumentFieldAlias(Base):
+    __tablename__ = "document_field_aliases"
+    __table_args__ = (UniqueConstraint("canonical_field","alias","context","carrier_id",name="uq_document_field_alias"),)
+    id:Mapped[str]=mapped_column(UUID(as_uuid=False),primary_key=True,default=gen_uuid)
+    canonical_field:Mapped[str]=mapped_column(String(80),index=True)
+    alias:Mapped[str]=mapped_column(String(160),index=True)
+    context:Mapped[str]=mapped_column(String(80),default="freight_table")
+    carrier_id:Mapped[str|None]=mapped_column(ForeignKey("transportadoras.id",ondelete="CASCADE"),nullable=True,index=True)
+    priority:Mapped[int]=mapped_column(Integer,default=100)
+    active:Mapped[bool]=mapped_column(Boolean,default=True,index=True)
+    created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
+    updated_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow,onupdate=datetime.utcnow)
+
+
+class DocumentPattern(Base):
+    __tablename__="document_patterns"
+    __table_args__=(UniqueConstraint("carrier_id","document_type","format_code",name="uq_document_pattern_carrier_format"),)
+    id:Mapped[str]=mapped_column(UUID(as_uuid=False),primary_key=True,default=gen_uuid)
+    carrier_id:Mapped[str|None]=mapped_column(ForeignKey("transportadoras.id",ondelete="CASCADE"),nullable=True,index=True)
+    document_type:Mapped[str]=mapped_column(String(80),default="freight_table",index=True)
+    format_code:Mapped[str]=mapped_column(String(100),index=True)
+    fingerprint:Mapped[dict]=mapped_column(JSONB,default=dict)
+    learned_aliases:Mapped[dict]=mapped_column(JSONB,default=dict)
+    occurrences:Mapped[int]=mapped_column(Integer,default=1)
+    active:Mapped[bool]=mapped_column(Boolean,default=True,index=True)
+    created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
+    updated_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow,onupdate=datetime.utcnow)
 
 
 class AbrangenciaFrete(Base):

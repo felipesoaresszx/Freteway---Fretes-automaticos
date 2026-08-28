@@ -27,11 +27,20 @@ def test_uf_e_aliases():
 
 
 def test_registro_sem_cnpj_exige_revisao():
-    data, errors, warnings = normalize_row({"nome_fantasia":"Ouro Negro", "precisa_revisao":"Sim"})
+    data, errors, warnings = normalize_row({"nome_fantasia":"Ouro Negro", "cidade":"São Paulo", "uf":"SP", "precisa_revisao":"Sim"})
     assert not errors
     assert data["precisa_revisao"] is True
     assert data["cnpj"] is None
     assert any("revisão" in warning for warning in warnings)
+
+
+def test_aliases_da_antt_e_colunas_comuns():
+    assert canonical_header("CNPJ Transportadora") == "cnpj"
+    assert canonical_header("cpfcnpjtransportador") == "cnpj"
+    assert canonical_header("Nome Empresarial") == "razao_social"
+    assert canonical_header("nome_transportador") == "razao_social"
+    assert canonical_header("Município") == "cidade"
+    assert canonical_header("Estado") == "uf"
 
 
 def test_registro_invalido():

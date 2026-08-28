@@ -151,6 +151,62 @@ async def listar_cotacoes(
     )
 
 
+@router.post("/cotacoes/{cotacao_id}/reprocessar", status_code=status.HTTP_202_ACCEPTED)
+async def reprocessar_cotacao(
+    cotacao_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_permission("cotacoes.manage")),
+):
+    """Enfileira uma nova execução usando o payload original da cotação."""
+    cotacao = await db.get(Cotacao, cotacao_id)
+    if not cotacao:
+        raise HTTPException(status_code=404, detail="Cotação não encontrada.")
+
+    ativo = await db.scalar(select(ProcessamentoJob).where(
+        ProcessamentoJob.tipo == "cotacao",
+        ProcessamentoJob.recurso_id == cotacao_id,
+        ProcessamentoJob.status.in_(("pending", "processing")),
+    ).limit(1))
+    if ativo:
+        raise HTTPException(status_code=409, detail="A cotação já está sendo processada.")
+
+    anterior = await db.scalar(select(ProcessamentoJob).where(
+        ProcessamentoJob.tipo == "cotacao",
+        ProcessamentoJob.recurso_id == cotacao_id,
+    ).order_by(ProcessamentoJob.created_at.desc()).limit(1))
+    if not anterior:
+        raise HTTPException(status_code=409, detail="Payload original da cotação não foi encontrado.")
+
+    # Valida antes de persistir para não criar um job impossível de executar.
+    payload = CotacaoCreate.model_validate(anterior.payload).model_dump(mode="json")
+    job = ProcessamentoJob(tipo="cotacao", recurso_id=cotacao_id, payload=payload)
+    db.add(job)
+    cotacao.status = "processing"
+    cotacao.melhor_opcao_id = None
+    await db.commit()
+    await db.refresh(job)
+    return {"job_id": job.id, "cotacao_id": cotacao_id, "status": job.status}
+
+
+@router.get("/cotacoes/{cotacao_id}/job")
+async def obter_status_job_cotacao(
+    cotacao_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_permission("cotacoes.view")),
+):
+    job = await db.scalar(select(ProcessamentoJob).where(
+        ProcessamentoJob.tipo == "cotacao",
+        ProcessamentoJob.recurso_id == cotacao_id,
+    ).order_by(ProcessamentoJob.created_at.desc()).limit(1))
+    if not job:
+        raise HTTPException(status_code=404, detail="Job da cotação não encontrado.")
+    return {
+        "id": job.id, "status": job.status, "tentativas": job.tentativas,
+        "max_tentativas": job.max_tentativas, "erro": job.ultimo_erro,
+        "started_at": job.started_at, "finished_at": job.finished_at,
+    }
+
+
 @router.get("/cotacoes/{cotacao_id}", response_model=CotacaoOut)
 async def obter_cotacao(
     cotacao_id: str,

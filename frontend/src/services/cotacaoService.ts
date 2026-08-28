@@ -23,4 +23,8 @@ export const cotacaoService = {
   async selecionar(id: string, transportadoraId: string): Promise<void> {
     await apiClient.post(`/cotacoes/${id}/selecionar`, { transportadora_id: transportadoraId });
   },
+
+  async reprocessar(id: string): Promise<void> {
+    await apiClient.post(`/cotacoes/${id}/reprocessar`);
+  },
 };

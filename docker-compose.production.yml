@@ -1,0 +1,149 @@
+name: freteway
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-frete}
+      POSTGRES_USER: ${POSTGRES_USER:-frete}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD em .env.production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ${BACKEND_ENV_FILE:-./backend/.env.production}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-frete}
+      MASTER_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-frete}
+      TABELA_FRETE_STORAGE_DIR: /app/storage/tabelas_frete
+      EMPRESA_LOGO_STORAGE_DIR: /app/storage/configuracoes/logos
+    expose:
+      - "8000"
+    volumes:
+      - app_storage:/app/storage
+    networks:
+      - application
+      - database
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python -m app.worker
+    env_file:
+      - ${BACKEND_ENV_FILE:-./backend/.env.production}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-frete}
+      MASTER_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-frete}
+      TABELA_FRETE_STORAGE_DIR: /app/storage/tabelas_frete
+      EMPRESA_LOGO_STORAGE_DIR: /app/storage/configuracoes/logos
+    volumes:
+      - app_storage:/app/storage
+    networks:
+      - application
+      - database
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.production
+      args:
+        VITE_API_URL: /api/v1
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - application
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Defina DOMAIN em .env.production}
+      TLS_EMAIL: ${TLS_EMAIL:?Defina TLS_EMAIL em .env.production}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - application
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+networks:
+  application:
+    driver: bridge
+  database:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  app_storage:
+  caddy_data:
+  caddy_config:

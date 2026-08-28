@@ -1,70 +1,57 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { RefreshCw, Search, Upload } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-
-import { Badge, Card } from "../../components/ui";
-import { useTransportadoras } from "../../hooks/useTransportadoras";
+import { Card, Input } from "../../components/ui";
+import { useCarrierCards, useCarrierStats } from "../../hooks/useTransportadoras";
+import { getErrorMessage } from "../../api/client";
+import { transportadoraService } from "../../services/transportadoraService";
+import type { CarrierCard, CarrierSummary, EnrichmentJob, Transportadora } from "../../types/transportadora";
 import { TabelasFreteManager } from "./TabelasFreteManager";
+import { BuscarTransportadorasAntt } from "./BuscarTransportadorasAntt";
 import { ImportarTransportadoras } from "./ImportarTransportadoras";
+import { ImportSourceSelector, type ImportSource } from "./ImportSourceSelector";
+import { CadastroManualTransportadora } from "./CadastroManualTransportadora";
 import { CarrierManager } from "./CarrierManager";
+import { CarrierDetails } from "./CarrierDetails";
+import { CarrierIntelligenceCard } from "./CarrierIntelligenceCard";
 
-export function Transportadoras() {
-  const { data, isLoading, isError } = useTransportadoras();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [selecionada, setSelecionada] = useState<{ id: string; nome: string } | null>(null);
-  const [importando, setImportando] = useState(false);
-  const [gerenciando, setGerenciando] = useState<string | null>(null);
+const UFS=["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
+const TERMINAL=new Set(["SUCCESS","FAILED","CANCELLED"]);
 
-  useEffect(() => {
-    const id = searchParams.get("transportadora");
-    const transportadora = data?.find((item) => item.id === id);
-    if (transportadora) setSelecionada({ id: transportadora.id, nome: transportadora.nome });
-  }, [data, searchParams]);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-medium">Transportadoras</h1><button onClick={()=>setImportando(true)} className="rounded border border-border px-3 py-2 text-sm hover:bg-surface2">Importar transportadoras</button></div>
-
-      {isLoading && <p className="text-sm text-text-secondary">Carregando transportadoras...</p>}
-      {isError && <p className="text-sm text-state-error">Não foi possível carregar as transportadoras.</p>}
-      {data && data.length === 0 && <p className="text-sm text-text-secondary">Nenhuma transportadora cadastrada.</p>}
-
-      {data && data.length > 0 && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {data.map((t) => (
-            <Card key={t.id}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-sm">{t.nome}</span>
-                <Badge tone={t.ativa ? "success" : "warning"}>{t.ativa ? "Ativa" : "Inativa"}</Badge>
-              </div>
-              <div className="text-xs space-y-1 text-text-secondary">
-                <p>Integração: {t.tipo_integracao}</p>
-                <p>Sucesso: {t.taxa_sucesso}%</p>
-                <p>Tempo médio: {t.tempo_medio_ms} ms</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelecionada({ id: t.id, nome: t.nome })}
-                className="mt-3 h-8 rounded border border-border px-3 text-xs hover:bg-surface2"
-              >
-                Gerenciar tabelas
-              </button>
-              <button type="button" onClick={() => setGerenciando(t.id)} className="ml-2 mt-3 h-8 rounded border border-border px-3 text-xs hover:bg-surface2">Configurar</button>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {selecionada && (
-        <TabelasFreteManager
-          transportadoraId={selecionada.id}
-          transportadoraNome={selecionada.nome}
-          onClose={() => { setSelecionada(null); setSearchParams({}); }}
-        />
-      )}
-      {importando && (
-        <ImportarTransportadoras onClose={() => setImportando(false)} />
-      )}
-      {gerenciando && data && <CarrierManager carrier={data.find(item=>item.id===gerenciando)!} onClose={()=>setGerenciando(null)} />}
-    </div>
-  );
+export function Transportadoras(){
+  const [params,setParams]=useSearchParams(),queryClient=useQueryClient();
+  const [searchInput,setSearchInput]=useState(params.get("search")||""),[selected,setSelected]=useState<Set<string>>(new Set()),[jobs,setJobs]=useState<Record<string,EnrichmentJob>>({}),[message,setMessage]=useState(""),[actionBusy,setActionBusy]=useState(false),[importSource,setImportSource]=useState<ImportSource|null>(null),[tables,setTables]=useState<{id:string;nome:string}|null>(null),[details,setDetails]=useState<Transportadora|null>(null),[configuring,setConfiguring]=useState<Transportadora|null>(null),[loadingCarrier,setLoadingCarrier]=useState<string|null>(null);
+  const page=Number(params.get("page")||1),pageSize=Number(params.get("page_size")||20);
+  const filters={search:params.get("search")||undefined,status:params.get("status")||undefined,integration_type:params.get("integration")||undefined,coverage_uf:params.get("coverage")||undefined,enrichment_status:params.get("enrichment")||undefined,sort:params.get("sort")||"name",page,page_size:pageSize};
+  const cards=useCarrierCards(filters),stats=useCarrierStats();
+  useEffect(()=>{const timer=window.setTimeout(()=>updateParam("search",searchInput||null,true),400);return()=>window.clearTimeout(timer)},[searchInput]);
+  useEffect(()=>{const active=Object.values(jobs).filter(job=>!TERMINAL.has(job.status));if(!active.length)return;let cancelled=false;const timer=window.setInterval(async()=>{const results=await Promise.allSettled(active.map(job=>transportadoraService.obterJob(job.id)));if(cancelled)return;let finished=false;setJobs(current=>{const next={...current};results.forEach((result,index)=>{if(result.status==="fulfilled"){next[active[index].id]=result.value;if(TERMINAL.has(result.value.status))finished=true}});return next});if(finished){await Promise.all([queryClient.invalidateQueries({queryKey:["transportadoras","cards"]}),queryClient.invalidateQueries({queryKey:["transportadoras","stats"]})])}},3000);return()=>{cancelled=true;window.clearInterval(timer)}},[jobs,queryClient]);
+  useEffect(()=>setSelected(new Set()),[page,filters.search,filters.status,filters.integration_type,filters.coverage_uf,filters.enrichment_status]);
+  function updateParam(key:string,value:string|null,resetPage=false){setParams(current=>{const next=new URLSearchParams(current);value&&value!=="all"?next.set(key,value):next.delete(key);if(resetPage)next.set("page","1");return next},{replace:true})}
+  async function loadCarrier(id:string,target:"details"|"configure"){setLoadingCarrier(id);setMessage("");try{const carrier=await transportadoraService.obter(id);target==="details"?setDetails(carrier):setConfiguring(carrier)}catch(error){setMessage(getErrorMessage(error,"Não foi possível carregar a transportadora."))}finally{setLoadingCarrier(null)}}
+  async function queue(ids:string[]){if(!ids.length)return;setActionBusy(true);setMessage("");try{const response=await transportadoraService.enriquecerEmLote(ids);const initial=Object.fromEntries(response.job_ids.map((id,index)=>[id,{id,transportadora_id:ids[index]||ids[0],status:"QUEUED",progress:0,current_step:"queued",started_at:null,finished_at:null,error_message:null} satisfies EnrichmentJob]));setJobs(current=>({...current,...initial}));setMessage(`${response.job_ids.length} transportadora(s) adicionada(s) à fila.`);setSelected(new Set());await refresh()}catch(error){setMessage(getErrorMessage(error,"Não foi possível iniciar o enriquecimento."))}finally{setActionBusy(false)}}
+  async function queuePending(){setActionBusy(true);setMessage("");try{const response=await transportadoraService.enriquecerPendentes();const loaded=await Promise.all(response.job_ids.map(id=>transportadoraService.obterJob(id)));setJobs(current=>({...current,...Object.fromEntries(loaded.map(job=>[job.id,job]))}));setMessage(`${response.queued} transportadora(s) adicionada(s) à fila.`);await refresh()}catch(error){setMessage(getErrorMessage(error,"Não foi possível enriquecer as transportadoras pendentes."))}finally{setActionBusy(false)}}
+  async function changeStatus(ids:string[],ativa:boolean){setActionBusy(true);setMessage("");try{const result=await transportadoraService.alterarStatusEmLote(ids,ativa);setMessage(`${result.updated} transportadora(s) ${ativa?"ativada(s)":"desativada(s)"}.`);setSelected(new Set());await refresh()}catch(error){setMessage(getErrorMessage(error,"Não foi possível alterar o status."))}finally{setActionBusy(false)}}
+  async function refresh(){await Promise.all([queryClient.invalidateQueries({queryKey:["transportadoras","cards"]}),queryClient.invalidateQueries({queryKey:["transportadoras","stats"]}),queryClient.invalidateQueries({queryKey:["transportadoras"]})])}
+  const activeCarrierIds=new Set(Object.values(jobs).filter(job=>!TERMINAL.has(job.status)).map(job=>job.transportadora_id));
+  const metricItems=stats.data?[{label:"Transportadoras",value:stats.data.total,action:()=>clearQuickFilters()},{label:"Ativas",value:stats.data.active,action:()=>updateParam("status","active",true)},{label:"Com API",value:stats.data.with_api,action:()=>updateParam("integration","api",true)},{label:"Com SSW",value:stats.data.with_ssw,action:()=>updateParam("integration","ssw",true)},{label:"Com tabela",value:stats.data.with_table,action:()=>updateParam("integration","tabela",true)},{label:"Pendentes",value:stats.data.pending_enrichment,action:()=>updateParam("enrichment","NOT_STARTED",true)}]:[];
+  function clearQuickFilters(){setParams(current=>{const next=new URLSearchParams(current);["status","integration","coverage","enrichment"].forEach(key=>next.delete(key));next.set("page","1");return next})}
+  const allSelected=Boolean(cards.data?.items.length)&&cards.data!.items.every(item=>selected.has(item.id));
+  const summaryFor=(carrier:CarrierCard):CarrierSummary=>({transportadora_id:carrier.id,status:carrier.enrichment.status,completion_percent:carrier.enrichment.percentage,last_enrichment_at:carrier.enrichment.last_run_at,integration_types:carrier.integrations.map(item=>item.type),coverage_states:carrier.coverage.states,national_coverage:carrier.coverage.national,branches_count:carrier.branches_count,freight_table_access:carrier.freight_table_access,pending_reviews:0,confidence_score:null,next_verification_at:null});
+  return <div className="space-y-5"><header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-lg font-semibold">Transportadoras</h1><p className="mt-1 text-xs text-text-secondary">Cadastro, cobertura e capacidade de integração em uma única visão.</p></div><div className="flex flex-wrap gap-2"><button disabled={actionBusy} onClick={()=>void queuePending()} className="inline-flex h-9 items-center gap-2 rounded border border-border px-3 text-sm hover:bg-surface2 disabled:opacity-50"><RefreshCw size={14}/>{actionBusy?"Processando...":"Enriquecer pendentes"}</button><button onClick={()=>setImportSource("SOURCE")} className="inline-flex h-9 items-center gap-2 rounded bg-state-info px-3 text-sm text-white"><Upload size={14}/>Importar transportadoras</button></div></header>
+    <section aria-label="Resumo" className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">{stats.isLoading?Array.from({length:6},(_,i)=><Card key={i} className="h-16 animate-pulse !rounded-lg !shadow-none"/>):metricItems.map(item=><button key={item.label} onClick={item.action} className="text-left"><Card className="!rounded-lg !p-3 !shadow-none hover:border-state-info"><p className="text-[11px] text-text-secondary">{item.label}</p><p className="mt-1 text-xl font-semibold tabular-nums">{item.value}</p></Card></button>)}</section>
+    <section className="rounded-lg border border-border bg-surface p-3"><div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(240px,1.5fr)_repeat(5,minmax(120px,1fr))]"><label className="relative"><Search className="absolute left-3 top-2.5 text-text-secondary" size={15}/><Input aria-label="Buscar transportadora" value={searchInput} onChange={event=>setSearchInput(event.target.value)} placeholder="Nome, CNPJ ou RNTRC" className="pl-9"/></label><Select label="Status" value={filters.status||"all"} onChange={v=>updateParam("status",v,true)} options={[["all","Todas"],["active","Ativas"],["inactive","Inativas"]]}/><Select label="Integração" value={filters.integration_type||"all"} onChange={v=>updateParam("integration",v,true)} options={[["all","Todas"],["api","API"],["ssw","SSW"],["webservice","WebService"],["senior","Senior"],["edi","EDI"],["portal","Portal"],["tabela","Tabela"],["manual","Manual"],["none","Sem integração"]]}/><Select label="Cobertura" value={filters.coverage_uf||"all"} onChange={v=>updateParam("coverage",v,true)} options={[["all","Todas as UFs"],...UFS.map(v=>[v,v])]}/><Select label="Enriquecimento" value={filters.enrichment_status||"all"} onChange={v=>updateParam("enrichment",v,true)} options={[["all","Todos"],["NOT_STARTED","Não iniciado"],["PROCESSING","Processando"],["ENRICHED","Completo"],["PARTIAL","Parcial"],["WAITING_REVIEW","Revisão necessária"],["NO_DATA","Sem dados"],["ERROR","Erro"]]}/><Select label="Ordenar" value={filters.sort||"name"} onChange={v=>updateParam("sort",v,true)} options={[["name","Nome"],["active","Ativas primeiro"],["enrichment","Maior enriquecimento"],["coverage","Maior cobertura"],["api","API primeiro"],["recent","Mais recentes"]]}/></div></section>
+    {cards.data?.items.length?<label className="inline-flex items-center gap-2 text-xs text-text-secondary"><input type="checkbox" checked={allSelected} onChange={event=>setSelected(event.target.checked?new Set(cards.data!.items.map(item=>item.id)):new Set())}/> Selecionar todas desta página</label>:null}
+    {selected.size>0&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-state-info/40 bg-state-info/10 p-3 text-sm"><span>{selected.size} selecionada(s)</span><div className="flex flex-wrap gap-2"><button disabled={actionBusy} onClick={()=>void queue([...selected])} className="rounded bg-state-info px-3 py-1.5 text-white">Enriquecer</button><button disabled={actionBusy} onClick={()=>void changeStatus([...selected],true)} className="rounded border border-border px-3 py-1.5">Ativar</button><button disabled={actionBusy} onClick={()=>void changeStatus([...selected],false)} className="rounded border border-border px-3 py-1.5">Desativar</button><button onClick={()=>setSelected(new Set())} className="rounded border border-border px-3 py-1.5">Limpar seleção</button></div></div>}
+    {message&&<p role="status" className="rounded-lg border border-border bg-surface p-3 text-sm">{message}</p>}
+    {cards.isLoading&&<Skeleton/>}{cards.isError&&<ErrorState onRetry={()=>void cards.refetch()}/>} {!cards.isLoading&&!cards.isError&&!cards.data?.items.length&&<p className="rounded-lg border border-border bg-surface p-5 text-sm text-text-secondary">Nenhuma transportadora encontrada.</p>}
+    {cards.data?.items.length?<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{cards.data.items.map(carrier=>{const activeJob=Object.values(jobs).find(job=>job.transportadora_id===carrier.id&&!TERMINAL.has(job.status));return <CarrierIntelligenceCard key={carrier.id} carrier={carrier} enriching={activeCarrierIds.has(carrier.id)||loadingCarrier===carrier.id} jobProgress={activeJob?.progress} jobStep={activeJob?.current_step} selected={selected.has(carrier.id)} onSelect={checked=>setSelected(current=>{const next=new Set(current);checked?next.add(carrier.id):next.delete(carrier.id);return next})} onDetails={()=>void loadCarrier(carrier.id,"details")} onConfigure={()=>void loadCarrier(carrier.id,"configure")} onTables={()=>setTables({id:carrier.id,nome:carrier.nome})} onEnrich={()=>void queue([carrier.id])} onToggleStatus={()=>void changeStatus([carrier.id],!carrier.ativa)}/>})}</div>:null}
+    {cards.data&&cards.data.pages>0?<Pagination page={cards.data.page} pages={cards.data.pages} pageSize={cards.data.page_size} total={cards.data.total} onPage={value=>updateParam("page",String(value))} onPageSize={value=>updateParam("page_size",String(value),true)}/>:null}
+    {tables&&<TabelasFreteManager transportadoraId={tables.id} transportadoraNome={tables.nome} onClose={()=>{setTables(null);void refresh()}}/>} {importSource==="SOURCE"&&<ImportSourceSelector onSelect={setImportSource} onClose={()=>setImportSource(null)}/>} {importSource==="FILE"&&<ImportarTransportadoras onBack={()=>setImportSource("SOURCE")} onClose={()=>{setImportSource(null);void refresh()}}/>} {importSource==="ANTT"&&<BuscarTransportadorasAntt onClose={()=>{setImportSource(null);void refresh()}}/>} {importSource==="MANUAL"&&<CadastroManualTransportadora onBack={()=>setImportSource("SOURCE")} onClose={()=>{setImportSource(null);void refresh()}}/>} {configuring&&<CarrierManager carrier={configuring} onClose={()=>{setConfiguring(null);void refresh()}}/>} {details&&<CarrierDetails carrier={details} summary={summaryFor(cards.data!.items.find(item=>item.id===details.id)!)} onClose={()=>{setDetails(null);void refresh()}} onConfigure={()=>{setDetails(null);setConfiguring(details)}} onTables={()=>{setDetails(null);setTables({id:details.id,nome:details.nome})}}/>}
+  </div>
 }
+function Select({label,value,onChange,options}:{label:string;value:string;onChange:(value:string)=>void;options:string[][]}){return <label><span className="sr-only">{label}</span><select aria-label={label} value={value} onChange={event=>onChange(event.target.value)} className="h-9 w-full rounded border border-border bg-surface px-3 text-xs text-text-primary outline-none focus:border-state-info">{options.map(([key,text])=><option key={key} value={key}>{label}: {text}</option>)}</select></label>}
+function Pagination({page,pages,pageSize,total,onPage,onPageSize}:{page:number;pages:number;pageSize:number;total:number;onPage:(v:number)=>void;onPageSize:(v:number)=>void}){return <div className="flex flex-col items-center justify-between gap-3 border-t border-border pt-4 text-xs text-text-secondary sm:flex-row"><span>{total} registro(s) · página {page} de {pages}</span><div className="flex items-center gap-2"><select aria-label="Itens por página" value={pageSize} onChange={e=>onPageSize(Number(e.target.value))} className="h-8 rounded border border-border bg-surface px-2"><option value={20}>20 por página</option><option value={50}>50 por página</option><option value={100}>100 por página</option></select><button disabled={page<=1} onClick={()=>onPage(page-1)} className="h-8 rounded border border-border px-3 disabled:opacity-40">Anterior</button><button disabled={page>=pages} onClick={()=>onPage(page+1)} className="h-8 rounded border border-border px-3 disabled:opacity-40">Próxima</button></div></div>}
+function Skeleton(){return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Array.from({length:6},(_,i)=><Card key={i} className="h-[330px] animate-pulse !rounded-lg !shadow-none"><div className="h-4 w-2/3 rounded bg-surface2"/><div className="mt-8 h-6 rounded bg-surface2"/><div className="mt-8 h-3 rounded bg-surface2"/><div className="mt-20 h-20 rounded bg-surface2"/></Card>)}</div>}
+function ErrorState({onRetry}:{onRetry:()=>void}){return <div className="rounded-lg border border-state-error/30 bg-surface p-5 text-sm text-state-error"><p>Não foi possível carregar as transportadoras.</p><button onClick={onRetry} className="mt-3 rounded border border-border px-3 py-2 text-text-primary">Tentar novamente</button></div>}

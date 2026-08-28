@@ -38,5 +38,13 @@ export const apiClient = axios.create({
 // 500 e indisponibilidade viram mensagens amigáveis, nunca stack traces.
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiErrorBody>) => Promise.reject(normalizeApiError(error))
+  (error: AxiosError<ApiErrorBody>) => {
+    if (error.response?.status === 401 && typeof window !== "undefined" && window.location.pathname !== "/login") {
+      // A autenticação usa cookie HttpOnly, portanto o frontend não pode renovar
+      // uma sessão expirada. Voltar ao login evita manter uma tela aparentemente
+      // autenticada onde todas as ações falham individualmente.
+      window.location.assign("/login");
+    }
+    return Promise.reject(normalizeApiError(error));
+  }
 );

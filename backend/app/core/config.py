@@ -33,6 +33,20 @@ class Settings(BaseSettings):
     CEP_CONSULTA_BASE_URL: str = "https://brasilapi.com.br/api/cep/v2"
     CEP_CONSULTA_TIMEOUT_SECONDS: int = 8
 
+    # Pesquisa web usada para descobrir o site oficial das transportadoras.
+    ENRICHMENT_SEARCH_URL: str = "https://html.duckduckgo.com/html/"
+    ENRICHMENT_SEARCH_TIMEOUT_SECONDS: float = 10
+    ENRICHMENT_SEARCH_MAX_RESULTS: int = 10
+
+    # Catálogo oficial mensal de transportadores inscritos no RNTRC/ANTT.
+    ANTT_DATA_BASE_URL: str = "https://dados.antt.gov.br"
+    ANTT_RNTRC_DATASET_ID: str = "b4a055d1-97a2-46f1-9461-cb17fbc6b6b3"
+    ANTT_RNTRC_RESOURCE_ID: str = "f73b7474-81d4-4713-94fa-03972913c26f"
+    ANTT_DATA_TIMEOUT_SECONDS: float = 20
+
+    TRANSPORTADORA_IMPORT_MAX_BYTES: int = 10 * 1024 * 1024
+    TRANSPORTADORA_IMPORT_BATCH_SIZE: int = 500
+
     # Documentos originais das tabelas de frete.
     TABELA_FRETE_STORAGE_DIR: str = "storage/tabelas_frete"
     TABELA_FRETE_UPLOAD_MAX_BYTES: int = 25 * 1024 * 1024

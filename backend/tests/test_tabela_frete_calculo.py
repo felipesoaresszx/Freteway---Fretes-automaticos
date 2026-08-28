@@ -180,6 +180,43 @@ async def test_validacao_uf_origem_obrigatorio(servico_calculo):
 
 
 @pytest.mark.asyncio
+async def test_nao_usa_primeira_abrangencia_quando_destino_nao_tem_cobertura(servico_calculo):
+    tabela = criar_tabela_mock()
+    tabela.abrangencias = [criar_abrangencia_mock(uf="SP")]
+
+    encontrado = await servico_calculo._localizar_abrangencia(tabela, {"destino_uf": "RJ"})
+
+    assert encontrado is None
+
+
+@pytest.mark.asyncio
+async def test_nao_usa_tarifa_de_outra_abrangencia(servico_calculo):
+    tabela = criar_tabela_mock()
+    abrangencia_rj = criar_abrangencia_mock(uf="RJ")
+    tabela.tarifas = [criar_tarifa_mock(valor=100, abrangencia_id="abr-SP")]
+
+    encontrado = await servico_calculo._localizar_tarifa(tabela, 10, abrangencia_rj)
+
+    assert encontrado is None
+
+
+def test_cubagem_considera_volume_total_da_carga(servico_calculo):
+    tabela = criar_tabela_mock(fator_cubagem=300)
+
+    peso_cubado = servico_calculo._calcular_peso_cubado(
+        tabela,
+        {
+            "volume_total_m3": 2.5,
+            "comprimento_cm": 10,
+            "largura_cm": 10,
+            "altura_cm": 10,
+        },
+    )
+
+    assert peso_cubado == 750
+
+
+@pytest.mark.asyncio
 async def test_validacao_dados_validos(servico_calculo):
     """Dados válidos passam na validação."""
     erro = servico_calculo._validar_dados_entrada({

@@ -227,6 +227,10 @@ class TabelaFreteCalculoService:
 
     def _calcular_peso_cubado(self, tabela: TabelaFrete, dados: dict) -> float:
         """Calcula peso cubado a partir das dimensões."""
+        volume_total_m3 = dados.get("volume_total_m3")
+        if volume_total_m3 is not None:
+            return float(volume_total_m3) * float(tabela.fator_cubagem or 300)
+
         comprimento = dados.get("comprimento_cm")
         largura = dados.get("largura_cm")
         altura = dados.get("altura_cm")
@@ -271,8 +275,7 @@ class TabelaFreteCalculoService:
             if abrangencia.tipo == "UF" and abrangencia.uf == destino_uf:
                 return abrangencia
 
-        # Se não encontrar por UF exato, retorna primeira abrangência disponível
-        return tabela.abrangencias[0] if tabela.abrangencias else None
+        return None
 
     async def _localizar_tarifa(
         self, tabela: TabelaFrete, peso: float, abrangencia: AbrangenciaFrete
@@ -282,7 +285,7 @@ class TabelaFreteCalculoService:
         tarifas_aplicaveis = [t for t in tabela.tarifas if t.abrangencia_id == abrangencia.id]
 
         if not tarifas_aplicaveis:
-            tarifas_aplicaveis = tabela.tarifas  # Fallback: todas as tarifas
+            return None
 
         # Retorna primeira tarifa por prioridade
         if tarifas_aplicaveis:

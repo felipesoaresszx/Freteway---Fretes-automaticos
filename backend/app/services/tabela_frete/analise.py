@@ -70,6 +70,13 @@ MOTIVOS_DUVIDA = {
         "como_resolver": "Confirme a data final informada no cadastro da tabela.",
         "impeditivo": False,
     },
+    "faixas_cep_capital": {
+        "titulo": "Faixas de CEP de capital estão em documento complementar",
+        "explicacao": "A matriz tarifária foi extraída, mas o próprio PDF orienta consultar a aba de CEP Capital, que não está anexada.",
+        "impacto": "Os valores ficam cadastrados e rastreáveis; a seleção automática entre capital e interior aguarda o documento complementar.",
+        "como_resolver": "Anexe a aba de CEP Capital quando quiser habilitar o cálculo automático por CEP.",
+        "impeditivo": False,
+    },
 }
 
 
@@ -108,11 +115,11 @@ def adicionar_diagnostico_confianca(resultado: dict) -> dict:
         "arquivo_recebido": True,
         "arquivo_lido": bool(dados),
         "aceito_para_cadastro": pode_confirmar,
-        "titulo": "Análise concluída" if confianca >= 1 else "Análise incompleta: tabela não aceita para cálculo",
+        "titulo": "Análise concluída" if confianca >= 1 else "Análise concluída com pendências opcionais" if pode_confirmar else "Análise incompleta: tabela não aceita para cálculo",
         "resumo": (
             "O arquivo foi recebido e lido, mas a tabela não foi confirmada porque faltam dados necessários para calcular o frete com segurança."
             if impeditivos else
-            "O arquivo foi lido. Existem pontos que precisam de revisão antes da confirmação."
+            "Os dados reconhecidos podem ser cadastrados. Campos ausentes continuam explícitos e não serão inventados."
         ),
         "motivos": motivos,
         "dados_detectados": resultado.get("resumo") or {},
@@ -263,6 +270,14 @@ def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, sto
             "campos_com_duvida": ["documento_complementar"],
             "resumo": dados.get("estatisticas", {}),
         }
+    if dados.get("formato") == "correios_uf_peso_v1":
+        errors=dados.get("extraction_errors") or []
+        return {
+            "dados_extraidos":dados,"confianca_extracao":.98 if not errors else .80,
+            "erros_validacao":[],
+            "avisos":["Matriz completa de tarifas por UF e peso extraída por layout.","Valores ausentes não foram inferidos."],
+            "campos_com_duvida":dados.get("missing_fields",[]),"resumo":dados.get("estatisticas",{}),
+        }
     return {
         "dados_extraidos": dados, "confianca_extracao": 0.65,
         "erros_validacao": [],
@@ -337,6 +352,15 @@ def combinar_resultados_documentos(resultados: list[dict]) -> dict:
 
 async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) -> None:
     """Substitui regras da tabela pelos dados humanos revisados."""
+    from app.services.document_intelligence.learning import learn_structure
+    await learn_structure(db,tabela,dados)
+    if dados.get("formato") == "correios_uf_peso_v1":
+        if not dados.get("matrizes"):
+            raise AnaliseDocumentoError("Nenhuma matriz tarifária dos Correios foi extraída")
+        await db.execute(delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id==tabela.id))
+        stats=dados.get("estatisticas") or {}
+        db.add(TabelaFreteDadosImportados(tabela_frete_id=tabela.id,formato=dados["formato"],dados=dados,quantidade_coberturas=int(stats.get("origens",0))*27,quantidade_tarifas=int(stats.get("tarifas",0))))
+        return
     if dados.get("formato") == "transwells_pracas_peso_v1":
         if dados.get("itens_para_revisao"):
             raise AnaliseDocumentoError("Resolva os itens pendentes da consolidação antes de confirmar")

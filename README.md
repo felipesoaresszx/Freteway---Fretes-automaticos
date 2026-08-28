@@ -107,9 +107,10 @@ docker compose exec backend python -m app.seed
 
 O seed de desenvolvimento cria o acesso abaixo:
 
-```text
-E-mail: admin@fretesystem.com
-Senha:  admin123
+
+
+```
+
 ```
 
 Essas credenciais são apenas para desenvolvimento e devem ser substituídas antes de qualquer implantação real.

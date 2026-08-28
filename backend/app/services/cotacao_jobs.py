@@ -26,22 +26,26 @@ async def executar_job_cotacao(db: AsyncSession, job: ProcessamentoJob) -> None:
         return
     payload = CotacaoCreate.model_validate(job.payload)
     resultados = await executar_cotacao(payload, db)
-    existentes = set(await db.scalars(
-        select(CotacaoResultado.transportadora_id).where(CotacaoResultado.cotacao_id == cotacao.id)
-    ))
+    existentes = {
+        item.transportadora_id: item
+        for item in (await db.scalars(
+            select(CotacaoResultado).where(CotacaoResultado.cotacao_id == cotacao.id)
+        )).all()
+    }
     for resultado in resultados:
-        if resultado.transportadora_id in existentes:
-            continue
-        db.add(CotacaoResultado(
-            cotacao_id=cotacao.id,
-            transportadora_id=resultado.transportadora_id,
-            status=resultado.status,
-            valor_frete=resultado.valor_frete,
-            prazo_dias=resultado.prazo_dias,
-            erro_codigo=resultado.erro.codigo if resultado.erro else None,
-            erro_mensagem=resultado.erro.mensagem if resultado.erro else None,
-            request_id=resultado.request_id,
-        ))
+        persistido = existentes.get(resultado.transportadora_id)
+        if persistido is None:
+            persistido = CotacaoResultado(
+                cotacao_id=cotacao.id,
+                transportadora_id=resultado.transportadora_id,
+            )
+            db.add(persistido)
+        persistido.status = resultado.status
+        persistido.valor_frete = resultado.valor_frete
+        persistido.prazo_dias = resultado.prazo_dias
+        persistido.erro_codigo = resultado.erro.codigo if resultado.erro else None
+        persistido.erro_mensagem = resultado.erro.mensagem if resultado.erro else None
+        persistido.request_id = resultado.request_id
     cotacao.status = determinar_status_geral(resultados)
     cotacao.melhor_opcao_id = determinar_melhor_opcao(resultados)
 

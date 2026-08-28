@@ -4,6 +4,14 @@ from app.schemas.tabela_frete import TabelaExtraidaSchema
 
 
 def normalizar_preview(dados: dict) -> dict:
+    if dados.get("formato") == "correios_uf_peso_v1":
+        return {
+            "formato":dados["formato"],"transportadora":dados.get("transportadora"),"servico":dados.get("servico"),
+            "vigencia":dados.get("vigencia",{}),"matrizes":dados.get("matrizes",[]),"taxas_adicionais":dados.get("taxas_adicionais",[]),
+            "regras":dados.get("regras",{}),"missing_fields":dados.get("missing_fields",[]),"estatisticas":dados.get("estatisticas",{}),
+            "field_evidence":dados.get("field_evidence",[]),"pipeline":dados.get("pipeline",[]),"document_fingerprint":dados.get("document_fingerprint",{}),
+            "requer_mapeamento_tarifario":False,"fonte":{"parser":"correios_uf_peso_v1","layout":True},
+        }
     if dados.get("formato") == "transwells_pracas_peso_v1":
         return {
             "formato": dados["formato"],

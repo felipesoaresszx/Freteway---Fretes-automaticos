@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiClientMock = vi.hoisted(() => ({
-  get: vi.fn(), post: vi.fn(), delete: vi.fn(),
+  get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn(),
 }));
 
 vi.mock("../api/client", () => ({ apiClient: apiClientMock }));
@@ -9,6 +9,7 @@ vi.mock("../api/client", () => ({ apiClient: apiClientMock }));
 import { authService } from "./authService";
 import { companyService } from "./companyService";
 import { cotacaoService } from "./cotacaoService";
+import { transportadoraService } from "./transportadoraService";
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -54,5 +55,24 @@ describe("cotacaoService", () => {
     expect(apiClientMock.post).toHaveBeenCalledWith("/cotacoes/cotacao-1/selecionar", {
       transportadora_id: "transportadora-1",
     });
+  });
+});
+
+describe("transportadoraService intelligence", () => {
+  it("envia filtros e paginação ao endpoint consolidado", async () => {
+    apiClientMock.get.mockResolvedValueOnce({ data: { items: [], page: 2, page_size: 20, total: 0, pages: 0 } });
+    await transportadoraService.listarCards({ search: "jamef", status: "active", integration_type: "all", page: 2, page_size: 20 });
+    expect(apiClientMock.get).toHaveBeenCalledWith("/enrichment/transportadoras", { params: { search: "jamef", status: "active", page: 2, page_size: 20 } });
+  });
+
+  it("usa endpoints reais para fila, status em lote e cobertura", async () => {
+    apiClientMock.post.mockResolvedValue({ data: { job_ids: ["job-1"] } });
+    apiClientMock.patch.mockResolvedValue({ data: { updated: 2, ativa: false } });
+    await transportadoraService.enriquecerEmLote(["c1", "c2"]);
+    await transportadoraService.alterarStatusEmLote(["c1", "c2"], false);
+    await transportadoraService.verificarCobertura("c1", "01000000", "87000000");
+    expect(apiClientMock.post).toHaveBeenCalledWith("/enrichment/batch", { transportadora_ids: ["c1", "c2"] });
+    expect(apiClientMock.patch).toHaveBeenCalledWith("/enrichment/transportadoras/status", { transportadora_ids: ["c1", "c2"], ativa: false });
+    expect(apiClientMock.post).toHaveBeenCalledWith("/transportadoras/c1/coverage/check", { cep_origem: "01000000", cep_destino: "87000000" });
   });
 });
