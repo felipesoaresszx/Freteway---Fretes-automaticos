@@ -11,7 +11,10 @@ from app.models import models  # noqa: F401  garante que os modelos sejam regist
 
 config = context.config
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# ConfigParser usa ``%`` para interpolação. Senhas corretamente percent-encoded
+# (por exemplo, ``%40`` para ``@``) precisam ser escapadas somente ao entrar na
+# configuração do Alembic; ``get_main_option`` devolve a URL original ao engine.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
