@@ -79,3 +79,32 @@ jobs:
           tags: freteway-${{ matrix.component }}:ci
           cache-from: type=gha,scope=${{ matrix.component }}
           cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+  deploy:
+    name: Deploy Oracle Cloud
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, containers]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 40
+    concurrency:
+      group: freteway-production
+      cancel-in-progress: false
+    steps:
+      - name: Configure restricted SSH key
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ORACLE_DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.ORACLE_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/freteway_deploy
+          chmod 600 ~/.ssh/freteway_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy tested revision
+        run: >-
+          ssh -i ~/.ssh/freteway_deploy
+          -o BatchMode=yes
+          -o IdentitiesOnly=yes
+          ubuntu@64.181.183.229 deploy
