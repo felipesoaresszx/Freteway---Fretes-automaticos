@@ -22,6 +22,9 @@ pip-wheel-metadata/
 !.env.example
 !**/.env.example
 !**/.env.production.example
+!frontend/.env.development
+!frontend/.env.production
+!frontend/.env.production.example
 .pytest_cache/
 .mypy_cache/
 .coverage
@@ -48,6 +51,7 @@ frontend/node_modules/
 frontend/dist/
 frontend/build/
 frontend/.vite/
+frontend/.npm-cache/
 frontend/*.tsbuildinfo
 frontend/coverage/
 frontend/npm-debug.log*
@@ -60,6 +64,7 @@ docker-compose.override.yml
 docker-compose.*.yml
 !docker-compose.production.yml
 *.env
+backups/
 
 # IDEs and editors
 .vscode/

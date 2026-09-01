@@ -24,17 +24,19 @@ _MAX_TENTATIVAS = 5
 
 @router.post("/auth/tenant/resolve", response_model=TenantResolveResponse)
 async def resolve_tenant(payload: TenantResolveRequest, response: Response, db: AsyncSession = Depends(get_master_db)):
+    settings = get_settings()
     codigo = payload.codigo.strip().upper()
     tenant = await db.scalar(select(Tenant).where(Tenant.codigo_login == codigo))
     if not tenant:
         raise HTTPException(status_code=404, detail="Código do cliente não encontrado.")
     if not tenant.ativo or tenant.status_assinatura != "ativa":
         raise HTTPException(status_code=403, detail="Assinatura do cliente suspensa.")
-    minutos = get_settings().TENANT_CONTEXT_EXPIRE_MINUTES
+    minutos = settings.TENANT_CONTEXT_EXPIRE_MINUTES
     token = create_access_token("tenant-resolution", minutos, tenant_id=tenant.id,
                                 tenant_schema=tenant.schema_name, token_type="tenant_context")
     response.set_cookie("tenant_context", token, max_age=minutos * 60, httponly=True,
-                        secure=get_settings().COOKIE_SECURE, samesite="strict", path="/")
+                        secure=settings.COOKIE_SECURE, samesite=settings.COOKIE_SAMESITE,
+                        domain=settings.COOKIE_DOMAIN, path="/")
     return TenantResolveResponse(tenant_name=tenant.nome, expires_in=minutos * 60)
 
 
@@ -55,6 +57,7 @@ def _verificar_limite(chave: str) -> None:
 
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(payload: LoginRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    settings = get_settings()
     tenant_id = getattr(request.state, "tenant_id", None)
     tenant_schema = getattr(request.state, "tenant_schema", None)
     if not tenant_id or not tenant_schema:
@@ -84,9 +87,10 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
                                 tenant_id=tenant_id, tenant_schema=tenant_schema)
     response.set_cookie(
         "access_token", token, max_age=expiracao * 60, httponly=True,
-        secure=get_settings().COOKIE_SECURE, samesite="strict", path="/",
+        secure=settings.COOKIE_SECURE, samesite=settings.COOKIE_SAMESITE,
+        domain=settings.COOKIE_DOMAIN, path="/",
     )
-    response.delete_cookie("tenant_context", path="/")
+    response.delete_cookie("tenant_context", path="/", domain=settings.COOKIE_DOMAIN)
     return TokenResponse()
 
 
@@ -94,7 +98,9 @@ async def login(payload: LoginRequest, request: Request, response: Response, db:
 async def logout(response: Response, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     user.session_version += 1
     await db.commit()
-    response.delete_cookie("access_token", path="/", httponly=True, samesite="strict")
+    settings = get_settings()
+    response.delete_cookie("access_token", path="/", domain=settings.COOKIE_DOMAIN,
+                           httponly=True, samesite=settings.COOKIE_SAMESITE)
 
 
 @router.post("/auth/2fa/setup", response_model=TotpSetupResponse)

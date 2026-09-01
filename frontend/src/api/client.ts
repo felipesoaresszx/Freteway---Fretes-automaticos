@@ -1,4 +1,5 @@
 import axios, { type AxiosError } from "axios";
+import { runtimeConfig } from "../config/runtime";
 
 export type ApiErrorBody = { detail?: string; error?: { code: string; message: string } };
 
@@ -29,7 +30,7 @@ export function getErrorStatus(error: unknown): number | undefined {
 }
 
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1",
+  baseURL: runtimeConfig.apiBaseUrl,
   timeout: 20_000,
   withCredentials: true,
 });

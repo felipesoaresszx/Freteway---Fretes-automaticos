@@ -21,6 +21,12 @@ _window = timedelta(minutes=15)
 _max_attempts = 10
 
 
+def _delete_context_cookies(response: Response) -> None:
+    domain = get_settings().COOKIE_DOMAIN
+    response.delete_cookie("tenant_context", path="/", domain=domain)
+    response.delete_cookie("access_token", path="/", domain=domain)
+
+
 def _client_key(request: Request) -> str:
     # Cabeçalhos forwarded só devem ser interpretados pelo proxy confiável que
     # inicia o servidor; aceitar o valor diretamente permitiria burlar o limite.
@@ -47,11 +53,13 @@ async def _audit(db: AsyncSession, request: Request, code_hash: str, tenant: Ten
 
 
 def _set_context_cookie(response: Response, tenant: Tenant) -> int:
-    minutes = get_settings().TENANT_CONTEXT_EXPIRE_MINUTES
+    settings = get_settings()
+    minutes = settings.TENANT_CONTEXT_EXPIRE_MINUTES
     token = create_access_token("company-context", minutes, tenant_id=tenant.id,
                                 tenant_schema=tenant.schema_name, token_type="tenant_context")
     response.set_cookie("tenant_context", token, max_age=minutes * 60, httponly=True,
-                        secure=get_settings().COOKIE_SECURE, samesite="strict", path="/")
+                        secure=settings.COOKIE_SECURE, samesite=settings.COOKIE_SAMESITE,
+                        domain=settings.COOKIE_DOMAIN, path="/")
     return minutes * 60
 
 
@@ -63,7 +71,7 @@ async def identify_company(payload: IdentifyCompanyRequest, request: Request, re
     code = normalize_access_code(payload.access_code)
     if len(code) < 3:
         invalid = JSONResponse({"detail": "Código de empresa inválido. Verifique o código informado e tente novamente."}, status_code=400)
-        invalid.delete_cookie("tenant_context", path="/")
+        _delete_context_cookies(invalid)
         return invalid
     hashed = access_code_hash(code)
     tenant = await db.scalar(select(Tenant).where(or_(
@@ -73,12 +81,12 @@ async def identify_company(payload: IdentifyCompanyRequest, request: Request, re
     if not tenant:
         await _audit(db, request, hashed, None, False, "invalid_code")
         invalid = JSONResponse({"detail": "Código de empresa inválido. Verifique o código informado e tente novamente."}, status_code=400)
-        invalid.delete_cookie("tenant_context", path="/")
+        _delete_context_cookies(invalid)
         return invalid
     if not tenant.ativo or tenant.status_assinatura != "ativa":
         await _audit(db, request, hashed, tenant, False, "inactive")
         inactive = JSONResponse({"detail": "O acesso desta empresa está temporariamente indisponível. Entre em contato com o suporte da FRETEWAY."}, status_code=403)
-        inactive.delete_cookie("tenant_context", path="/")
+        _delete_context_cookies(inactive)
         return inactive
     await _audit(db, request, hashed, tenant, True, "identified")
     return IdentifyCompanyResponse(company=company_public_view(tenant, tenant.theme), expires_in=_set_context_cookie(response, tenant))
@@ -91,13 +99,11 @@ async def restore_company_context(request: Request, response: Response, db: Asyn
         raise HTTPException(status_code=401, detail="Contexto empresarial ausente ou expirado.")
     tenant = await db.scalar(select(Tenant).where(Tenant.id == tenant_id).options(selectinload(Tenant.theme)))
     if not tenant or not tenant.ativo or tenant.status_assinatura != "ativa":
-        response.delete_cookie("tenant_context", path="/")
-        response.delete_cookie("access_token", path="/")
+        _delete_context_cookies(response)
         raise HTTPException(status_code=403, detail="O acesso desta empresa está temporariamente indisponível. Entre em contato com o suporte da FRETEWAY.")
     return IdentifyCompanyResponse(company=company_public_view(tenant, tenant.theme), expires_in=get_settings().TENANT_CONTEXT_EXPIRE_MINUTES * 60)
 
 
 @router.delete("/context", status_code=204)
 async def clear_company_context(response: Response):
-    response.delete_cookie("tenant_context", path="/")
-    response.delete_cookie("access_token", path="/")
+    _delete_context_cookies(response)

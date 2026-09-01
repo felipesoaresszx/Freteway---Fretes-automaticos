@@ -8,6 +8,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "FreteWay API"
     API_V1_PREFIX: str = "/api/v1"
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
 
     DATABASE_URL: str = "postgresql+asyncpg://frete:frete@localhost:5432/frete"
     MASTER_DATABASE_URL: str | None = None
@@ -25,7 +26,14 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
     TRUSTED_HOSTS: list[str] = ["localhost", "127.0.0.1", "backend"]
     COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: str = "strict"
+    COOKIE_DOMAIN: str | None = None
     ENVIRONMENT: str = "development"
+
+    BOOTSTRAP_TENANT_CODE: str = "MODIAL2026"
+    BOOTSTRAP_TENANT_NAME: str = "Grupo Modial"
+    BOOTSTRAP_TENANT_SLUG: str = "modial"
+    BOOTSTRAP_TENANT_SCHEMA: str = "public"
 
     # Consulta cadastral de CNPJ. O provedor pode ser trocado sem alterar o frontend.
     CNPJ_CONSULTA_BASE_URL: str = "https://brasilapi.com.br/api/cnpj/v1"
@@ -51,6 +59,7 @@ class Settings(BaseSettings):
     TABELA_FRETE_STORAGE_DIR: str = "storage/tabelas_frete"
     TABELA_FRETE_UPLOAD_MAX_BYTES: int = 25 * 1024 * 1024
     EMPRESA_LOGO_STORAGE_DIR: str = "storage/configuracoes/logos"
+    DOCUMENT_STORAGE_DIR: str = "storage/documentos"
     EMPRESA_LOGO_MAX_BYTES: int = 2 * 1024 * 1024
 
     # Timeouts de integração (segundos), conforme definido no Sprint 1
@@ -72,3 +81,27 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def validate_runtime_settings(settings: Settings) -> None:
+    if settings.ENVIRONMENT != "production":
+        return
+    public_url = settings.PUBLIC_BASE_URL.lower()
+    invalid = (
+        len(settings.JWT_SECRET) < 32
+        or not settings.CREDENTIAL_ENCRYPTION_KEY
+        or len(settings.CREDENTIAL_ENCRYPTION_KEY or "") < 32
+        or settings.CREDENTIAL_ENCRYPTION_KEY == settings.JWT_SECRET
+        or not settings.COOKIE_SECURE
+        or "*" in settings.TRUSTED_HOSTS
+        or "*" in settings.CORS_ORIGINS
+        or settings.COOKIE_SAMESITE not in {"lax", "strict", "none"}
+        or "localhost" in public_url
+        or "127.0.0.1" in public_url
+        or not public_url.startswith("https://")
+    )
+    if invalid:
+        raise RuntimeError(
+            "Produção exige PUBLIC_BASE_URL HTTPS, segredos distintos com 32+ caracteres, "
+            "cookies seguros e hosts/origens explícitos"
+        )

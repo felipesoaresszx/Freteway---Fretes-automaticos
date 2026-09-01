@@ -9,7 +9,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.router import api_router
 from app.api.v1.endpoints.sankhya import root_router as sankhya_root_router
-from app.core.config import get_settings
+from app.core.config import get_settings, validate_runtime_settings
 from app.db.session import AsyncSessionLocal, quote_schema
 from sqlalchemy import text
 from app.models.models import AuditLog
@@ -18,16 +18,7 @@ from app.core.tenant import apply_tenant_from_cookie
 settings = get_settings()
 logger = logging.getLogger("freteway.http")
 
-if settings.ENVIRONMENT == "production" and (
-    len(settings.JWT_SECRET) < 32
-    or not settings.CREDENTIAL_ENCRYPTION_KEY
-    or len(settings.CREDENTIAL_ENCRYPTION_KEY) < 32
-    or settings.CREDENTIAL_ENCRYPTION_KEY == settings.JWT_SECRET
-    or not settings.COOKIE_SECURE
-):
-    raise RuntimeError(
-        "Produção exige segredos JWT/credenciais distintos com 32+ caracteres e COOKIE_SECURE=true"
-    )
+validate_runtime_settings(settings)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

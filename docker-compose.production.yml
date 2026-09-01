@@ -34,10 +34,11 @@ services:
     env_file:
       - ${BACKEND_ENV_FILE:-./backend/.env.production}
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-frete}
-      MASTER_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-frete}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED:?Defina POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
+      MASTER_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
       TABELA_FRETE_STORAGE_DIR: /app/storage/tabelas_frete
       EMPRESA_LOGO_STORAGE_DIR: /app/storage/configuracoes/logos
+      DOCUMENT_STORAGE_DIR: /app/storage/documentos
     expose:
       - "8000"
     volumes:
@@ -53,7 +54,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=5)"
       interval: 30s
       timeout: 10s
       retries: 5
@@ -71,10 +72,11 @@ services:
     env_file:
       - ${BACKEND_ENV_FILE:-./backend/.env.production}
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-frete}
-      MASTER_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-frete}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED:?Defina POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
+      MASTER_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
       TABELA_FRETE_STORAGE_DIR: /app/storage/tabelas_frete
       EMPRESA_LOGO_STORAGE_DIR: /app/storage/configuracoes/logos
+      DOCUMENT_STORAGE_DIR: /app/storage/documentos
     volumes:
       - app_storage:/app/storage
     networks:
@@ -101,7 +103,7 @@ services:
     networks:
       - application
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -144,6 +146,9 @@ networks:
 
 volumes:
   postgres_data:
+    external: true
+    name: frete-system_postgres_data
   app_storage:
+    name: ${APP_STORAGE_VOLUME_NAME:-freteway_app_storage}
   caddy_data:
   caddy_config:
