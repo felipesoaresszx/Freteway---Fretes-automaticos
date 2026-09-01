@@ -2,7 +2,7 @@
     email {$TLS_EMAIL}
 }
 
-{$DOMAIN} {
+{$SITE_ADDRESS} {
     encode zstd gzip
 
     request_body {

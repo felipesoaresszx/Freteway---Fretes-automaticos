@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "strict"
     COOKIE_DOMAIN: str | None = None
     ENVIRONMENT: str = "development"
+    ALLOW_INSECURE_HTTP: bool = False
 
     BOOTSTRAP_TENANT_CODE: str = "MODIAL2026"
     BOOTSTRAP_TENANT_NAME: str = "Grupo Modial"
@@ -92,13 +93,14 @@ def validate_runtime_settings(settings: Settings) -> None:
         or not settings.CREDENTIAL_ENCRYPTION_KEY
         or len(settings.CREDENTIAL_ENCRYPTION_KEY or "") < 32
         or settings.CREDENTIAL_ENCRYPTION_KEY == settings.JWT_SECRET
-        or not settings.COOKIE_SECURE
+        or (not settings.COOKIE_SECURE and not settings.ALLOW_INSECURE_HTTP)
         or "*" in settings.TRUSTED_HOSTS
         or "*" in settings.CORS_ORIGINS
         or settings.COOKIE_SAMESITE not in {"lax", "strict", "none"}
         or "localhost" in public_url
         or "127.0.0.1" in public_url
-        or not public_url.startswith("https://")
+        or (not public_url.startswith("https://") and not settings.ALLOW_INSECURE_HTTP)
+        or (settings.ALLOW_INSECURE_HTTP and not public_url.startswith("http://"))
     )
     if invalid:
         raise RuntimeError(

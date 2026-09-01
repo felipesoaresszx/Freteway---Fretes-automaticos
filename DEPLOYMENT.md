@@ -20,6 +20,9 @@ Este procedimento preserva o banco e o volume legado `frete-system_postgres_data
 3. Clone o repositório. Copie `.env.production.example` para `.env.production` e `backend/.env.production.example` para `backend/.env.production`; use `chmod 600` nos dois.
 4. Gere três valores independentes e estáveis: senha PostgreSQL, `JWT_SECRET` e `CREDENTIAL_ENCRYPTION_KEY`. Preencha `POSTGRES_PASSWORD_URLENCODED` com a mesma senha usando percent-encoding nos caracteres reservados (por exemplo, `@` vira `%40`). Não troque a chave de criptografia de uma instalação existente: isso pode tornar credenciais armazenadas ilegíveis.
 5. Ajuste `DOMAIN`, `CORS_ORIGINS` e `TRUSTED_HOSTS` ao domínio/IP efetivo. Não use `*`. Mantenha `localhost` nos hosts confiáveis para o healthcheck interno.
+
+Para acesso provisório por IP sem TLS, use `SITE_ADDRESS=http://IP`, `PUBLIC_BASE_URL=http://IP`,
+`COOKIE_SECURE=false` e `ALLOW_INSECURE_HTTP=true`. Essa exceção deve voltar para `false` assim que o domínio HTTPS estiver disponível.
 6. Confirme com `docker volume ls` que `frete-system_postgres_data` existe. O deploy interrompe se ele estiver ausente. Nunca renomeie/remova esse volume sem dump validado.
 
 ### Migrar arquivos do bind mount atual

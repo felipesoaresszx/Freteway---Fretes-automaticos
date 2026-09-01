@@ -117,6 +117,7 @@ services:
     restart: unless-stopped
     environment:
       DOMAIN: ${DOMAIN:?Defina DOMAIN em .env.production}
+      SITE_ADDRESS: ${SITE_ADDRESS:?Defina SITE_ADDRESS em .env.production}
       TLS_EMAIL: ${TLS_EMAIL:?Defina TLS_EMAIL em .env.production}
     ports:
       - "80:80"
