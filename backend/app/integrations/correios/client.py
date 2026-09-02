@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from typing import ClassVar
@@ -16,6 +17,7 @@ class CorreiosClient:
         self.credentials = credentials
         self.base_url = credentials.get("base_url", "https://api.correios.com.br").rstrip("/")
         self.timeout = get_settings().TIMEOUT_API_INTEGRACAO
+        self._authentication_lock = asyncio.Lock()
 
     def _cache_key(self) -> tuple[str, str, str, str]:
         """Isola tokens por credencial sem manter a senha em texto no identificador."""
@@ -34,31 +36,32 @@ class CorreiosClient:
         if not postage_card:
             raise CorreiosAuthenticationError("Cartão de postagem dos Correios não configurado")
         cache_key = self._cache_key()
-        now = datetime.now(UTC)
-        cached = self._tokens.get(cache_key)
-        if cached and cached[1] > now + timedelta(minutes=2):
-            return cached[0]
+        async with self._authentication_lock:
+            now = datetime.now(UTC)
+            cached = self._tokens.get(cache_key)
+            if cached and cached[1] > now + timedelta(minutes=2):
+                return cached[0]
 
-        url = f"{self.base_url}/token/v1/autentica/cartaopostagem"
-        validate_external_url(url)
-        response = await client.post(
-            url, auth=httpx.BasicAuth(username, api_key), json={"numero": postage_card},
-        )
-        if response.status_code in {401, 403}:
-            raise CorreiosAuthenticationError("Autenticação recusada pelos Correios")
-        response.raise_for_status()
-        body = response.json()
-        token = body.get("token")
-        if not token:
-            raise CorreiosResponseError("Resposta de autenticação dos Correios inválida")
-        expiration = now + timedelta(hours=23)
-        if body.get("expiraEm"):
-            try:
-                expiration = datetime.fromisoformat(str(body["expiraEm"]).replace("Z", "+00:00"))
-            except ValueError:
-                pass
-        self._tokens[cache_key] = (token, expiration)
-        return token
+            url = f"{self.base_url}/token/v1/autentica/cartaopostagem"
+            validate_external_url(url)
+            response = await client.post(
+                url, auth=httpx.BasicAuth(username, api_key), json={"numero": postage_card},
+            )
+            if response.status_code in {401, 403}:
+                raise CorreiosAuthenticationError("Usuário, senha do componente ou cartão de postagem recusado pelos Correios")
+            response.raise_for_status()
+            body = response.json()
+            token = body.get("token")
+            if not token:
+                raise CorreiosResponseError("Resposta de autenticação dos Correios inválida")
+            expiration = now + timedelta(hours=23)
+            if body.get("expiraEm"):
+                try:
+                    expiration = datetime.fromisoformat(str(body["expiraEm"]).replace("Z", "+00:00"))
+                except ValueError:
+                    pass
+            self._tokens[cache_key] = (token, expiration)
+            return token
 
     async def validate_credentials(self) -> bool:
         async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:

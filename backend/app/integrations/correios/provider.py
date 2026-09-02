@@ -43,7 +43,6 @@ def _package(request: FreightQuoteRequest) -> dict[str, str]:
         "comprimento": str(max(16, round(float(volume.get("comprimento_cm") or 16)))),
         "largura": str(max(11, round(float(volume.get("largura_cm") or 11)))),
         "altura": str(max(2, round(float(volume.get("altura_cm") or 2)))),
-        "vlDeclarado": str(request.total_value),
     }
 
 

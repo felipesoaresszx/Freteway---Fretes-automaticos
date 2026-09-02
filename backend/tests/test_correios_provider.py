@@ -45,9 +45,11 @@ async def test_autentica_consulta_preco_prazo_e_normaliza(monkeypatch):
     assert result.price == Decimal("19.92")
     assert result.delivery_days == 3
     assert result.service_name == "SEDEX"
+    assert sum(call[0] == "POST" for call in calls) == 1
     price_call = next(call for call in calls if call[0] == "GET" and "/preco/" in call[1])
     assert price_call[2]["params"]["psObjeto"] == "300"
     assert price_call[2]["params"]["comprimento"] == "20"
+    assert "vlDeclarado" not in price_call[2]["params"]
     assert price_call[2]["headers"] == {"Authorization": "Bearer jwt", "Accept": "application/json"}
 
 
