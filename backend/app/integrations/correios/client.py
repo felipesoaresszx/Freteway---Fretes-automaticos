@@ -57,8 +57,13 @@ class CorreiosClient:
             expiration = now + timedelta(hours=23)
             if body.get("expiraEm"):
                 try:
-                    expiration = datetime.fromisoformat(str(body["expiraEm"]).replace("Z", "+00:00"))
-                except ValueError:
+                    expiration = datetime.fromisoformat(str(body["expiraEm"]).strip().replace("Z", "+00:00"))
+                    if expiration.tzinfo is None:
+                        raw_offset = str(body.get("zoneOffset") or "-03:00").strip()
+                        offset = datetime.fromisoformat(f"2000-01-01T00:00:00{raw_offset}").tzinfo
+                        expiration = expiration.replace(tzinfo=offset)
+                    expiration = expiration.astimezone(UTC)
+                except (TypeError, ValueError):
                     pass
             self._tokens[cache_key] = (token, expiration)
             return token

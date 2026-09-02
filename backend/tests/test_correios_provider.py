@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 import httpx
@@ -86,3 +87,30 @@ def test_cache_de_token_e_isolado_por_senha_e_cartao():
     assert first != changed_password
     assert first != changed_card
     assert "chave" not in repr(first)
+
+
+@pytest.mark.asyncio
+async def test_cache_normaliza_expiracao_sem_fuso_usando_zone_offset(monkeypatch):
+    authentication_calls = 0
+
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+        async def post(self, url, **kwargs):
+            nonlocal authentication_calls
+            authentication_calls += 1
+            return httpx.Response(201, json={
+                "token": "jwt",
+                "expiraEm": "2099-01-01T00:00:00",
+                "zoneOffset": "-03:00",
+            }, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr("app.integrations.correios.client.validate_external_url", lambda url: url)
+    CorreiosClient._tokens.clear()
+    client = CorreiosClient(credentials())
+
+    assert await client.validate_credentials() is True
+    assert await client.validate_credentials() is True
+    assert authentication_calls == 1
+    assert client._tokens[client._cache_key()][1].utcoffset() == timedelta(0)
