@@ -33,9 +33,10 @@ export function ConfiguracaoCorreiosForm({ transportadora, onClose }: { transpor
     try {
       const current = integration ?? await transportadoraService.criarIntegracao(transportadora.id, "API", "correios");
       await transportadoraService.salvarCredenciais(transportadora.id, current.id, data);
+      const validation = await transportadoraService.validarIntegracao(transportadora.id, current.id);
       const refreshed = (await transportadoraService.listarIntegracoes(transportadora.id)).find((item) => item.id === current.id) ?? current;
       setIntegration(refreshed); setData((value) => ({ ...value, api_key: "" }));
-      setMessage("Credenciais dos Correios armazenadas com criptografia. Agora você pode testar a autenticação.");
+      setMessage(validation.message);
     } catch (error) { setMessage(getErrorMessage(error, "Não foi possível salvar a integração dos Correios.")); }
     finally { setSaving(false); }
   }
