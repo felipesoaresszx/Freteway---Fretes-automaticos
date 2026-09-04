@@ -4,8 +4,10 @@ from fastapi import HTTPException
 
 from app.api.v1.endpoints.sankhya import validar_api_key
 from app.core.config import get_settings
-from app.schemas.sankhya import CotacaoSankhyaIn, ItemPedidoSankhya
+from app.schemas.sankhya import CotacaoSankhyaIn, ItemPedidoSankhya, MapeamentoSankhyaIn
 from app.integrations.sankhya_client import SankhyaClient, SankhyaCredentials, SankhyaError
+from app.integrations.sankhya.provider import SankhyaQuoteProvider
+from app.schemas.cotacao import ErroResultado, ResultadoTransportadora
 
 
 def test_item_aceita_dimensoes_e_converte_para_volume():
@@ -33,6 +35,7 @@ def test_item_exige_volume_ou_todas_as_dimensoes():
 
 def test_payload_preserva_dados_do_pedido():
     payload = CotacaoSankhyaIn.model_validate({
+        "empresa_sankhya_id": "1",
         "origem": {"cep": "01001000", "cidade": "São Paulo", "uf": "SP"},
         "destino": {"cep": "30110000", "cidade": "Belo Horizonte", "uf": "MG"},
         "itens": [{"quantidade": 1, "peso_kg": 12, "volume_m3": 0.2, "valor": 500}],
@@ -46,6 +49,7 @@ def test_payload_preserva_dados_do_pedido():
 
 def test_payload_aceita_nomes_exatos_do_contrato():
     payload = CotacaoSankhyaIn.model_validate({
+        "empresa_sankhya_id": "1",
         "origem": {"cep": "01001000", "cidade": "São Paulo", "uf": "SP"},
         "destino": {"cep": "30110000", "cidade": "Belo Horizonte", "uf": "MG"},
         "itens": [{"peso": 12, "volume_m3": 0.2, "valor": 500}],
@@ -54,6 +58,64 @@ def test_payload_aceita_nomes_exatos_do_contrato():
     })
     assert payload.numero_pedido == "21259"
     assert payload.itens[0].peso_kg == 12
+
+
+def test_payload_aceita_campos_nativos_e_ceps_planos():
+    payload = CotacaoSankhyaIn.model_validate({
+        "CODEMP": "7", "NUNOTA": 21259, "VlrNota": 1250,
+        "CepOrigem": "01001-000", "CepDestino": "30110-000",
+        "Volumes": [{"Quantidade": 1, "Peso": 12, "Altura": 30,
+                     "Largura": 40, "Comprimento": 50}],
+    })
+    assert payload.empresa_sankhya_id == "7"
+    assert payload.numero_pedido == "21259"
+    assert payload.origem.cep == "01001000"
+
+
+def test_provider_serializa_disponivel_e_indisponivel_sem_quebrar_parser():
+    provider = SankhyaQuoteProvider()
+    disponivel = ResultadoTransportadora(
+        transportadora_id="t1", transportadora='Correios [Sul] "Express"', status="success",
+        valor_frete=1250, prazo_dias=3, request_id="r1",
+    )
+    indisponivel = ResultadoTransportadora(
+        transportadora_id="t2", transportadora="Jamef", status="error",
+        erro=ErroResultado(codigo="SEM_ROTA", mensagem='Fora da faixa {regiao} [1] "x"'), request_id="r2",
+    )
+    linhas = [
+        provider.line(disponivel, carrier_code="CORREIOS", codparc=1234,
+                      service_code="04014", service_description='SEDEX [Hoje]'),
+        provider.line(indisponivel, carrier_code="JAMEF", codparc=0),
+    ]
+    serialized = provider.serialize(linhas)
+    decoded = __import__("json").loads(serialized)["ShippingSevicesArray"]
+    assert len(decoded) == 2
+    assert decoded[0]["ShippingPrice"] == "1250.00"
+    assert decoded[0]["DeliveryTime"] == "3"
+    assert decoded[0]["CodParcTransp"] == 1234
+    assert decoded[0]["Error"] is False
+    assert decoded[1]["CodParcTransp"] == 0
+    assert decoded[1]["Error"] is True
+    assert decoded[1]["ShippingPrice"] == "0"
+    assert decoded[1]["DeliveryTime"] == "0"
+    for linha in decoded:
+        for value in linha.values():
+            if isinstance(value, str):
+                assert not any(character in value for character in '\"[]{}')
+
+
+def test_provider_serializa_array_vazio_e_um_unico_array():
+    serialized = SankhyaQuoteProvider.serialize([])
+    assert serialized == '{"ShippingSevicesArray":[]}'
+    assert serialized.count("[") == serialized.count("]") == 1
+
+
+def test_mapeamento_aceita_codemp_para_isolar_codparc():
+    mapping = MapeamentoSankhyaIn(
+        transportadora_id="t1", empresa_sankhya_id="7",
+        codigo_parceiro=1234, nome_parceiro="Correios",
+    )
+    assert mapping.empresa_sankhya_id == "7"
 
 
 def test_api_key_rejeita_quando_integracao_nao_configurada(monkeypatch):

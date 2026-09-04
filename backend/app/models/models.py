@@ -388,12 +388,17 @@ class SankhyaTransportadoraMapeamento(Base):
     """De-para entre a transportadora do FRETEWAY e o parceiro no Sankhya."""
 
     __tablename__ = "sankhya_transportadoras_mapeamentos"
+    __table_args__ = (
+        UniqueConstraint("empresa_sankhya_id", "transportadora_id", name="uq_sankhya_empresa_transportadora"),
+        UniqueConstraint("empresa_sankhya_id", "codigo_parceiro", name="uq_sankhya_empresa_codparc"),
+    )
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    empresa_sankhya_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     transportadora_id: Mapped[str] = mapped_column(
-        ForeignKey("transportadoras.id", ondelete="CASCADE"), unique=True, index=True
+        ForeignKey("transportadoras.id", ondelete="CASCADE"), index=True
     )
-    codigo_parceiro: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    codigo_parceiro: Mapped[int] = mapped_column(Integer, index=True)
     nome_parceiro: Mapped[str] = mapped_column(String(255))
     codigo_servico: Mapped[str | None] = mapped_column(String(100), nullable=True)
     servico: Mapped[str | None] = mapped_column(String(120), nullable=True)

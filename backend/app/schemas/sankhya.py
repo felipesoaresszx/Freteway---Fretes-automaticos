@@ -1,6 +1,20 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.cotacao import Endereco, VolumeIn
+from app.schemas.transportadora import somente_digitos
+
+
+class EnderecoSankhya(Endereco):
+    cidade: str = ""
+    uf: str = Field(default="--", min_length=2, max_length=2)
+
+    @field_validator("cep")
+    @classmethod
+    def validar_cep(cls, valor: str) -> str:
+        normalizado = somente_digitos(valor)
+        if len(normalizado) != 8:
+            raise ValueError("CEP deve conter 8 digitos")
+        return normalizado
 
 
 class ItemPedidoSankhya(BaseModel):
@@ -15,8 +29,15 @@ class ItemPedidoSankhya(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def aceitar_contrato_sankhya(cls, data):
-        if isinstance(data, dict) and "peso" in data and "peso_kg" not in data:
-            data = {**data, "peso_kg": data["peso"]}
+        if isinstance(data, dict):
+            data = dict(data)
+            for origem, destino in (("peso", "peso_kg"), ("Peso", "peso_kg"),
+                                    ("altura", "altura_cm"), ("Altura", "altura_cm"),
+                                    ("largura", "largura_cm"), ("Largura", "largura_cm"),
+                                    ("comprimento", "comprimento_cm"), ("Comprimento", "comprimento_cm"),
+                                    ("Quantidade", "quantidade"), ("VolumeM3", "volume_m3")):
+                if origem in data and destino not in data:
+                    data[destino] = data[origem]
         return data
 
     @model_validator(mode="after")
@@ -29,28 +50,21 @@ class ItemPedidoSankhya(BaseModel):
     def para_volume(self) -> VolumeIn:
         if self.volume_m3 is not None:
             lado_cm = (self.volume_m3 * 1_000_000) ** (1 / 3)
-            return VolumeIn(
-                quantidade=self.quantidade, peso_kg=self.peso_kg,
-                comprimento_cm=lado_cm, largura_cm=lado_cm, altura_cm=lado_cm,
-            )
-        return VolumeIn(
-            quantidade=self.quantidade, peso_kg=self.peso_kg,
-            comprimento_cm=self.comprimento_cm, largura_cm=self.largura_cm,
-            altura_cm=self.altura_cm,
-        )
+            return VolumeIn(quantidade=self.quantidade, peso_kg=self.peso_kg,
+                            comprimento_cm=lado_cm, largura_cm=lado_cm, altura_cm=lado_cm)
+        return VolumeIn(quantidade=self.quantidade, peso_kg=self.peso_kg,
+                        comprimento_cm=self.comprimento_cm, largura_cm=self.largura_cm,
+                        altura_cm=self.altura_cm)
 
 
 class CotacaoSankhyaIn(BaseModel):
-    empresa_sankhya_id: str | None = Field(default=None, min_length=1, max_length=80)
-    origem: Endereco
-    destino: Endereco
+    empresa_sankhya_id: str = Field(min_length=1, max_length=80)
+    origem: EnderecoSankhya
+    destino: EnderecoSankhya
     itens: list[ItemPedidoSankhya] = Field(min_length=1)
     valor_mercadoria: float = Field(gt=0)
-    numero_pedido: str | None = Field(default=None, max_length=100)
-    tipo_entrega: str | None = Field(default=None, max_length=120)
-    tipo_transporte: str | None = Field(default=None, max_length=120)
+    numero_pedido: str = Field(min_length=1, max_length=100)
     transportadoras_ids: list[str] | None = None
-    modo: str | None = Field(default=None, pattern="^(anexar|substituir)$")
 
     @model_validator(mode="before")
     @classmethod
@@ -58,40 +72,32 @@ class CotacaoSankhyaIn(BaseModel):
         if not isinstance(data, dict):
             return data
         data = dict(data)
-        if "numero_pedido_sankhya" in data and "numero_pedido" not in data:
-            data["numero_pedido"] = data["numero_pedido_sankhya"]
-        if "valor_total_mercadoria" in data and "valor_mercadoria" not in data:
-            data["valor_mercadoria"] = data["valor_total_mercadoria"]
+        aliases = {
+            "CODEMP": "empresa_sankhya_id", "codemp": "empresa_sankhya_id",
+            "NUNOTA": "numero_pedido", "nunota": "numero_pedido",
+            "VLRNOTA": "valor_mercadoria", "vlrnota": "valor_mercadoria",
+            "VlrNota": "valor_mercadoria",
+            "valor_total_mercadoria": "valor_mercadoria", "numero_pedido_sankhya": "numero_pedido",
+            "volumes": "itens", "Volumes": "itens",
+        }
+        for origem, destino in aliases.items():
+            if origem in data and destino not in data:
+                data[destino] = data[origem]
+        for campo in ("empresa_sankhya_id", "numero_pedido"):
+            if campo in data and data[campo] is not None:
+                data[campo] = str(data[campo])
+        cep_origem = data.get("cep_origem") or data.get("CEP_ORIGEM") or data.get("CepOrigem")
+        cep_destino = data.get("cep_destino") or data.get("CEP_DESTINO") or data.get("CepDestino")
+        if "origem" not in data and cep_origem:
+            data["origem"] = {"cep": cep_origem}
+        if "destino" not in data and cep_destino:
+            data["destino"] = {"cep": cep_destino}
         return data
-
-
-class LinhaCotacaoSankhya(BaseModel):
-    id_container: int
-    codigo_parceiro_transportadora: int | None = None
-    nome_parceiro: str | None = None
-    prazo_entrega: int | None = None
-    valor_cotacao: float | None = None
-    aprovado: bool | None = None
-    codigo_servico: str | None = None
-    servico: str | None = None
-    transportadora: str
-    erro: str | None = None
-    transportadora_freteway_id: str
-    status: str
-    request_id: str
-
-
-class CotacaoSankhyaOut(BaseModel):
-    numero_pedido: str | None = None
-    status: str
-    linhas: list[LinhaCotacaoSankhya]
-    cotacoes_geradas: int = 0
-    cotacoes_com_erro: int = 0
-    tempo_resposta_ms: int = 0
 
 
 class MapeamentoSankhyaIn(BaseModel):
     transportadora_id: str
+    empresa_sankhya_id: str | None = Field(default=None, min_length=1, max_length=80)
     codigo_parceiro: int = Field(gt=0)
     nome_parceiro: str = Field(min_length=1, max_length=255)
     codigo_servico: str | None = Field(default=None, max_length=100)
