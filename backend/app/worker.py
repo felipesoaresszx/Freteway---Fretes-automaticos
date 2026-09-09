@@ -2,11 +2,14 @@
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timedelta
 
 from sqlalchemy import or_, select, text
 
+from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal, MasterSessionLocal, quote_schema
+from app.core.observability import log_event
 from app.models.master import Tenant
 from app.models.models import AuditoriaTabela, Cotacao, ProcessamentoJob, TabelaFrete, Transportadora
 from app.services.cotacao_jobs import executar_job_analise_tabela, executar_job_cotacao, reagendar_job
@@ -16,23 +19,45 @@ from app.services.tabela_frete.analise import AnaliseDocumentoError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("freteway.worker")
+settings = get_settings()
+
+
+def proximo_job_query(agora: datetime, stale_after_seconds: int):
+    """Claim concorrente: linhas bloqueadas por outro worker sao ignoradas."""
+    return (
+        select(ProcessamentoJob).where(
+            ProcessamentoJob.tipo.in_(["cotacao", "tabela_analise", "carrier_enrichment"]),
+            ProcessamentoJob.disponivel_em <= agora,
+            or_(
+                ProcessamentoJob.status == "pending",
+                (ProcessamentoJob.status == "processing")
+                & (ProcessamentoJob.bloqueado_em < agora - timedelta(seconds=stale_after_seconds)),
+            ),
+        ).order_by(ProcessamentoJob.created_at).with_for_update(skip_locked=True).limit(1)
+    )
+
+
+async def processar_schemas_concorrente(
+    schemas: list[str], processor, max_concurrency: int
+) -> list[bool]:
+    semaphore = asyncio.Semaphore(max(1, max_concurrency))
+
+    async def limited(schema: str) -> bool:
+        async with semaphore:
+            return await processor(schema)
+
+    return list(await asyncio.gather(*(limited(schema) for schema in schemas)))
+
+
+async def executar_com_timeout(execution, timeout_seconds: int):
+    return await asyncio.wait_for(execution, timeout=timeout_seconds)
 
 
 async def processar_schema(schema: str) -> bool:
     async with AsyncSessionLocal() as db:
         await db.execute(text(f"SET search_path TO {quote_schema(schema)}, public"))
         agora = datetime.utcnow()
-        job = await db.scalar(
-            select(ProcessamentoJob).where(
-                ProcessamentoJob.tipo.in_(["cotacao", "tabela_analise", "carrier_enrichment"]),
-                ProcessamentoJob.disponivel_em <= agora,
-                or_(
-                    ProcessamentoJob.status == "pending",
-                    (ProcessamentoJob.status == "processing")
-                    & (ProcessamentoJob.bloqueado_em < agora - timedelta(minutes=5)),
-                ),
-            ).order_by(ProcessamentoJob.created_at).with_for_update(skip_locked=True).limit(1)
-        )
+        job = await db.scalar(proximo_job_query(agora, settings.WORKER_STALE_AFTER_SECONDS))
         if not job:
             return False
         job.status = "processing"
@@ -45,22 +70,35 @@ async def processar_schema(schema: str) -> bool:
         job_id = job.id
         job_type = job.tipo
         resource_id = job.recurso_id
+        attempt = job.tentativas + 1
+        started = time.perf_counter()
+        log_event(
+            logger, "job_started", job_id=job_id, job_type=job_type,
+            quote_id=resource_id if job_type == "cotacao" else None,
+            attempt=attempt, status="processing",
+        )
         try:
             if job_type == "cotacao":
-                await executar_job_cotacao(db, job)
+                execution = executar_job_cotacao(db, job)
             elif job_type == "tabela_analise":
-                await executar_job_analise_tabela(db, job)
+                execution = executar_job_analise_tabela(db, job)
             elif job_type == "carrier_enrichment":
-                await CarrierEnrichmentService(
+                execution = CarrierEnrichmentService(
                     db, search_provider=DuckDuckGoSearchProvider()
                 ).run(resource_id, job=job)
+            await executar_com_timeout(execution, settings.WORKER_JOB_TIMEOUT_SECONDS)
             job.status = "completed"
             job.bloqueado_em = None
             job.progress = 100
             job.current_step = "completed"
             job.finished_at = datetime.utcnow()
             await db.commit()
-            logger.info("job_completed schema=%s job_id=%s recurso_id=%s", schema, job.id, job.recurso_id)
+            log_event(
+                logger, "job_completed", job_id=job_id, job_type=job_type,
+                quote_id=resource_id if job_type == "cotacao" else None,
+                attempt=attempt, duration_ms=round((time.perf_counter() - started) * 1000, 2),
+                status="completed",
+            )
         except Exception as exc:
             await db.rollback()
             job = await db.get(ProcessamentoJob, job_id)
@@ -89,7 +127,13 @@ async def processar_schema(schema: str) -> bool:
                     carrier.enrichment_status = "ERROR"
                     carrier.enrichment_finished_at = datetime.utcnow()
             await db.commit()
-            logger.exception("job_failed schema=%s job_id=%s", schema, job_id)
+            log_event(
+                logger, "job_failed", job_id=job_id, job_type=job_type,
+                quote_id=resource_id if job_type == "cotacao" else None,
+                attempt=attempt, duration_ms=round((time.perf_counter() - started) * 1000, 2),
+                status=job.status, error_code=type(exc).__name__,
+                level=logging.ERROR, exc_info=True,
+            )
         return True
 
 
@@ -125,10 +169,11 @@ async def main() -> None:
     logger.info("worker_started")
     ultima_manutencao: datetime | None = None
     while True:
-        trabalhou = False
         schemas = await schemas_ativos()
-        for schema in schemas:
-            trabalhou = await processar_schema(schema) or trabalhou
+        resultados = await processar_schemas_concorrente(
+            schemas, processar_schema, settings.WORKER_MAX_CONCURRENCY
+        )
+        trabalhou = any(resultados)
         agora = datetime.utcnow()
         if not ultima_manutencao or agora - ultima_manutencao >= timedelta(minutes=5):
             for schema in schemas:

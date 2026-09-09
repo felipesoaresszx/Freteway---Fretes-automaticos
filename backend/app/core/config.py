@@ -71,6 +71,14 @@ class Settings(BaseSettings):
     INTEGRATION_CIRCUIT_FAILURES: int = 5
     INTEGRATION_CIRCUIT_RESET_SECONDS: int = 60
 
+    # Fila PostgreSQL: concorrencia ocorre entre tenants, com uma sessao isolada por job.
+    WORKER_MAX_CONCURRENCY: int = 4
+    WORKER_JOB_TIMEOUT_SECONDS: int = 300
+    WORKER_STALE_AFTER_SECONDS: int = 300
+
+    # Apenas dados estaticos e explicitamente invalidaveis.
+    CACHE_CEP_TTL_SECONDS: int = 86400
+
     # Credencial de entrada usada pelo Sankhya para consumir o FRETEWAY.
     # Deve ser diferente das credenciais usadas para chamar transportadoras.
     SANKHYA_API_KEY: str | None = None

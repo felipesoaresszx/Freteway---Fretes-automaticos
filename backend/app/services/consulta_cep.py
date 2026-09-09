@@ -5,6 +5,27 @@ import httpx
 from fastapi import HTTPException, status
 
 from app.core.config import get_settings
+from app.core.cache import AsyncTTLCache
+
+
+_cep_cache: AsyncTTLCache[dict[str, str | None]] | None = None
+
+
+def _cache() -> AsyncTTLCache[dict[str, str | None]]:
+    global _cep_cache
+    ttl = get_settings().CACHE_CEP_TTL_SECONDS
+    if _cep_cache is None or _cep_cache.ttl_seconds != ttl:
+        _cep_cache = AsyncTTLCache(ttl)
+    return _cep_cache
+
+
+def invalidar_cache_cep(cep: str | None = None) -> None:
+    if _cep_cache is None:
+        return
+    if cep is None:
+        _cep_cache.clear()
+    else:
+        _cep_cache.invalidate("".join(character for character in cep if character.isdigit()))
 
 
 def _texto(value: Any) -> str | None:
@@ -26,6 +47,16 @@ def normalizar_resposta_cep(cep: str, data: dict[str, Any]) -> dict[str, str | N
 
 
 async def consultar_cep(cep: str, client: httpx.AsyncClient | None = None) -> dict[str, str | None]:
+    normalized_cep = "".join(character for character in cep if character.isdigit())
+    cached = await _cache().get_or_load(
+        normalized_cep, lambda: _consultar_cep_sem_cache(normalized_cep, client)
+    )
+    return dict(cached)
+
+
+async def _consultar_cep_sem_cache(
+    cep: str, client: httpx.AsyncClient | None = None
+) -> dict[str, str | None]:
     settings = get_settings()
     own_client = client is None
     http = client or httpx.AsyncClient(

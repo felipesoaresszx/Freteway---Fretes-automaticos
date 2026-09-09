@@ -206,7 +206,7 @@ def analisar_csv(caminho: Path, tabela: TabelaFrete) -> dict:
     }
 
 
-def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, storage_dir: Path) -> dict:
+def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, storage_dir: Path) -> dict:
     caminho = (storage_dir.resolve() / documento.caminho_storage).resolve()
     if storage_dir.resolve() not in caminho.parents or not caminho.is_file():
         raise AnaliseDocumentoError("Documento não encontrado no armazenamento")
@@ -315,6 +315,23 @@ def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, sto
         "campos_com_duvida": ["mapeamento_tarifario"],
         "resumo": {"valores": len(dados["valores_detectados"]), "ceps": len(dados["ceps_detectados"]), "prazos": len(dados["prazos_detectados"])},
     }
+
+
+def _analisar_csv_strategy(documento: DocumentoFrete, tabela: TabelaFrete, storage_dir: Path) -> dict:
+    caminho = (storage_dir.resolve() / documento.caminho_storage).resolve()
+    if storage_dir.resolve() not in caminho.parents or not caminho.is_file():
+        raise AnaliseDocumentoError("Documento não encontrado no armazenamento")
+    return analisar_csv(caminho, tabela)
+
+
+def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, storage_dir: Path) -> dict:
+    """Executa o pipeline novo usando os parsers legados, sem alterar sua saida."""
+    from app.services.tabela_frete.motor import analyze_with_existing_parsers
+
+    return analyze_with_existing_parsers(
+        documento, tabela, storage_dir, legacy_analysis=_analisar_documento_legacy,
+        format_analyses={"csv": _analisar_csv_strategy},
+    )
 
 
 def combinar_resultados_documentos(resultados: list[dict]) -> dict:

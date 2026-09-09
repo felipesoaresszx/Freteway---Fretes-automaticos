@@ -10,6 +10,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.api.v1.router import api_router
 from app.api.v1.endpoints.sankhya import root_router as sankhya_root_router
 from app.core.config import get_settings, validate_runtime_settings
+from app.core.observability import log_event
 from app.db.session import AsyncSessionLocal, quote_schema
 from sqlalchemy import text
 from app.models.models import AuditLog
@@ -79,10 +80,11 @@ async def seguranca_http(request: Request, call_next):
     if settings.COOKIE_SECURE:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["X-Request-ID"] = request_id
-    logger.info(
-        "request_completed request_id=%s method=%s path=%s status=%s duration_ms=%.2f tenant_id=%s",
-        request_id, request.method, request.url.path, response.status_code,
-        (time.perf_counter() - inicio) * 1000, getattr(request.state, "tenant_id", None),
+    log_event(
+        logger, "request_completed", request_id=request_id, method=request.method,
+        path=request.url.path, status=response.status_code,
+        duration_ms=round((time.perf_counter() - inicio) * 1000, 2),
+        tenant_id=getattr(request.state, "tenant_id", None),
     )
     return response
 

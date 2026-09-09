@@ -25,7 +25,9 @@ async def executar_job_cotacao(db: AsyncSession, job: ProcessamentoJob) -> None:
     if not cotacao or cotacao.status != "processing":
         return
     payload = CotacaoCreate.model_validate(job.payload)
-    resultados = await executar_cotacao(payload, db)
+    resultados = await executar_cotacao(
+        payload, db, quote_id=cotacao.id, job_id=job.id, attempt=job.tentativas + 1
+    )
     existentes = {
         item.transportadora_id: item
         for item in (await db.scalars(

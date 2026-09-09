@@ -1,4 +1,7 @@
 import asyncio
+import json
+import logging
+import time
 import uuid
 from datetime import datetime
 
@@ -6,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.observability import log_event
 from app.core.resilience import CircuitOpenError, executar_resiliente
 from app.integrations.transportadoras.mock.client import MockTransportadoraAdapter
 from app.integrations.transportadoras.api_generica import ApiGenericaAdapter
@@ -15,13 +19,20 @@ from app.integrations.transportadoras.braspress import BraspressAdapter
 from app.integrations.ssw.provider import SSWProvider
 from app.integrations.ssw.schemas import SSWQuoteRequest
 from app.integrations.transportadoras.registry import registry
-from app.models.models import CarrierIntegration, TabelaFrete, Transportadora, TransportadoraConfiguracaoApi
+from app.models.models import (
+    CarrierCredential,
+    CarrierIntegration,
+    TabelaFrete,
+    Transportadora,
+    TransportadoraConfiguracaoApi,
+)
 from app.schemas.carrier import FreightQuoteRequest
-from app.services.carrier_management import CarrierIntegrationManager
+from app.services.credenciais import descriptografar
 from app.services.ssw_service import SSWIntegrationService
 from app.schemas.cotacao import CotacaoCreate, ErroResultado, ResultadoTransportadora
 
 settings = get_settings()
+logger = logging.getLogger("freteway.quote")
 
 # Sprint 1/2/3: todas as transportadoras usam o adapter mock. Cada uma será
 # substituída pelo adapter real na sua respectiva sprint (4, 5, 6...) sem
@@ -222,9 +233,42 @@ async def _cotar_por_provider(
         )
 
 
+async def _observar_provider(
+    awaitable,
+    *,
+    carrier_id: str,
+    provider: str,
+    quote_id: str | None,
+    job_id: str | None,
+    attempt: int | None,
+) -> ResultadoTransportadora:
+    started = time.perf_counter()
+    try:
+        result = await awaitable
+    except Exception as exc:
+        log_event(
+            logger, "quote_provider_completed", quote_id=quote_id, job_id=job_id,
+            carrier_id=carrier_id, provider=provider, attempt=attempt,
+            duration_ms=round((time.perf_counter() - started) * 1000, 2),
+            status="error", error_code=type(exc).__name__,
+        )
+        raise
+    log_event(
+        logger, "quote_provider_completed", quote_id=quote_id, job_id=job_id,
+        carrier_id=carrier_id, provider=provider, request_id=result.request_id,
+        attempt=attempt, duration_ms=round((time.perf_counter() - started) * 1000, 2),
+        status=result.status, error_code=result.erro.codigo if result.erro else None,
+    )
+    return result
+
+
 async def executar_cotacao(
     cotacao: CotacaoCreate,
     db_session: AsyncSession | None = None,
+    *,
+    quote_id: str | None = None,
+    job_id: str | None = None,
+    attempt: int | None = None,
 ) -> list[ResultadoTransportadora]:
     """Dispara as consultas a todas as transportadoras selecionadas de forma
     concorrente. Uma falha isolada nunca derruba as demais (Sprint 3)."""
@@ -254,7 +298,11 @@ async def executar_cotacao(
     if db_session is None:
         ids = cotacao.transportadoras_ids or list(TRANSPORTADORAS_DISPONIVEIS.keys())
         tarefas = [
-            _cotar_uma(tid, TRANSPORTADORAS_DISPONIVEIS[tid], payload)
+            _observar_provider(
+                _cotar_uma(tid, TRANSPORTADORAS_DISPONIVEIS[tid], payload),
+                carrier_id=tid, provider="mock", quote_id=quote_id,
+                job_id=job_id, attempt=attempt,
+            )
             for tid in ids if tid in TRANSPORTADORAS_DISPONIVEIS
         ]
         return await asyncio.gather(*tarefas)
@@ -266,23 +314,71 @@ async def executar_cotacao(
         stmt = stmt.where(Transportadora.id.in_(cotacao.transportadoras_ids))
     transportadoras = list((await db_session.execute(stmt)).scalars().all())
     agora = datetime.utcnow()
+    transportadora_ids = [transportadora.id for transportadora in transportadoras]
+
+    tabelas = list((await db_session.execute(
+        select(TabelaFrete)
+        .where(
+            TabelaFrete.transportadora_id.in_(transportadora_ids),
+            TabelaFrete.status == "active",
+            TabelaFrete.data_inicio <= agora,
+            TabelaFrete.data_fim >= agora,
+        )
+        .order_by(TabelaFrete.transportadora_id, TabelaFrete.data_inicio.desc())
+    )).scalars().all()) if transportadora_ids else []
+    tabelas_por_transportadora: dict[str, TabelaFrete] = {}
+    for tabela in tabelas:
+        tabelas_por_transportadora.setdefault(tabela.transportadora_id, tabela)
+
+    integrations = list((await db_session.execute(
+        select(CarrierIntegration)
+        .where(
+            CarrierIntegration.carrier_id.in_(transportadora_ids),
+            CarrierIntegration.adapter_code.in_(registry.codes()),
+            CarrierIntegration.active.is_(True),
+        )
+        .order_by(CarrierIntegration.carrier_id, CarrierIntegration.priority)
+    )).scalars().all()) if transportadora_ids else []
+    integrations_por_transportadora: dict[str, CarrierIntegration] = {}
+    for integration in integrations:
+        integrations_por_transportadora.setdefault(integration.carrier_id, integration)
+
+    configuracoes = list((await db_session.execute(
+        select(TransportadoraConfiguracaoApi).where(
+            TransportadoraConfiguracaoApi.transportadora_id.in_(transportadora_ids)
+        )
+    )).scalars().all()) if transportadora_ids else []
+    configuracoes_por_transportadora = {
+        configuracao.transportadora_id: configuracao for configuracao in configuracoes
+    }
+
+    integration_ids = [integration.id for integration in integrations_por_transportadora.values()]
+    credential_rows = list((await db_session.execute(
+        select(CarrierCredential)
+        .where(
+            CarrierCredential.integration_id.in_(integration_ids),
+            CarrierCredential.active.is_(True),
+        )
+        .order_by(CarrierCredential.integration_id, CarrierCredential.updated_at.desc())
+    )).scalars().all()) if integration_ids else []
+    credentials_por_integration: dict[str, dict[str, str]] = {}
+    for credential in credential_rows:
+        if credential.integration_id not in credentials_por_integration:
+            credentials_por_integration[credential.integration_id] = json.loads(
+                descriptografar(credential.encrypted_payload) or "{}"
+            )
+
     tarefas = []
     resultados_tabela: list[ResultadoTransportadora] = []
     for transportadora in transportadoras:
-        tabela = await db_session.scalar(
-            select(TabelaFrete)
-            .where(
-                TabelaFrete.transportadora_id == transportadora.id,
-                TabelaFrete.status == "active",
-                TabelaFrete.data_inicio <= agora,
-                TabelaFrete.data_fim >= agora,
-            )
-            .order_by(TabelaFrete.data_inicio.desc())
-            .limit(1)
-        )
+        tabela = tabelas_por_transportadora.get(transportadora.id)
         if tabela and transportadora.metodo_calculo == "tabela_propria":
             # AsyncSession não suporta operações concorrentes na mesma instância.
-            resultados_tabela.append(await _cotar_por_tabela(transportadora, tabela, payload, db_session))
+            resultados_tabela.append(await _observar_provider(
+                _cotar_por_tabela(transportadora, tabela, payload, db_session),
+                carrier_id=transportadora.id, provider="tabela_frete", quote_id=quote_id,
+                job_id=job_id, attempt=attempt,
+            ))
         elif transportadora.metodo_calculo == "tabela_propria":
             resultados_tabela.append(
                 ResultadoTransportadora(
@@ -297,23 +393,27 @@ async def executar_cotacao(
                 )
             )
         elif transportadora.metodo_calculo == "api":
-            registered_integration = await db_session.scalar(select(CarrierIntegration).where(
-                CarrierIntegration.carrier_id == transportadora.id,
-                CarrierIntegration.adapter_code.in_(registry.codes()),
-                CarrierIntegration.active.is_(True),
-            ).order_by(CarrierIntegration.priority).limit(1))
+            registered_integration = integrations_por_transportadora.get(transportadora.id)
             if registered_integration:
-                segredos = await CarrierIntegrationManager(db_session).credentials(registered_integration)
+                segredos = credentials_por_integration.get(registered_integration.id, {})
                 # Providers recebem a configuração pública e os segredos guardados
                 # separadamente. O SSW precisa de ambos para montar a chamada.
                 credenciais = {**(registered_integration.configuration or {}), **segredos}
-                tarefas.append(_cotar_por_provider(transportadora, registered_integration, payload, credenciais))
+                tarefas.append(_observar_provider(
+                    _cotar_por_provider(transportadora, registered_integration, payload, credenciais),
+                    carrier_id=transportadora.id, provider=registered_integration.adapter_code or "unknown",
+                    quote_id=quote_id, job_id=job_id, attempt=attempt,
+                ))
                 continue
-            configuracao = await db_session.scalar(select(TransportadoraConfiguracaoApi).where(
-                TransportadoraConfiguracaoApi.transportadora_id == transportadora.id
-            ))
+            configuracao = configuracoes_por_transportadora.get(transportadora.id)
             if configuracao and transportadora.status_integracao == "ativo":
-                tarefas.append(_cotar_por_api(transportadora, configuracao, payload))
+                nome = transportadora.nome.strip().casefold()
+                provider = "jamef" if nome.startswith("jamef") else "braspress" if nome.startswith("braspress") else "api_generica"
+                tarefas.append(_observar_provider(
+                    _cotar_por_api(transportadora, configuracao, payload),
+                    carrier_id=transportadora.id, provider=provider, quote_id=quote_id,
+                    job_id=job_id, attempt=attempt,
+                ))
             else:
                 resultados_tabela.append(ResultadoTransportadora(
                     transportadora_id=transportadora.id, transportadora=transportadora.nome,
