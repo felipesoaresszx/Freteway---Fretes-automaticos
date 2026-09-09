@@ -1,20 +1,23 @@
 # FreteWay
 
-Sistema web para centralizar cotações de frete, comparar propostas de transportadoras e administrar tabelas tarifárias e integrações. A aplicação reúne um frontend React, uma API FastAPI e persistência em PostgreSQL.
+Plataforma web multiempresa para centralizar cotações de frete, comparar transportadoras, administrar tabelas tarifárias e integrar o processo logístico a sistemas externos.
 
-## Principais recursos
+O projeto é formado por um frontend React, uma API FastAPI, um worker de processamento assíncrono e PostgreSQL. Cada cliente opera em um contexto isolado, identificado pelo código da empresa antes do login, com identidade visual e configurações próprias.
 
-- Autenticação JWT, usuários, perfis e permissões (`admin`, `operador` e `visualizacao`).
-- Dashboard com indicadores operacionais e desempenho das transportadoras.
-- Cadastro, edição, ativação e exclusão de transportadoras, com consulta pública de CNPJ.
-- Métodos de cálculo por tabela própria, API, web service ou fluxo manual.
-- Configuração de APIs por transportadora, credenciais criptografadas, validação com mensagem persistida e teste de status.
-- Providers nativos para SSW, Risso/Senior TMS, Correios, Braspress e Jamef, além do adapter de API genérica.
-- Criação de cotações com cálculo de cubagem, CPF/CNPJ opcional do destinatário e consulta paralela às transportadoras.
-- Histórico de cotações com busca, filtros e paginação.
-- Importação de até dois documentos complementares por tabela em CSV, XLS, XLSX, PDF, DOCX e imagens PNG/JPEG.
-- Extração consolidada, revisão com acesso aos documentos de origem, aprovação, vigência e ativação de tabelas tarifárias.
-- Configurações da empresa, parâmetros de cotação, notificações, segurança, integrações globais e auditoria.
+## Recursos principais
+
+- Autenticação por cookie HTTP-only/JWT, perfis, permissões e suporte a 2FA configurável.
+- Isolamento multi-tenant por schema e identificação da empresa por código de acesso.
+- White-label por empresa, com nome, logotipo, cores e favicon próprios.
+- Dashboard operacional e histórico pesquisável de cotações.
+- Cotação paralela com cubagem recalculada no backend, retentativas, timeout e circuit breaker.
+- Cadastro e enriquecimento de transportadoras por CNPJ, pesquisa web e catálogo RNTRC/ANTT.
+- Providers para SSW, Risso/Senior TMS, Correios, Braspress e Jamef, além de API genérica e cálculo por tabela própria.
+- Importação de transportadoras em lote por CSV/XLSX.
+- Importação e leitura de tabelas de frete em CSV, XLS, XLSX, PDF, DOCX, PNG e JPEG.
+- Consolidação de até dois documentos, revisão auditável, aprovação, vigência e ativação de tabelas.
+- Integração Sankhya para cotação e de-para de transportadoras por empresa (`CODEMP`).
+- Configurações de empresa, usuários, segurança, notificações, integrações globais e auditoria.
 
 ## Tecnologias
 
@@ -22,57 +25,59 @@ Sistema web para centralizar cotações de frete, comparar propostas de transpor
 | --- | --- |
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, Zustand, React Hook Form, Zod, Axios e Recharts |
 | Backend | Python 3.12, FastAPI, SQLAlchemy assíncrono, Pydantic, JWT e Alembic |
-| Banco de dados | PostgreSQL 16 |
+| Banco | PostgreSQL 16 |
 | Documentos | OpenPyXL, xlrd, pypdf, python-docx, Pillow e Tesseract OCR |
-| Infraestrutura | Docker, Docker Compose e worker com fila persistente no PostgreSQL |
+| Infraestrutura | Docker Compose, worker com fila no PostgreSQL, Nginx e Caddy em produção |
 | Testes | Pytest, Vitest e fluxo E2E em PowerShell |
 
-## Estrutura do projeto
+## Estrutura
 
 ```text
-frete-system/
+FreteWay/
 ├── backend/
 │   ├── alembic/                 # migrations do banco
-│   ├── docs/integracoes/        # guias específicos dos providers
 │   ├── app/
 │   │   ├── api/v1/endpoints/    # endpoints REST
-│   │   ├── core/                # configurações, autenticação e dependências
-│   │   ├── db/                  # sessão assíncrona do PostgreSQL
-│   │   ├── integrations/        # adapters de transportadoras
+│   │   ├── core/                # segurança, configuração e tenant
+│   │   ├── integrations/        # providers e adapters
 │   │   ├── models/              # modelos SQLAlchemy
 │   │   ├── schemas/             # contratos Pydantic
-│   │   └── services/            # regras de negócio e cálculo de frete
-│   └── tests/                   # testes do backend
-├── frontend/
-│   └── src/
-│       ├── api/                 # cliente HTTP
-│       ├── components/          # componentes reutilizáveis
-│       ├── hooks/               # queries e mutations
-│       ├── pages/               # telas da aplicação
-│       ├── routes/              # rotas públicas e protegidas
-│       ├── services/            # acesso à API
-│       ├── stores/              # estado de autenticação
-│       └── types/               # tipos TypeScript
-├── e2e/                         # teste do fluxo completo
-└── docker-compose.yml
+│   │   └── services/            # regras de negócio
+│   ├── docs/                    # documentação das integrações
+│   └── tests/
+├── frontend/src/
+│   ├── api/                     # cliente HTTP
+│   ├── components/              # componentes reutilizáveis
+│   ├── contexts/                # contexto da empresa
+│   ├── hooks/                   # queries e mutations
+│   ├── pages/                   # telas da aplicação
+│   ├── routes/                  # rotas e controle de acesso
+│   ├── services/                # acesso à API
+│   └── types/                   # tipos TypeScript
+├── deploy/                      # proxy e scripts de implantação
+├── e2e/                         # fluxo ponta a ponta
+├── scripts/                     # backup, restore e validações
+├── docker-compose.yml           # desenvolvimento
+└── docker-compose.production.yml
 ```
 
 ## Pré-requisitos
 
-Para a forma recomendada de execução:
+Para o fluxo recomendado de desenvolvimento:
 
-- Docker Desktop com Docker Compose v2.
+- Docker Desktop ou Docker Engine;
+- Docker Compose v2.
 
 Para executar sem Docker:
 
 - Python 3.12;
-- Node.js 20 e npm;
+- Node.js 20 ou superior e npm;
 - PostgreSQL 16;
-- Tesseract OCR com o idioma português, caso sejam processadas imagens.
+- Tesseract OCR com o idioma português para leitura de imagens.
 
 ## Início rápido com Docker
 
-1. Crie os arquivos de ambiente:
+1. Crie os arquivos locais de ambiente:
 
 ```powershell
 Copy-Item .env.example .env
@@ -80,53 +85,62 @@ Copy-Item backend/.env.example backend/.env
 Copy-Item frontend/.env.example frontend/.env
 ```
 
-Em Linux ou macOS, use `cp` no lugar de `Copy-Item`.
+No Linux ou macOS, use `cp`.
 
-2. Troque `JWT_SECRET=change-me` em `backend/.env` por um segredo longo e aleatório.
+2. Altere `POSTGRES_PASSWORD` em `.env`. Em `backend/.env`, defina valores diferentes e seguros para `JWT_SECRET` e `CREDENTIAL_ENCRYPTION_KEY`.
 
-3. Construa e inicie os serviços:
+3. Crie uma vez o volume de banco usado pelo Compose:
+
+```bash
+docker volume create frete-system_postgres_data
+```
+
+4. Construa e inicie os serviços:
 
 ```bash
 docker compose up --build -d
 ```
 
-4. Aplique as migrations e carregue os dados iniciais:
+5. Aplique as migrations e carregue os dados de desenvolvimento:
 
 ```bash
 docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.bootstrap
 docker compose exec backend python -m app.seed
 ```
 
-5. Acesse:
+6. Acesse:
 
-- Aplicação: http://localhost:5173
-- API: http://localhost:8000
-- Swagger: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-- Health check: http://localhost:8000/health
+- Aplicação: <http://localhost:5173>
+- API: <http://localhost:8000>
+- Swagger: <http://localhost:8000/docs>
+- ReDoc: <http://localhost:8000/redoc>
+- Health: <http://localhost:8000/health>
+- Readiness: <http://localhost:8000/api/v1/health/ready>
 
-O seed de desenvolvimento cria o acesso abaixo:
+O seed local cria os dados demonstrativos abaixo:
 
-
-
+```text
+Código da empresa: valor de BOOTSTRAP_TENANT_CODE (MODIAL2026 por padrão)
+E-mail: admin@fretesystem.com
+Senha: admin123
 ```
 
-```
+Essas credenciais são exclusivas para desenvolvimento. O seed legado não deve ser executado em produção.
 
-Essas credenciais são apenas para desenvolvimento e devem ser substituídas antes de qualquer implantação real.
-
-Para acompanhar os logs ou encerrar o ambiente:
+Comandos úteis:
 
 ```bash
-docker compose logs -f
+docker compose ps
+docker compose logs -f backend worker
 docker compose down
 ```
 
-Os dados do PostgreSQL permanecem no volume `postgres_data`. Use `docker compose down -v` somente quando quiser apagar definitivamente o banco local.
+O banco permanece no volume externo `frete-system_postgres_data`. Não use `docker compose down -v` se houver dados que precisem ser preservados.
 
 ## Execução local sem Docker
 
-Inicie primeiro um PostgreSQL e crie um banco compatível com a URL definida em `backend/.env`.
+Crie o banco PostgreSQL e ajuste `DATABASE_URL` em `backend/.env` antes de iniciar a API.
 
 ### Backend
 
@@ -137,179 +151,216 @@ python -m venv .venv
 pip install -r requirements.txt
 Copy-Item .env.example .env
 alembic upgrade head
+python -m app.bootstrap
 python -m app.seed
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 No Linux ou macOS, ative o ambiente com `source .venv/bin/activate`.
 
-### Frontend
+Em outro terminal, inicie o worker:
 
-Em outro terminal:
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+python -m app.worker
+```
+
+### Frontend
 
 ```powershell
 cd frontend
-npm install
+npm ci
 Copy-Item .env.example .env
 npm run dev
 ```
 
 ## Variáveis de ambiente
 
+Os exemplos completos ficam em `.env.example`, `backend/.env.example` e `frontend/.env.example`.
+
 ### Backend
 
-| Variável | Finalidade | Padrão da aplicação |
+| Variável | Finalidade | Padrão de desenvolvimento |
 | --- | --- | --- |
 | `DATABASE_URL` | Conexão assíncrona com PostgreSQL | `postgresql+asyncpg://frete:frete@localhost:5432/frete` |
-| `JWT_SECRET` | Assinatura dos tokens e chave derivada para proteger credenciais | `change-me` |
-| `JWT_ALGORITHM` | Algoritmo do JWT | `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Expiração inicial do token | `60` |
-| `CORS_ORIGINS` | Lista JSON de origens autorizadas | `["http://localhost:5173"]` |
-| `CNPJ_CONSULTA_BASE_URL` | Provedor de consulta cadastral | BrasilAPI |
-| `CNPJ_CONSULTA_TIMEOUT_SECONDS` | Timeout da consulta de CNPJ | `10` |
-| `TABELA_FRETE_STORAGE_DIR` | Armazenamento de documentos importados | `storage/tabelas_frete` |
-| `TABELA_FRETE_UPLOAD_MAX_BYTES` | Limite por documento | `26214400` (25 MiB) |
-| `EMPRESA_LOGO_STORAGE_DIR` | Armazenamento de logotipos | `storage/configuracoes/logos` |
-| `EMPRESA_LOGO_MAX_BYTES` | Limite do logotipo | `2097152` (2 MiB) |
-| `TIMEOUT_API_INTEGRACAO` | Timeout de integração via API | `15` segundos |
-| `TIMEOUT_BROWSER_INTEGRACAO` | Timeout de automação de navegador | `60` segundos |
-| `INTEGRATION_RETRY_ATTEMPTS` | Tentativas para falhas transitórias de transportadoras | `3` |
-| `INTEGRATION_MAX_CONCURRENCY` | Limite de chamadas externas simultâneas por processo | `10` |
-| `INTEGRATION_CIRCUIT_FAILURES` | Falhas consecutivas antes de suspender uma integração | `5` |
-| `INTEGRATION_CIRCUIT_RESET_SECONDS` | Tempo para testar novamente uma integração suspensa | `60` |
-| `N8N_BASE_URL` | URL de uma futura/externa instância n8n | `http://n8n:5678` |
+| `MASTER_DATABASE_URL` | Conexão do catálogo multi-tenant | usa `DATABASE_URL` quando omitida |
+| `PUBLIC_BASE_URL` | URL pública da API | `http://localhost:8000` |
+| `JWT_SECRET` | Assinatura dos tokens | `change-me` |
+| `CREDENTIAL_ENCRYPTION_KEY` | Proteção das credenciais integradas | `change-me-separately` |
+| `CORS_ORIGINS` | Origens autorizadas em JSON | `["http://localhost:5173"]` |
+| `TRUSTED_HOSTS` | Hosts aceitos pela API em JSON | localhost, loopback e backend |
+| `BOOTSTRAP_TENANT_*` | Empresa inicial e schema associado | tenant Modial no schema `public` |
+| `TABELA_FRETE_STORAGE_DIR` | Originais das tabelas importadas | `storage/tabelas_frete` |
+| `DOCUMENT_STORAGE_DIR` | Documentos processados | `storage/documentos` |
+| `EMPRESA_LOGO_STORAGE_DIR` | Logotipos por empresa | `storage/configuracoes/logos` |
+| `INTEGRATION_*` | Concorrência, retentativas e circuit breaker | consulte o arquivo de exemplo |
+| `ENRICHMENT_*` | Pesquisa para enriquecimento de transportadoras | DuckDuckGo HTML |
+| `ANTT_*` | Catálogo público RNTRC | dados abertos da ANTT |
+| `SANKHYA_API_KEY` | Chave de entrada legada do Sankhya | sem valor padrão |
 
-O Compose substitui `DATABASE_URL` para usar o hostname interno `postgres`. Os valores `JAMEF_API_KEY`, `JADLOG_TOKEN`, `BRASPRESS_USER`, `BRASPRESS_PASSWORD` e `PLAYWRIGHT_HEADLESS` presentes no exemplo são reservados para adapters/automação.
+Em produção, a aplicação exige URL pública válida, segredos distintos com pelo menos 32 caracteres, hosts/origens explícitos e cookies seguros. Não altere a chave de criptografia de uma instalação existente, pois isso pode impedir a leitura das credenciais armazenadas.
 
 ### Frontend
 
-| Variável | Finalidade | Padrão |
-| --- | --- | --- |
-| `VITE_API_URL` | Prefixo da API consumida pelo navegador | `http://localhost:8000/api/v1` |
+| Variável | Finalidade | Desenvolvimento | Produção |
+| --- | --- | --- | --- |
+| `VITE_API_URL` | Prefixo consumido pelo navegador | `http://localhost:8000/api/v1` | `/api/v1` |
 
 ## Fluxos principais
 
+### Acesso multiempresa
+
+1. O usuário informa o código da empresa.
+2. `POST /api/v1/companies/identify` identifica o tenant e grava seu contexto temporário.
+3. A tela aplica a identidade visual daquela empresa.
+4. O usuário entra com e-mail, senha e, quando habilitado, código 2FA.
+5. As consultas seguintes são executadas no schema do tenant identificado.
+
 ### Cotação
 
-1. O usuário informa origem, destino, nota fiscal, CPF/CNPJ do destinatário quando exigido pelo provider, volumes e transportadoras.
-2. O backend recalcula a cubagem para não depender de valores enviados pelo navegador.
-3. A cotação é gravada junto com uma tarefa persistente e começa com status `processing`.
-4. O worker executa as consultas em paralelo, com timeout, retentativas e circuit breaker.
-5. O frontend consulta o resultado até chegar a `completed`, `completed_with_errors` ou `failed`.
-6. Uma proposta bem-sucedida pode ser selecionada como vencedora.
+1. O usuário informa origem, destino, valor da nota, documento do destinatário quando necessário, volumes e transportadoras.
+2. O backend recalcula peso cubado e registra uma tarefa persistente.
+3. O worker consulta as transportadoras em paralelo, isolando falhas por provider.
+4. O resultado termina como `completed`, `completed_with_errors` ou `failed`.
+5. Uma proposta válida pode ser selecionada como vencedora.
 
-Transportadoras com `metodo_calculo=tabela_propria` utilizam a tabela ativa e vigente. Integrações do tipo API são resolvidas pelo `adapter_code` no registry compartilhado. SSW, Risso e Correios usam o contrato universal de cotação; Jamef e Braspress também possuem seleção dedicada no fluxo legado de configuração de API. Uma falha fica isolada no resultado daquela transportadora e não interrompe as demais consultas.
+Transportadoras configuradas com tabela própria usam a tabela ativa e vigente. As cotações guardam memória do cálculo e dos componentes tarifários para manter a auditoria mesmo após mudanças posteriores na tabela.
 
-### Integrações de transportadoras
-
-| Provider | Configuração principal | Observações |
-| --- | --- | --- |
-| SSW | Domínio, login, senha, CNPJ pagador e mercadoria padrão | SOAP assíncrono, consulta de mercadorias, teste de conexão e importação de transportadoras em massa |
-| Risso / Senior TMS | URLs TMS/Bridge, usuário, senha, CNPJ remetente e tipo de frete | Login Senior com token em memória; requer CPF/CNPJ do destinatário para cotar |
-| Correios | URL da API, usuário Meu Correios, senha do componente, cartão de postagem e serviços | Autentica pelo cartão de postagem e consulta preço e prazo de cada serviço configurado |
-| Braspress | Usuário, senha e parâmetros da API | Autenticação Basic própria e uso do documento do destinatário |
-| Jamef | Credenciais e parâmetros da API | Mantém o adapter dedicado já existente |
-
-As telas específicas ficam em **Integrações**. Segredos são armazenados em `carrier_credentials`, protegidos pelo mecanismo de criptografia da aplicação, e não são devolvidos ao frontend. A configuração não secreta, o status, a data e a mensagem da última validação ficam em `carrier_integrations`.
-
-Documentação detalhada: [`backend/docs/integracoes/ssw.md`](backend/docs/integracoes/ssw.md) e [`backend/docs/integracoes/risso.md`](backend/docs/integracoes/risso.md).
-
-### Tabela de frete
+### Tabelas de frete
 
 ```text
-draft → upload/análise → review → approved → active
-                                    └──────→ cancelled
+draft -> upload/análise -> review -> approved -> active
+                              `----> cancelled
 ```
 
-Cada tabela aceita um ou dois documentos. Quando dois arquivos são enviados, eles entram no mesmo job, são analisados em conjunto e os dados complementares são consolidados em uma única revisão. A API preserva `documento_original` por compatibilidade e também retorna `documentos_originais` e `documento_ids`. Os dados podem ser revisados antes da aprovação; a ativação só é permitida depois que a tabela estiver aprovada.
+Cada tabela aceita um ou dois documentos complementares. Os arquivos são consolidados na mesma análise, mantendo referência aos documentos de origem. O usuário revisa os dados antes de aprovar, e somente tabelas aprovadas podem ser ativadas.
+
+### Integrações
+
+| Provider | Configuração principal |
+| --- | --- |
+| SSW | Domínio, login, senha, CNPJ pagador e mercadoria padrão |
+| Risso / Senior TMS | URLs TMS/Bridge, usuário, senha, CNPJ remetente e tipo de frete |
+| Correios | URL, credenciais Meu Correios, cartão de postagem e serviços |
+| Braspress | Usuário, senha e parâmetros próprios da API |
+| Jamef | Credenciais e parâmetros próprios da API |
+
+Segredos são criptografados e não retornam ao frontend. Status, horário e mensagem da última validação permanecem disponíveis para diagnóstico.
+
+Guias específicos:
+
+- [SSW](backend/docs/integracoes/ssw.md)
+- [Risso/Senior](backend/docs/integracoes/risso.md)
+- [Sankhya](backend/docs/integracao-sankhya.md)
+- [Jamef](backend/docs/integracao-jamef.md)
+
+### Sankhya
+
+A entrada principal é `POST /integracoes/sankhya/cotacao`, autenticada por `X-API-Key`. A chave identifica o tenant, e `CODEMP` seleciona o de-para específico da empresa. Também existem aliases sob `/api/v1` para compatibilidade.
+
+Os mapeamentos são administrados em:
+
+```text
+GET /api/v1/integrations/sankhya/mapeamentos
+PUT /api/v1/integrations/sankhya/mapeamentos/{transportadora_id}
+```
+
+Consulte o [contrato completo da integração](backend/docs/integracao-sankhya.md) antes da homologação.
 
 ## API
 
-Todos os endpoints de negócio usam o prefixo `/api/v1` e, exceto o login e os health checks, exigem `Authorization: Bearer <token>`.
+Os endpoints administrativos e de negócio usam o prefixo `/api/v1`. A documentação interativa fica disponível em `/docs` e `/redoc` somente fora de produção.
 
-| Grupo | Endpoints principais |
+| Grupo | Rotas principais |
 | --- | --- |
-| Autenticação | `POST /auth/login`, `GET /auth/me` |
-| Dashboard | `GET /dashboard` |
-| Cotações | `POST/GET /cotacoes`, `GET /cotacoes/{id}`, `POST /cotacoes/{id}/selecionar` |
-| Transportadoras | CRUD em `/transportadoras`, consulta de CNPJ, integrações universais e configuração/status de API |
-| SSW | Listagem, configuração, teste, mercadorias, cotação direta e importação em massa em `/transportadoras/.../ssw` |
-| Tabelas de frete | CRUD, upload, análise de um ou dois documentos, revisão consolidada, aprovação, ativação, cancelamento e documentos em `/tabelas-frete` |
-| Configurações | Empresa, cotação, notificações, segurança, usuários, perfis, integrações e auditoria em `/configuracoes` |
+| Empresa e autenticação | `/companies/identify`, `/auth/login`, `/auth/me`, `/auth/logout` |
+| Dashboard | `/dashboard` |
+| Cotações | `/cotacoes` |
+| Transportadoras | `/transportadoras`, `/carriers`, `/enrichment` |
+| Tabelas | `/tabelas-frete` |
+| Integrações | `/transportadoras/.../ssw`, `/integrations/sankhya/...` |
+| Configurações | `/configuracoes` |
+| Administração de tenants | rotas protegidas de `tenants_admin` |
+| Saúde | `/health`, `/health/live`, `/health/ready` |
 
-O contrato completo, parâmetros, exemplos e respostas ficam disponíveis no Swagger após iniciar o backend.
+## Testes e validação
 
-## Testes e validações
-
-Com os containers em execução:
-
-```bash
-docker compose exec backend pytest
-docker compose exec frontend npm run build
-```
-
-Localmente:
+### Backend
 
 ```powershell
 cd backend
 pytest
-pytest tests/test_ssw_client.py tests/test_ssw_parser.py tests/test_ssw_provider.py
-pytest tests/test_risso_provider.py tests/test_correios_provider.py tests/test_braspress_adapter.py
+```
 
-cd ../frontend
-npm test
+Testes de integração real com APIs externas ficam desabilitados por padrão e exigem credenciais próprias.
+
+### Frontend
+
+```powershell
+cd frontend
+npm ci
+npm run test:run
 npm run build
 ```
 
-O teste E2E cria uma tabela temporária, importa a fixture CSV, revisa, aprova, ativa e usa a tabela em uma cotação. Execute na raiz, com API, migrations e seed prontos:
+### E2E de tabela de frete
+
+Com API, worker, migrations e seed prontos:
 
 ```powershell
 .\e2e\tabela_frete_flow.ps1
 ```
 
-Os testes reais de SSW e Risso ficam desabilitados por padrão para evitar chamadas externas. Consulte os guias em `backend/docs/integracoes` para habilitá-los explicitamente com credenciais de teste.
+O script importa uma fixture CSV, revisa, aprova e ativa a tabela, depois a utiliza em uma cotação.
 
-## Banco de dados e migrations
-
-Aplicar todas as migrations:
+## Banco e migrations
 
 ```bash
+# aplicar migrations
 docker compose exec backend alembic upgrade head
-```
 
-Criar uma migration após alterar modelos:
+# conferir a revisão atual
+docker compose exec backend alembic current
 
-```bash
+# criar uma migration após alterar os modelos
 docker compose exec backend alembic revision --autogenerate -m "descricao da alteracao"
 ```
 
-Consultar a revisão atual:
+`python -m app.bootstrap` é idempotente e cria apenas o tenant e o tema ausentes. `python -m app.seed` adiciona usuário e transportadoras demonstrativas e deve ser restrito ao desenvolvimento.
+
+## Produção
+
+O ambiente de produção usa imagens imutáveis, frontend Nginx, proxy Caddy com TLS, redes internas para aplicação/banco e volumes persistentes para PostgreSQL e documentos.
+
+Antes de implantar:
+
+1. Leia integralmente [DEPLOYMENT.md](DEPLOYMENT.md).
+2. Copie `.env.production.example` e `backend/.env.production.example` para os respectivos arquivos sem `.example`.
+3. Defina senha do banco, segredos, domínio, hosts e CORS com valores reais.
+4. Preserve e valide backups do banco e do storage.
+5. Execute o deploy pelo script documentado, sem rodar o seed de desenvolvimento.
 
 ```bash
-docker compose exec backend alembic current
+chmod +x deploy/deploy.sh scripts/*.sh
+./deploy/deploy.sh
 ```
 
-O script `python -m app.seed` é idempotente para o administrador e para as transportadoras iniciais. As migrations também preparam perfis, permissões, configurações padrão e integrações globais.
+O procedimento detalhado inclui migração de storage, transporte/restauração do banco, healthchecks, rollback e checklist pós-reboot.
 
-As migrations mais recentes adicionam a mensagem de validação das integrações (`018`) e cadastram Risso/Senior (`019`) e Correios (`020`) com seus respectivos `adapter_code`. Depois de atualizar o código, execute obrigatoriamente `alembic upgrade head` antes de configurar esses providers.
+## Segurança e cuidados operacionais
 
-## Segurança e produção
+- Nunca versione `.env`, dumps, tokens ou credenciais reais.
+- Use HTTPS e restrinja `CORS_ORIGINS` e `TRUSTED_HOSTS` aos domínios necessários.
+- Não envie credenciais de transportadora no payload de cotação; use as rotas de configuração.
+- Preserve `CREDENTIAL_ENCRYPTION_KEY` entre deploys e backups.
+- Proteja os volumes de banco, documentos e logotipos com backup periódico.
+- Valide cada provider na tela de Integrações antes de usá-lo em produção.
+- Providers sem credenciais válidas permanecem indisponíveis; integrações simuladas servem apenas para desenvolvimento.
 
-- Nunca versionar arquivos `.env` nem credenciais reais.
-- Nunca enviar credenciais de transportadora no payload da cotação; use a tela/rota de configuração da integração.
-- Definir um `JWT_SECRET` exclusivo, forte e estável; sua alteração invalida tokens e afeta a leitura de segredos já protegidos.
-- Remover ou trocar imediatamente o usuário e a senha do seed.
-- Restringir `CORS_ORIGINS` aos domínios efetivamente usados.
-- Usar HTTPS tanto na aplicação quanto nas APIs de transportadoras; o adapter genérico rejeita URLs inseguras.
-- Persistir e proteger os diretórios de documentos/logotipos em produção.
-- O frontend servido pelo Compose usa o servidor de desenvolvimento do Vite; para produção, gere `npm run build` e publique `frontend/dist` em um servidor web/CDN.
-- Configure backup, observabilidade e rotação de segredos para o PostgreSQL e para as integrações.
+## Documentação complementar
 
-## Observações atuais
-
-- O Compose não inclui n8n nem Playwright; esses serviços precisam ser adicionados quando os respectivos adapters forem habilitados.
-- O endpoint de histórico de uma tabela de frete ainda responde `501 Not Implemented`.
-- A opção de exigir 2FA está modelada nas configurações, mas o fluxo de ativação de 2FA ainda não está disponível.
-- Providers sem credenciais válidas permanecem pendentes e não devem ser usados em produção até passarem pelo teste da tela de Integrações.
-- Parte das transportadoras iniciais ainda usa adapter simulado enquanto não houver configuração real de tabela/API.
-
+- [Implantação segura](DEPLOYMENT.md)
+- [White-label e multiempresa](backend/docs/white-label.md)
+- [Estado do núcleo de cotação](backend/docs/cotacao-core-status.md)
+- [Auditoria do ambiente local](AUDIT_LOCALHOST.md)
