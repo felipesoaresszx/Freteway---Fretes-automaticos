@@ -7,14 +7,13 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.deps import get_db, require_permission
 from app.core.security import hash_password
-from app.models.models import AuditLog, IntegrationCredential, Permission, Role, SystemSetting, User, user_roles
+from app.models.models import AuditLog, IntegrationCredential, Role, SystemSetting, User, user_roles
 from app.schemas.configuracoes import (
     AuditLogOut, AuditLogPage, CotacaoSettings, EmpresaSettings, IntegrationOut,
     IntegrationUpdate, NotificacaoSettings, RoleOut, SegurancaSettings,

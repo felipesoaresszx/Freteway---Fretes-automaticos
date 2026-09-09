@@ -34,7 +34,6 @@ def parse(pages:list[DocumentPage])->dict:
         if len(rows)!=32:
             errors.append({"page":page.number,"field":"faixas_peso","reason":"expected_32_rows","found":len(rows)})
         matrices.append({"origem":{"uf":origin_uf,"nome":origin_name},"capital_capital":rows[:16],"capital_interior_e_demais":rows[16:32],"source":{"page":page.number,"method":page.method},"confidence":.98 if len(rows)==32 else .65})
-    full="\n".join(page.text for page in pages)
     dates=re.findall(r"\b\d{2}/\d{2}/\d{4}\b",pages[-1].text)
     optional=[]
     for period,value in re.findall(r"(08\s+e\s+12|14\s+e\s+18|18\s+e\s+20).*?R\$\s*([\d.,]+)",pages[-1].text,re.I):

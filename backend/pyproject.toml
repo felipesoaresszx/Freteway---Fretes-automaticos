@@ -1,0 +1,10 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["F"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/api/v1/router.py" = ["E402"]

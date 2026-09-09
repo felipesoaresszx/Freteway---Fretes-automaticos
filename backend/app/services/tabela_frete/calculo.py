@@ -10,22 +10,13 @@ Implementa a lógica determinística para:
 - Determinar prazo
 """
 
-import json
-from datetime import datetime
-from math import ceil
 
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.models.models import (
     AbrangenciaFrete,
-    RegraCubagem,
-    RegraExcedente,
-    RegraFreteMinimo,
-    RegraPeso,
-    RegraPrazo,
-    RegraPesoConsiderado,
     TabelaFrete,
     TarifaFrete,
     TaxaFrete,

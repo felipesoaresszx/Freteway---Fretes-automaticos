@@ -64,7 +64,6 @@ def calcular_uf_zona(dados: dict, cotacao: dict) -> dict:
     tda = float(cobertura.get("tda") or 0)
     trt = float(cobertura.get("trt") or tarifa.get("trt") or 0)
     taxas = {"gris": gris, "ad_valorem": ad_valorem, "pedagio": pedagio, "tas": tas, "tda": tda, "trt": trt}
-    subtotal = frete_base + sum(taxas.values())
     total_taxas = sum(taxas.values())
     return {
         "status": "success", "frete_base": round(frete_base, 2), "total_taxas": round(total_taxas, 2),

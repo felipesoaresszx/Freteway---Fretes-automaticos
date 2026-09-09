@@ -50,7 +50,7 @@ export function useRevisaoTabelaFrete(tabelaId: string | null) {
   });
 }
 
-export function useSalvarRevisaoTabelaFrete(tabelaId: string, transportadoraId: string) {
+export function useSalvarRevisaoTabelaFrete(tabelaId: string, _transportadoraId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dados: Record<string, unknown>) => tabelaFreteService.salvarRevisao(tabelaId, dados),

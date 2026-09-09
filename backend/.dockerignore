@@ -3,4 +3,10 @@ __pycache__
 .pytest_cache
 *.pyc
 storage
-.env
+.env*
+.git
+.github
+tests
+tmp
+requirements-dev.txt
+pyproject.toml

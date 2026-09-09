@@ -6,8 +6,9 @@ import { apiClient } from "../api/client";
 import { Brand } from "../components/Brand";
 import { useAuth } from "../hooks/useAuth";
 import { useCompany } from "../contexts/CompanyContext";
+import { prefetchRouteModule, type AppRoute } from "../routes/routeModules";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: Array<{ to: AppRoute; label: string; icon: typeof LayoutDashboard; permission?: string }> = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/cotacoes/nova", label: "Nova cotação", icon: PlusCircle },
   { to: "/cotacoes", label: "Cotações", icon: ListChecks },
@@ -98,6 +99,8 @@ export function AppLayout() {
               key={item.to}
               to={item.to}
               end={item.to === "/cotacoes"}
+              onFocus={() => prefetchRouteModule(item.to)}
+              onPointerEnter={() => prefetchRouteModule(item.to)}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 `w-full flex items-center gap-2.5 rounded-md border-l-2 px-3 py-2.5 text-sm transition-colors ${

@@ -4,7 +4,6 @@ Implementa TransportadoraAdapter para permitir que tabelas de frete sejam consul
 da mesma forma que adaptadores de APIs de transportadoras.
 """
 
-import uuid
 from datetime import datetime
 
 from sqlalchemy import select

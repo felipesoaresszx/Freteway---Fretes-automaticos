@@ -5,13 +5,14 @@ import { AppLayout } from "../layouts/AppLayout";
 import { Login } from "../pages/Login/Login";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { PermissionRoute } from "./PermissionRoute";
+import { routeModules } from "./routeModules";
 
-const Dashboard = lazy(() => import("../pages/Dashboard/Dashboard").then((m) => ({ default: m.Dashboard })));
-const Cotacoes = lazy(() => import("../pages/Cotacoes/Cotacoes").then((m) => ({ default: m.Cotacoes })));
-const Configuracoes = lazy(() => import("../pages/Configuracoes/Configuracoes").then((m) => ({ default: m.Configuracoes })));
-const Integracoes = lazy(() => import("../pages/Integracoes/Integracoes").then((m) => ({ default: m.Integracoes })));
-const NovaCotacao = lazy(() => import("../pages/NovaCotacao/NovaCotacao").then((m) => ({ default: m.NovaCotacao })));
-const Transportadoras = lazy(() => import("../pages/Transportadoras/Transportadoras").then((m) => ({ default: m.Transportadoras })));
+const Dashboard = lazy(() => routeModules["/dashboard"]().then((m) => ({ default: m.Dashboard })));
+const Cotacoes = lazy(() => routeModules["/cotacoes"]().then((m) => ({ default: m.Cotacoes })));
+const Configuracoes = lazy(() => routeModules["/configuracoes"]().then((m) => ({ default: m.Configuracoes })));
+const Integracoes = lazy(() => routeModules["/integracoes"]().then((m) => ({ default: m.Integracoes })));
+const NovaCotacao = lazy(() => routeModules["/cotacoes/nova"]().then((m) => ({ default: m.NovaCotacao })));
+const Transportadoras = lazy(() => routeModules["/transportadoras"]().then((m) => ({ default: m.Transportadoras })));
 
 export function AppRoutes() {
   return (

@@ -35,15 +35,23 @@ else
   echo "PostgreSQL ainda não está ativo; confirme backup externo antes de migrar um servidor existente."
 fi
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d postgres
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm backend alembic upgrade head
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm backend python -m app.bootstrap
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d backend worker frontend
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --wait postgres
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps backend alembic upgrade head
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps backend python -m app.bootstrap
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --wait backend worker frontend
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T backend python -c \
-  "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=10)"
+  "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=10); urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=10)"
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T frontend \
+  wget --quiet --tries=1 --spider http://127.0.0.1/
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T backend alembic current | grep -q '(head)'
+worker_id="$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps -q worker)"
+[[ -n "$worker_id" && "$(docker inspect -f '{{.State.Status}}' "$worker_id")" == "running" ]] || {
+  echo "Worker nÃ£o estÃ¡ ativo." >&2
+  exit 1
+}
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
 if [[ "${ACTIVATE_PROXY:-false}" == "true" ]]; then
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d proxy
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --wait proxy
   echo "Proxy Caddy ativado."
 else
   echo "Caddy NÃO foi iniciado (ACTIVATE_PROXY=false). O Nginx atual pode continuar em :80."

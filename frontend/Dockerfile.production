@@ -5,13 +5,15 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY index.html postcss.config.js tailwind.config.ts tsconfig.json vite.config.ts ./
+COPY public ./public
+COPY src ./src
 
 ARG VITE_API_URL=/api/v1
 ENV VITE_API_URL=${VITE_API_URL}
 
-RUN npm run build
-RUN ! grep -R -E "(localhost|127\\.0\\.0\\.1):(8000|5173)" dist
+RUN npm run build \
+    && ! grep -R -E "(localhost|127\\.0\\.0\\.1):(8000|5173)" dist
 
 FROM nginx:1.27-alpine
 

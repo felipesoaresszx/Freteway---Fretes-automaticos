@@ -1,5 +1,4 @@
 import re
-from decimal import Decimal
 from typing import Any
 
 from app.integrations.risso.exceptions import RissoBusinessError, RissoProcessingError, RissoResponseError

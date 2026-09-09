@@ -80,7 +80,7 @@ export function Cotacoes() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        {cotacoes.isError && <div className="p-8 text-center text-sm text-state-error">Não foi possível carregar o histórico.</div>}
+        {cotacoes.isError && <div className="p-8 text-center text-sm text-state-error"><p>Não foi possível carregar o histórico.</p><button onClick={() => void cotacoes.refetch()} className="mt-3 rounded border border-border px-3 py-2 text-text-primary">Tentar novamente</button></div>}
         {cotacoes.isLoading && <div className="p-8 text-center text-sm text-text-secondary">Carregando cotações...</div>}
         {data && data.items.length === 0 && <div className="p-8 text-center text-sm text-text-secondary">Nenhuma cotação encontrada com esses filtros.</div>}
         {data && data.items.length > 0 && (

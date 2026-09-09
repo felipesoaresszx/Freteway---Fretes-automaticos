@@ -28,7 +28,6 @@ from app.models.models import (
 )
 from app.schemas.carrier import FreightQuoteRequest
 from app.services.credenciais import descriptografar
-from app.services.ssw_service import SSWIntegrationService
 from app.schemas.cotacao import CotacaoCreate, ErroResultado, ResultadoTransportadora
 
 settings = get_settings()

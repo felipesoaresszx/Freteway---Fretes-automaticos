@@ -1,13 +1,11 @@
 import re
 from datetime import datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.integrations.ssw.exceptions import SSWException
 from app.integrations.ssw.provider import SSWProvider
 from app.integrations.ssw.schemas import (
-    SSWCarrierListItem, SSWConnectionTestResponse, SSWIntegrationCreate, SSWIntegrationInput,
+    SSWCarrierListItem, SSWConnectionTestResponse, SSWIntegrationInput,
     SSWIntegrationOut, SSWQuoteRequest, SSWQuoteResponse, SSWStatus,
 )
 from app.models.models import CarrierIntegration, Transportadora

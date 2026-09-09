@@ -1,7 +1,7 @@
 from collections import defaultdict, deque
 
 import pytest
-from fastapi import HTTPException, Response
+from fastapi import Response
 
 from app.api.v1.endpoints import companies
 from app.core.tenant import access_code_hash, normalize_access_code

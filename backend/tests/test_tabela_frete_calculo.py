@@ -13,7 +13,7 @@ Testa:
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from app.services.tabela_frete.calculo import TabelaFreteCalculoService
 from app.models.models import (
@@ -21,7 +21,6 @@ from app.models.models import (
     AbrangenciaFrete,
     TarifaFrete,
     TaxaFrete,
-    RegraPeso,
     RegraFreteMinimo,
     RegraExcedente,
     RegraPrazo,
@@ -608,13 +607,6 @@ async def test_calculo_completo_cenario_simples(servico_calculo, db_mock):
     db_mock.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=lambda: tabela))
 
     # Dados de entrada
-    dados = {
-        "peso": 25.0,
-        "destino_uf": "RJ",
-        "origem_uf": "SP",
-        "valor_nf": 5000.0
-    }
-
     # Espera: 25kg × 12.50 = 312.50 (frete base)
     # GRIS: 5000 × 0.30% = 15 (taxa)
     # Total: 312.50 + 15 = 327.50 (acima do mínimo de 50)
