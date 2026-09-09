@@ -21,6 +21,14 @@ UF_POR_NOME = {
 
 CABECALHO_TARIFAS = ["UF - DESTINO", "CLASSIFICACAO", "ATE 20KG", "ATE 30KG", "ATE 50KG", "ATE 70KG", "ATE 100KG", "EXCED.", "GRIS", "ADV %", "PEDAGIO", "TAS", "TAXAS TRT"]
 CABECALHO_MALHA = ["CODIGO", "CIDADE", "UF", "GRUPO", "PRAZO"]
+CABECALHO_CONSOLIDADO = CABECALHO_MALHA + [
+    "SEG", "TER", "QUA", "QUI", "SEX", "TDA", "TRT", "BLOQ ENT", "BLOQ COL",
+    "BLOQ AMBOS", "CEP INICIAL", "CEP FINAL", "ORIGEM", "FORMATO",
+    "TARIFA ATE 20KG", "TARIFA ATE 30KG", "TARIFA ATE 50KG",
+    "TARIFA ATE 70KG", "TARIFA ATE 100KG", "EXCEDENTE POR KG", "GRIS %", "ADV %",
+    "FATOR CUBAGEM KG/M3", "PEDAGIO FRACAO KG", "PALETIZACAO R$", "AGENDAMENTO %",
+    "AGENDAMENTO MIN R$", "REENTREGA %", "DEVOLUCAO %",
+]
 
 
 def _normalizar(texto: object) -> str:
@@ -55,11 +63,132 @@ def _cep(valor: object) -> str | None:
     return digitos.zfill(8) if digitos else None
 
 
+def _eh_layout_consolidado(aba) -> bool:
+    cabecalho = [_normalizar(aba.cell(1, coluna).value) for coluna in range(1, len(CABECALHO_CONSOLIDADO) + 1)]
+    return cabecalho == CABECALHO_CONSOLIDADO
+
+
+def _extrair_layout_consolidado(aba) -> dict:
+    tarifas_por_chave: dict[tuple[str, str], dict] = {}
+    mapeamento_zonas: dict[str, list[dict]] = {}
+    prazos_entrega: dict[str, int] = {}
+    localidades_sem_cep: list[dict] = []
+    origem: str | None = None
+    fator_cubagem: float | None = None
+    regras_gerais: dict | None = None
+
+    for linha in range(2, aba.max_row + 1):
+        cidade = str(aba.cell(linha, 2).value or "").strip()
+        uf = _normalizar(aba.cell(linha, 3).value)
+        zona = str(aba.cell(linha, 4).value or "").strip()
+        if not cidade and not uf and not zona:
+            continue
+        if len(uf) != 2 or not cidade or not zona:
+            raise AnaliseDocumentoError(f"Cidade, UF ou grupo inválido na linha {linha}")
+        formato = _normalizar(aba.cell(linha, 19).value)
+        if formato != "EXCEDENTE":
+            raise AnaliseDocumentoError(f"Formato de cálculo não reconhecido na linha {linha}: {formato}")
+        try:
+            prazo = int(aba.cell(linha, 5).value)
+        except (TypeError, ValueError) as exc:
+            raise AnaliseDocumentoError(f"Prazo inválido na linha {linha}") from exc
+
+        origem_linha = str(aba.cell(linha, 18).value or "").strip()
+        fator_linha = _numero(aba.cell(linha, 28).value, "Fator Cubagem kg/m3", linha)
+        if origem is not None and _normalizar(origem_linha) != _normalizar(origem):
+            raise AnaliseDocumentoError(f"Origem divergente na linha {linha}")
+        if fator_cubagem is not None and fator_linha != fator_cubagem:
+            raise AnaliseDocumentoError(f"Fator de cubagem divergente na linha {linha}")
+        origem, fator_cubagem = origem_linha, fator_linha
+
+        tarifa = {
+            "uf": uf,
+            "uf_nome": uf,
+            "zona": zona,
+            "faixas_peso": [
+                {"ate_kg": peso, "valor": _numero(aba.cell(linha, coluna).value, f"Tarifa até {peso}kg", linha)}
+                for peso, coluna in zip((20, 30, 50, 70, 100), range(20, 25))
+            ],
+            "excedente_por_kg_acima_100": _numero(aba.cell(linha, 25).value, "Excedente por kg", linha),
+            "gris_percentual": _numero(aba.cell(linha, 26).value, "GRIS %", linha),
+            "ad_valorem_percentual": _numero(aba.cell(linha, 27).value, "ADV %", linha),
+            # O arquivo informa a fração (100 kg), mas não o valor monetário do pedágio nem TAS.
+            "pedagio_por_fracao_100kg": 0.0,
+            "tas_por_cte": 0.0,
+            "trt": None,
+        }
+        chave_tarifa = (uf, _normalizar(zona))
+        anterior = tarifas_por_chave.get(chave_tarifa)
+        if anterior is not None and anterior != tarifa:
+            raise AnaliseDocumentoError(f"Tarifa divergente para {uf}/{zona} na linha {linha}")
+        tarifas_por_chave[chave_tarifa] = tarifa
+
+        cep_inicio = _cep(aba.cell(linha, 16).value)
+        cep_fim = _cep(aba.cell(linha, 17).value)
+        item = {
+            "codigo_ibge": str(aba.cell(linha, 1).value or "").strip(),
+            "cidade": cidade, "uf": uf, "zona": zona, "prazo_dias": prazo,
+            "cep_inicio": cep_inicio, "cep_fim": cep_fim,
+            "tda": _numero(aba.cell(linha, 11).value or 0, "TDA", linha),
+            "trt": _numero(aba.cell(linha, 12).value or 0, "TRT", linha),
+            "bloqueio_entrega": bool(aba.cell(linha, 13).value),
+            "bloqueio_coleta": bool(aba.cell(linha, 14).value),
+            "bloqueio_ambos": bool(aba.cell(linha, 15).value),
+        }
+        mapeamento_zonas.setdefault(f"{uf}|{zona}", []).append(item)
+        prazos_entrega[f"{uf}|{cidade}"] = prazo
+        if not cep_inicio or not cep_fim:
+            localidades_sem_cep.append({"linha": linha, "cidade": cidade, "uf": uf})
+
+        if regras_gerais is None:
+            regras_gerais = {
+                "pedagio": str(aba.cell(linha, 45).value or "").strip(),
+                "pedagio_fracao_kg": _numero(aba.cell(linha, 29).value, "Pedágio Fração kg", linha),
+                "pedagio_valor_nao_informado": True,
+                "tas_valor_nao_informado": True,
+                "paletizacao_por_palete": _numero(aba.cell(linha, 30).value, "Paletização R$", linha),
+                "agendamento_percentual_frete": _numero(aba.cell(linha, 31).value, "Agendamento %", linha),
+                "agendamento_minimo": _numero(aba.cell(linha, 32).value, "Agendamento Min R$", linha),
+                "reentrega_percentual_frete": _numero(aba.cell(linha, 33).value, "Reentrega %", linha),
+                "devolucao_percentual_frete": _numero(aba.cell(linha, 34).value, "Devolução %", linha),
+                "regra_peso_tarifavel": str(aba.cell(linha, 44).value or "").strip(),
+                "icms": "não informado numericamente",
+            }
+
+    if not tarifas_por_chave:
+        raise AnaliseDocumentoError("Nenhuma tarifa UF/zona encontrada")
+    return {
+        "formato": FORMATO,
+        "origem": {"descricao": origem or "", "cidade": "Guarulhos", "uf": "SP"},
+        "tipo_calculo": "PESO_TOTAL_X_EXCEDENTE_ACIMA_100KG",
+        "fator_cubagem": fator_cubagem,
+        "tarifas_por_zona": list(tarifas_por_chave.values()),
+        "mapeamento_zonas": mapeamento_zonas,
+        "prazos_entrega": prazos_entrega,
+        "regras_gerais": regras_gerais or {},
+        "pendencias": [
+            "Valor monetário do pedágio por fração não informado; cálculo considera zero",
+            "Valor de TAS por CTe não informado; cálculo considera zero",
+            "Confirmar alíquota e cálculo do ICMS",
+        ] + ([f"{len(localidades_sem_cep)} localidades sem faixa de CEP; consulta disponível por cidade"] if localidades_sem_cep else []),
+        "estatisticas": {
+            "tarifas_zona": len(tarifas_por_chave), "faixas_peso": 6,
+            "ufs": sorted({item[0] for item in tarifas_por_chave}),
+            "zonas": sorted({item["zona"] for item in tarifas_por_chave.values()}),
+            "localidades": sum(len(itens) for itens in mapeamento_zonas.values()),
+            "localidades_sem_cep": localidades_sem_cep,
+        },
+    }
+
+
 def extrair_uf_zona_excel(caminho: Path) -> dict:
     try:
         workbook = load_workbook(caminho, data_only=True, read_only=False)
     except Exception as exc:
         raise AnaliseDocumentoError(f"Não foi possível ler o Excel: {exc}") from exc
+    aba_consolidada = next((aba for aba in workbook.worksheets if _eh_layout_consolidado(aba)), None)
+    if aba_consolidada is not None:
+        return _extrair_layout_consolidado(aba_consolidada)
     aba, aba_malha = _localizar_abas(workbook)
     cabecalho = [_normalizar(aba.cell(6, coluna).value) for coluna in range(1, 14)]
 

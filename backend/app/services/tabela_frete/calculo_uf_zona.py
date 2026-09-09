@@ -49,7 +49,12 @@ def calcular_uf_zona(dados: dict, cotacao: dict) -> dict:
     if not tarifa:
         raise CalculoUfZonaError("Grupo do destino não possui tarifa")
     faixa = next((item for item in tarifa["faixas_peso"] if peso <= item["ate_kg"]), None)
-    frete_base = float(faixa["valor"]) if faixa else float(tarifa["faixas_peso"][-1]["valor"]) + (peso - 100) * float(tarifa["excedente_por_kg_acima_100"])
+    if faixa:
+        frete_base = float(faixa["valor"])
+    elif dados.get("tipo_calculo") == "PESO_TOTAL_X_EXCEDENTE_ACIMA_100KG":
+        frete_base = peso * float(tarifa["excedente_por_kg_acima_100"])
+    else:
+        frete_base = float(tarifa["faixas_peso"][-1]["valor"]) + (peso - 100) * float(tarifa["excedente_por_kg_acima_100"])
     valor_nf = float(cotacao.get("valor_nf") or 0)
     gris = valor_nf * float(tarifa.get("gris_percentual") or 0)
     ad_valorem = valor_nf * float(tarifa.get("ad_valorem_percentual") or 0)

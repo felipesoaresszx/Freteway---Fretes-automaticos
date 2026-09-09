@@ -3,7 +3,9 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from app.services.tabela_frete.calculo_uf_zona import calcular_uf_zona
-from app.services.tabela_frete.uf_zona_excel import CABECALHO_MALHA, CABECALHO_TARIFAS, extrair_uf_zona_excel
+from app.services.tabela_frete.uf_zona_excel import (
+    CABECALHO_CONSOLIDADO, CABECALHO_MALHA, CABECALHO_TARIFAS, extrair_uf_zona_excel,
+)
 
 
 def _arquivo_duas_abas(caminho: Path) -> None:
@@ -79,3 +81,32 @@ def test_calcula_somente_regras_presentes_no_contrato_sem_calibracao_nominal():
     assert next(item for item in resultado["taxas_detalhadas"] if item["tipo"] == "PEDAGIO")["valor"] == 6.29
     assert not any(item["tipo"] == "ICMS" for item in resultado["taxas_detalhadas"])
     assert resultado["valor_total"] == 83.54
+
+
+def test_extrai_novo_layout_consolidado_e_calcula_acima_de_100kg(tmp_path):
+    caminho = tmp_path / "ouro_negro_consolidada.xlsx"
+    wb = Workbook()
+    aba = wb.active
+    for coluna, valor in enumerate(CABECALHO_CONSOLIDADO, 1):
+        aba.cell(1, coluna, valor)
+    linha = [
+        4100103, "ABATIA", "PR", "Interior", 5, None, "S", None, None, "S",
+        None, None, None, None, None, "86460000", "86464999", "Guarulhos/SP", "EXCEDENTE",
+        41.10, 44.26, 48.73, 58.22, 71.53, .646, .0015, .0015, 300, 100,
+        65, .2, 15, .5, 1,
+    ]
+    for coluna, valor in enumerate(linha, 1):
+        aba.cell(2, coluna, valor)
+    wb.save(caminho)
+
+    dados = extrair_uf_zona_excel(caminho)
+
+    assert dados["estatisticas"]["localidades"] == 1
+    assert dados["estatisticas"]["tarifas_zona"] == 1
+    assert dados["fator_cubagem"] == 300
+    assert dados["regras_gerais"]["pedagio_valor_nao_informado"] is True
+    resultado = calcular_uf_zona(dados, {
+        "peso": 110, "valor_nf": 0, "destino_uf": "PR", "destino_cep": "86460-000",
+    })
+    assert resultado["frete_base"] == 71.06
+    assert resultado["prazo_dias"] == 5
