@@ -214,6 +214,7 @@ def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, sto
         from app.services.tabela_frete.uf_zona_excel import extrair_uf_zona_excel
         try:
             dados = extrair_uf_zona_excel(caminho)
+            dados["source_document"] = documento.nome_arquivo
             return {
                 "dados_extraidos": dados,
                 "confianca_extracao": 0.98,
@@ -228,6 +229,21 @@ def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, sto
             }
         except AnaliseDocumentoError:
             pass
+        from app.services.tabela_frete.contrato import read_localities
+        try:
+            localidades = read_localities(caminho)
+        except (ValueError, TypeError, KeyError):
+            localidades = None
+        if localidades:
+            localidades["documents"] = [{"source_document": documento.nome_arquivo, "role": "locality_and_lead_time"}]
+            return {
+                "dados_extraidos": localidades,
+                "confianca_extracao": 0.95,
+                "erros_validacao": [],
+                "avisos": ["Documento de localidades e prazos identificado por cabeçalho semântico."],
+                "campos_com_duvida": [],
+                "resumo": {"localidades": len(localidades.get("localities", []))},
+            }
         from app.services.tabela_frete.rodonaves_excel import extrair_rodonaves_excel
         try:
             dados = extrair_rodonaves_excel(caminho)
@@ -256,12 +272,26 @@ def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, sto
         }
     if documento.tipo_arquivo == "csv":
         return analisar_csv(caminho, tabela)
+    if documento.tipo_arquivo == "pdf":
+        try:
+            from app.services.tabela_frete.pdf_tarifario import extract_pdf_tariff
+            dados = extract_pdf_tariff(caminho)
+        except AnaliseDocumentoError:
+            pass
+        else:
+            return {
+                "dados_extraidos": dados, "confianca_extracao": 0.98,
+                "erros_validacao": [],
+                "avisos": ["Matriz tarifária PDF identificada por conteúdo e preservada com proveniência."],
+                "campos_com_duvida": [], "resumo": dados.get("statistics", {}),
+            }
     try:
         from app.services.tabela_frete.extracao_generica import extrair_documento_generico
         dados = extrair_documento_generico(caminho, documento.tipo_arquivo)
     except ValueError as exc:
         raise AnaliseDocumentoError(str(exc)) from exc
     if dados.get("formato") in {"transwells_tabela_v1", "transwells_pracas_v1"}:
+        dados["source_document"] = documento.nome_arquivo
         complementar = "relação de praças" if dados["formato"] == "transwells_tabela_v1" else "tabela tarifária"
         return {
             "dados_extraidos": dados, "confianca_extracao": 0.92,
@@ -298,6 +328,39 @@ def combinar_resultados_documentos(resultados: list[dict]) -> dict:
         item.get("dados_extraidos", {}).get("formato"): item.get("dados_extraidos", {})
         for item in resultados
     }
+    tariff = next((item.get("dados_extraidos", {}) for item in resultados if item.get("dados_extraidos", {}).get("formato") == "tariff_matrix_v1"), None)
+    locality = next((item.get("dados_extraidos", {}) for item in resultados if item.get("dados_extraidos", {}).get("formato") == "localities"), None)
+    if tariff and locality:
+        from app.services.tabela_frete.contrato import analysis_result, canonical_from_tariff_and_localities, TableDocumentConsolidator
+        canonical = TableDocumentConsolidator().consolidate([canonical_from_tariff_and_localities(tariff, locality)])
+        result = analysis_result(canonical)
+        result["quantidade_documentos"] = len(resultados)
+        result["avisos"].append("PDF tarifário e documento de prazos consolidados por papel semântico.")
+        return result
+    uf_zona = por_formato.get("uf_zona_peso_v1")
+    if uf_zona and len(resultados) >= 2:
+        from app.services.tabela_frete.contrato import canonical_from_uf_zona
+
+        complementares = [
+            item.get("dados_extraidos", {}) for item in resultados
+            if item.get("dados_extraidos", {}).get("formato") != "uf_zona_peso_v1"
+        ]
+        locality_document = next((item for item in complementares if item.get("mapeamento_zonas") or item.get("localidades")), None)
+        if locality_document and locality_document is not uf_zona:
+            canonical = canonical_from_uf_zona(
+                uf_zona,
+                source_document=uf_zona.get("source_document", "documento-tarifario"),
+            )
+            canonical["documents"].extend(
+                {"source_document": item.get("source_document", "documento-complementar"), "role": "complementary"}
+                for item in complementares
+            )
+            from app.services.tabela_frete.contrato import analysis_result, TableDocumentConsolidator
+            canonical = TableDocumentConsolidator().consolidate([canonical])
+            result = analysis_result(canonical)
+            result["quantidade_documentos"] = len(resultados)
+            result["avisos"].append("Documentos de formatos diferentes consolidados por papel semântico.")
+            return result
     if "transwells_tabela_v1" in por_formato and "transwells_pracas_v1" in por_formato:
         from app.services.tabela_frete.transwells_pdf import consolidar
 
@@ -354,6 +417,33 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
     """Substitui regras da tabela pelos dados humanos revisados."""
     from app.services.document_intelligence.learning import learn_structure
     await learn_structure(db,tabela,dados)
+    if dados.get("formato") == "canonical_freight_v1":
+        from app.services.tabela_frete.contrato import validate
+        validation = validate(dados)
+        dados["validation"] = validation
+        if validation.get("status") != "TABLE_VALIDATED":
+            raise AnaliseDocumentoError(
+                "Contrato tarifário inválido: " + "; ".join(validation.get("errors") or ["revisão necessária"])
+            )
+        await db.execute(
+            delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
+        )
+        statistics = validation.get("statistics") or {}
+        db.add(TabelaFreteDadosImportados(
+            tabela_frete_id=tabela.id,
+            formato=dados["formato"],
+            dados=dados,
+            quantidade_coberturas=int(statistics.get("cep_ranges", 0)),
+            quantidade_tarifas=int(statistics.get("brackets", 0)),
+        ))
+        factor = next((
+            rule.get("factor_kg_m3") for rule in dados.get("rules", [])
+            if rule.get("type") == "cubage" and rule.get("status") == "resolved"
+        ), None)
+        if factor is None:
+            raise AnaliseDocumentoError("Fator de cubagem não determinado")
+        tabela.fator_cubagem = float(factor)
+        return
     if dados.get("formato") == "correios_uf_peso_v1":
         if not dados.get("matrizes"):
             raise AnaliseDocumentoError("Nenhuma matriz tarifária dos Correios foi extraída")

@@ -209,7 +209,7 @@ export function NovaCotacao() {
               return (
                 <div
                   key={r.transportadora_id}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded border ${
+                  className={`flex flex-wrap items-center justify-between px-3 py-2.5 rounded border ${
                     isMelhor ? "bg-state-success/10 border-state-success/30" : "bg-surface2 border-border"
                   }`}
                 >
@@ -223,6 +223,7 @@ export function NovaCotacao() {
                       <span className="text-text-secondary">{r.prazo_dias} dias</span>
                     </span>
                   )}
+                  {r.status === "success" && r.detalhamento && <details className="mt-2 basis-full border-t border-border pt-2 text-xs"><summary className="cursor-pointer text-state-info">Ver memória de cálculo</summary><div className="mt-2 grid gap-1 sm:grid-cols-3"><span>Região: {r.detalhamento.regiao_tarifaria}</span><span>Peso real: {r.detalhamento.peso_real_kg} kg</span><span>Peso cubado: {r.detalhamento.peso_cubado_kg} kg</span><span>Peso taxado: {r.detalhamento.peso_considerado_kg} kg</span><span>Faixa: até {r.detalhamento.faixa?.to_kg} kg</span><span>Prazo: {r.detalhamento.prazo_dias} dias</span></div><div className="mt-2 space-y-1">{r.detalhamento.taxas_detalhadas?.map((item, indice) => <div key={`${item.tipo}-${indice}`} className="flex justify-between"><span>{item.tipo}</span><span>{item.valor == null ? "Pendente" : `R$ ${item.valor.toFixed(2)}`}</span></div>)}</div></details>}
                   {(r.status === "error" || r.status === "timeout") && (
                     <div className="max-w-md text-right">
                       <Badge tone={r.status === "timeout" ? "warning" : "error"}>

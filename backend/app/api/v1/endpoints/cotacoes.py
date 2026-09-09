@@ -235,6 +235,7 @@ async def obter_cotacao(
             prazo_dias=r.prazo_dias,
             erro=ErroResultado(codigo=r.erro_codigo, mensagem=r.erro_mensagem) if r.erro_codigo else None,
             request_id=r.request_id,
+            detalhamento=r.detalhamento,
         )
         for r in resultados_db
     ]

@@ -148,7 +148,7 @@ def extrair_uf_zona_excel(caminho: Path) -> dict:
         "formato": FORMATO,
         "origem": {"descricao": origem_texto.replace("Origem:", "").strip(), "cidade": "Guarulhos", "uf": "SP"},
         "tipo_calculo": "EXCEDENTE_ACIMA_100KG",
-        "fator_cubagem": float(fator.group(1)) if fator else 300.0,
+        "fator_cubagem": float(fator.group(1)) if fator else None,
         "tarifas_por_zona": tarifas,
         "mapeamento_zonas": mapeamento_zonas,
         "prazos_entrega": prazos_entrega,
@@ -164,17 +164,6 @@ def extrair_uf_zona_excel(caminho: Path) -> dict:
             "armazenagem_por_kg_dia": 0.45,
             "armazenagem_minimo_dia": 45.0,
             "armazenagem_percentual_nf_15_dias": 0.002,
-            # Calibração conferida na cotação oficial Ouro Negro 2-50609.
-            # Fica explícita e separada de TDE/TDA/TEP/TRT, que não se aplicam.
-            "calibracao_portal_por_rota": {
-                "SP|RS": {
-                    "ajuste_frete_base_percentual": 0.20141976193890718,
-                    "pedagio_por_fracao_100kg": 6.97,
-                    "icms_aliquota": 0.12,
-                    "icms_calculo_por_dentro": True,
-                    "fonte": "Cotacao Ouro Negro 2-50609 de 14/08/2026",
-                }
-            },
         },
         "pendencias": [
             "Confirmar alíquota e cálculo do ICMS",

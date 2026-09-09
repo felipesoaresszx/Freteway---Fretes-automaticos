@@ -46,6 +46,7 @@ async def executar_job_cotacao(db: AsyncSession, job: ProcessamentoJob) -> None:
         persistido.erro_codigo = resultado.erro.codigo if resultado.erro else None
         persistido.erro_mensagem = resultado.erro.mensagem if resultado.erro else None
         persistido.request_id = resultado.request_id
+        persistido.detalhamento = resultado.detalhamento
     cotacao.status = determinar_status_geral(resultados)
     cotacao.melhor_opcao_id = determinar_melhor_opcao(resultados)
 

@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.core.deps import get_db, require_permission
 from app.core.config import get_settings
@@ -26,6 +27,7 @@ from app.schemas.tabela_frete import (
     TabelaFreteStatus,
     TabelaFreteRevisaoAtualizar,
     ConfirmarImportacaoRequest,
+    SimulacaoTabelaFrete,
 )
 from app.services.tabela_frete.analise import (
     AnaliseDocumentoError,
@@ -41,6 +43,35 @@ from app.services.tabela_frete.fluxo import (
 )
 
 router = APIRouter(prefix="/tabelas-frete", tags=["Tabelas de Frete"])
+
+
+@router.post("/{tabela_id}/simular")
+async def simular_tabela_frete(
+    tabela_id: str,
+    entrada: SimulacaoTabelaFrete,
+    db: AsyncSession = Depends(get_db),
+    usuario: User = Depends(require_permission("transportadoras.view")),
+):
+    tabela = await db.scalar(select(TabelaFrete).where(TabelaFrete.id == tabela_id).options(joinedload(TabelaFrete.dados_importados)))
+    if not tabela:
+        raise HTTPException(status_code=404, detail="Tabela não encontrada")
+    dados = tabela.dados_importados.dados if tabela.dados_importados else None
+    if dados is None:
+        documento = await db.scalar(select(DocumentoFrete).where(
+            DocumentoFrete.tabela_frete_id == tabela_id,
+            DocumentoFrete.metadata_json.is_not(None),
+        ).order_by(DocumentoFrete.created_at.desc()))
+        if documento:
+            dados = carregar_revisao(documento).get("dados_extraidos")
+    if not dados or dados.get("formato") != "canonical_freight_v1":
+        raise HTTPException(status_code=422, detail="A tabela ainda não possui contrato canônico para simulação")
+    from app.services.tabela_frete.contrato_calculo import ContractError, calculate
+    try:
+        resultado = calculate(dados, entrada.model_dump(), preview=True)
+    except ContractError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"tabela_id": tabela.id, "tabela": tabela.nome,
+            "transportadora_id": tabela.transportadora_id, **resultado}
 
 
 # ============================================================================
@@ -477,7 +508,18 @@ async def atualizar_dados_revisao(
         raise HTTPException(status_code=404, detail="Nenhuma análise disponível")
     atual = carregar_revisao(documento)
     atual["dados_extraidos"] = revisao.dados_extraidos
-    atual["campos_com_duvida"] = []
+    if revisao.dados_extraidos.get("formato") == "canonical_freight_v1":
+        from app.services.tabela_frete.contrato import validate
+        from app.services.tabela_frete.tabela_import import normalizar_preview
+        validation = validate(revisao.dados_extraidos)
+        revisao.dados_extraidos["validation"] = validation
+        atual["erros_validacao"] = validation["errors"]
+        atual["avisos"] = validation["warnings"]
+        atual["campos_com_duvida"] = validation["errors"]
+        atual["confianca_extracao"] = 0.99 if not validation["errors"] else 0.8
+        atual["preview_estruturado"] = normalizar_preview(revisao.dados_extraidos)
+    else:
+        atual["campos_com_duvida"] = []
     documento.metadata_json = metadados_revisao(atual)
     tabela.status = "review"
     await db.commit()

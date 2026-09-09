@@ -33,6 +33,15 @@ export function TabelaFreteForm({ transportadoraId, salvando, onSave, onCancel }
       data_fim: "",
     },
   });
+  function adicionarArquivos(novos: File[]) {
+    setArquivos((atuais) => {
+      const unicos = [...atuais];
+      for (const arquivo of novos) {
+        if (!unicos.some((item) => item.name === arquivo.name && item.size === arquivo.size && item.lastModified === arquivo.lastModified)) unicos.push(arquivo);
+      }
+      return unicos.slice(0, 2);
+    });
+  }
 
   return (
     <form onSubmit={handleSubmit((dados) => {
@@ -68,8 +77,8 @@ export function TabelaFreteForm({ transportadoraId, salvando, onSave, onCancel }
       </Field>
       <div className="sm:col-span-2">
         <span className="text-xs font-medium text-text-secondary">Documentos da tabela *</span>
-        <input ref={arquivoRef} multiple className="hidden" type="file" accept=".pdf,.xlsx,.xls,.xlsm,.doc,.docx,.csv,.png,.jpg,.jpeg" onChange={(e) => setArquivos(Array.from(e.target.files ?? []).slice(0, 2))} />
-        <button type="button" onClick={() => arquivoRef.current?.click()} onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("border-state-info"); }} onDragLeave={(e) => e.currentTarget.classList.remove("border-state-info")} onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove("border-state-info"); setArquivos(Array.from(e.dataTransfer.files ?? []).slice(0, 2)); }} className="mt-1.5 flex min-h-20 w-full items-center justify-center gap-2 rounded border border-dashed border-border bg-surface px-3 text-sm text-text-secondary hover:border-state-info">
+        <input ref={arquivoRef} multiple className="hidden" type="file" accept=".pdf,.xlsx,.xls,.xlsm,.doc,.docx,.csv,.png,.jpg,.jpeg" onChange={(e) => { adicionarArquivos(Array.from(e.target.files ?? [])); e.currentTarget.value = ""; }} />
+        <button type="button" onClick={() => arquivoRef.current?.click()} onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("border-state-info"); }} onDragLeave={(e) => e.currentTarget.classList.remove("border-state-info")} onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove("border-state-info"); adicionarArquivos(Array.from(e.dataTransfer.files ?? [])); }} className="mt-1.5 flex min-h-20 w-full items-center justify-center gap-2 rounded border border-dashed border-border bg-surface px-3 text-sm text-text-secondary hover:border-state-info">
           <FileUp size={18} /> {arquivos.length ? `${arquivos.length} documento(s) selecionado(s)` : "Selecionar até 2 PDFs, planilhas, documentos ou imagens"}
         </button>
         {arquivos.length > 0 && <div className="mt-2 space-y-1">{arquivos.map((arquivo, indice) => <div key={`${arquivo.name}-${arquivo.lastModified}`} className="flex items-center gap-2 rounded border border-border bg-surface px-2 py-1.5 text-xs"><FileText size={14} className="text-state-info" /><span className="min-w-0 flex-1 truncate">{indice + 1}. {arquivo.name}</span><button type="button" aria-label={`Remover ${arquivo.name}`} onClick={() => setArquivos((atuais) => atuais.filter((_, itemIndice) => itemIndice !== indice))}><X size={14} /></button></div>)}</div>}

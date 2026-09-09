@@ -10,6 +10,7 @@ class ResultadoCotacao:
     moeda: str = "BRL"
     erro_codigo: str | None = None
     erro_mensagem: str | None = None
+    detalhamento: dict | None = None
 
 
 class TransportadoraAdapter(ABC):

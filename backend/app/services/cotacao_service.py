@@ -61,6 +61,7 @@ async def _cotar_uma(transportadora_id: str, nome: str, payload: dict) -> Result
             prazo_dias=resultado.prazo_dias,
             moeda=resultado.moeda,
             request_id=request_id,
+            detalhamento=resultado.detalhamento,
         )
 
     return ResultadoTransportadora(
@@ -89,6 +90,7 @@ async def _cotar_por_tabela(
             prazo_dias=resultado.prazo_dias,
             moeda=resultado.moeda,
             request_id=request_id,
+            detalhamento=resultado.detalhamento,
         )
     return ResultadoTransportadora(
         transportadora_id=transportadora.id,

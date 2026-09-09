@@ -435,6 +435,27 @@ class ResultadoCalculoTabelaFrete(BaseModel):
 # ============================================================================
 
 
+class DimensaoVolumeSimulacao(BaseModel):
+    comprimento_cm: float = Field(..., gt=0)
+    largura_cm: float = Field(..., gt=0)
+    altura_cm: float = Field(..., gt=0)
+    quantidade: int = Field(default=1, ge=1)
+
+
+class SimulacaoTabelaFrete(BaseModel):
+    origem_cep: Optional[str] = None
+    origem_cidade: Optional[str] = None
+    origem_uf: Optional[str] = None
+    destino_cep: Optional[str] = None
+    destino_cidade: Optional[str] = None
+    destino_uf: Optional[str] = None
+    peso: float = Field(..., gt=0)
+    valor_nf: float = Field(..., ge=0)
+    quantidade_volumes: int = Field(default=1, ge=1)
+    dimensoes: list[DimensaoVolumeSimulacao] = []
+    servicos: list[str] = []
+
+
 class TabelaFreteListItem(BaseModel):
     """Item simplificado para listagem."""
 

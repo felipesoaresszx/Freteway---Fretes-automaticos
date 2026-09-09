@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, FileCheck2 } from "lucide-react";
 import { DocumentoViewer } from "../../components/DocumentoViewer";
 import { Card } from "../../components/ui";
 import { useAnalisarTabelaFrete, useConfirmarImportacao, useRevisaoTabelaFrete, useSalvarRevisaoTabelaFrete } from "../../hooks/useTabelaFrete";
+import { tabelaFreteService } from "../../services/tabelaFreteService";
 
 interface Props {
   tabelaId: string;
@@ -18,10 +19,15 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
   const reanalisar = useAnalisarTabelaFrete(transportadoraId);
   const [json, setJson] = useState("");
   const [erro, setErro] = useState("");
+  const [simulacao, setSimulacao] = useState({ origem_cep: "", destino_cep: "", valor_nf: "", peso: "", quantidade_volumes: "1", comprimento_cm: "", largura_cm: "", altura_cm: "" });
+  const [resultadoSimulacao, setResultadoSimulacao] = useState<Record<string, any> | null>(null);
+  const [simulando, setSimulando] = useState(false);
 
   useEffect(() => {
     if (revisao.data) setJson(JSON.stringify(
-      revisao.data.preview_estruturado?.requer_mapeamento_tarifario
+      revisao.data.preview_estruturado?.formato === "canonical_freight_v1"
+        ? revisao.data.dados_extraidos
+        : revisao.data.preview_estruturado?.requer_mapeamento_tarifario
         ? revisao.data.preview_estruturado
         : revisao.data.dados_extraidos,
       null, 2,
@@ -57,11 +63,26 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
     await revisao.refetch();
   }
 
+  async function handleSimular() {
+    setErro(""); setSimulando(true);
+    try {
+      const quantidade = Number(simulacao.quantidade_volumes);
+      const temDimensoes = simulacao.comprimento_cm && simulacao.largura_cm && simulacao.altura_cm;
+      setResultadoSimulacao(await tabelaFreteService.simular(tabelaId, {
+        origem_cep: simulacao.origem_cep, destino_cep: simulacao.destino_cep,
+        valor_nf: Number(simulacao.valor_nf), peso: Number(simulacao.peso), quantidade_volumes: quantidade,
+        dimensoes: temDimensoes ? [{ comprimento_cm: Number(simulacao.comprimento_cm), largura_cm: Number(simulacao.largura_cm), altura_cm: Number(simulacao.altura_cm), quantidade }] : [],
+      }));
+    } catch (error: any) { setErro(error?.response?.data?.detail ?? error?.message ?? "Não foi possível simular."); }
+    finally { setSimulando(false); }
+  }
+
   if (revisao.isLoading) return <p className="text-sm text-text-secondary">Carregando revisão...</p>;
   if (revisao.isError || !revisao.data) return <p className="text-sm text-state-error">Não foi possível carregar a revisão.</p>;
   const preview = revisao.data.preview_estruturado;
   const diagnostico = revisao.data.diagnostico_confianca;
   const formatoUfZona = preview?.formato === "uf_zona_peso_v1";
+  const formatoCanonical = preview?.formato === "canonical_freight_v1";
   const formatoTranswells = preview?.formato === "transwells_pracas_peso_v1";
   const requerMapeamento = preview?.requer_mapeamento_tarifario ?? true;
   const valores = (revisao.data.dados_extraidos.valores_detectados ?? []) as string[];
@@ -71,7 +92,7 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
   if (requerMapeamento) {
     try {
       const editado = JSON.parse(json) as { faixas_tarifarias?: unknown[]; pracas?: unknown[]; mapeamento_zonas?: Record<string, unknown>; prazos_entrega?: Record<string, unknown> };
-      mapeamentoPreenchido = formatoUfZona
+      mapeamentoPreenchido = formatoCanonical ? true : formatoUfZona
         ? Boolean(Object.keys(editado.mapeamento_zonas ?? {}).length && Object.keys(editado.prazos_entrega ?? {}).length)
         : Boolean(editado.faixas_tarifarias?.length && editado.pracas?.length);
     } catch {
@@ -186,6 +207,18 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
         </div>
       </div>
       {revisao.data.avisos.map((aviso) => <p key={aviso} className="text-xs text-state-warning">{aviso}</p>)}
+      {preview?.formato === "canonical_freight_v1" && <div className="space-y-3 rounded border border-border bg-surface2 p-4">
+        <div><h4 className="text-sm font-medium">Simular cotação</h4><p className="text-xs text-text-secondary">Use o contrato consolidado ainda em revisão. Valores pendentes aparecem explicitamente.</p></div>
+        <div className="grid gap-2 sm:grid-cols-4">
+          {([['origem_cep','CEP origem'],['destino_cep','CEP destino'],['valor_nf','Valor da NF'],['peso','Peso real (kg)'],['quantidade_volumes','Volumes'],['comprimento_cm','Comprimento (cm)'],['largura_cm','Largura (cm)'],['altura_cm','Altura (cm)']] as const).map(([campo, rotulo]) => <label key={campo} className="text-xs text-text-secondary">{rotulo}<input value={simulacao[campo]} onChange={(e) => setSimulacao((atual) => ({...atual,[campo]:e.target.value}))} className="mt-1 h-9 w-full rounded border border-border bg-surface px-2 text-text-primary" /></label>)}
+        </div>
+        <button disabled={simulando} onClick={handleSimular} className="h-9 rounded bg-state-info px-3 text-sm text-white disabled:opacity-40">{simulando ? "Calculando..." : "Simular cotação"}</button>
+        {resultadoSimulacao && <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded border border-border bg-surface p-3 text-xs"><p><strong>Destino:</strong> {resultadoSimulacao.cobertura?.city}/{resultadoSimulacao.cobertura?.state}</p><p><strong>Região:</strong> {resultadoSimulacao.regiao_tarifaria}</p><p><strong>Prazo:</strong> {resultadoSimulacao.prazo_dias} dias úteis</p><p><strong>Peso real:</strong> {resultadoSimulacao.peso_real_kg} kg</p><p><strong>Peso cubado:</strong> {resultadoSimulacao.peso_cubado_kg} kg</p><p><strong>Peso taxado:</strong> {resultadoSimulacao.peso_considerado_kg} kg</p><p><strong>Faixa:</strong> até {resultadoSimulacao.faixa?.to_kg} kg</p></div>
+          <div className="rounded border border-border bg-surface p-3 text-xs"><div className="space-y-1">{resultadoSimulacao.taxas_detalhadas?.map((item: any, indice: number) => <div key={`${item.tipo}-${indice}`} className="flex justify-between"><span>{item.tipo}</span><span>{item.valor == null ? "Pendente" : `R$ ${Number(item.valor).toFixed(2)}`}</span></div>)}</div><div className="mt-2 flex justify-between border-t border-border pt-2 text-sm font-medium"><span>Total</span><span>{resultadoSimulacao.valor_total == null ? "Pendente" : `R$ ${Number(resultadoSimulacao.valor_total).toFixed(2)}`}</span></div></div>
+          {resultadoSimulacao.pendencias?.length > 0 && <div className="lg:col-span-2 rounded border border-state-warning/30 bg-state-warning/5 p-3 text-xs text-state-warning">{resultadoSimulacao.pendencias.join(" • ")}</div>}
+        </div>}
+      </div>}
       {erro && <p className="text-xs text-state-error">{erro}</p>}
       <div className="flex justify-end gap-2">
         <button disabled={reanalisar.isPending} onClick={handleReanalisar} className="h-9 rounded border border-state-info/40 px-3 text-sm text-state-info disabled:opacity-40">{reanalisar.isPending ? "Reanalisando..." : `Reanalisar ${(revisao.data.documentos_originais?.length ?? 1) > 1 ? "documentos juntos" : "documento"}`}</button>

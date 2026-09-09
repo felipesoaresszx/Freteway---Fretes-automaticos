@@ -71,6 +71,11 @@ export const tabelaFreteService = {
     return response.data;
   },
 
+  async simular(tabelaId: string, dados: Record<string, unknown>) {
+    const response = await apiClient.post<Record<string, unknown>>(`/tabelas-frete/${tabelaId}/simular`, dados);
+    return response.data;
+  },
+
   async excluir(tabelaId: string) {
     await apiClient.delete(`/tabelas-frete/${tabelaId}`);
   },

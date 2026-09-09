@@ -25,6 +25,31 @@ def normalizar_preview(dados: dict) -> dict:
             "requer_mapeamento_tarifario": bool(dados.get("itens_para_revisao")),
             "fonte": {"parser": "transwells_pracas_peso_v1"},
         }
+    if dados.get("formato") == "canonical_freight_v1":
+        validation = dados.get("validation") or {}
+        return {
+            "formato": dados["formato"],
+            "origin": dados.get("origin", {}),
+            "regions": dados.get("regions", []),
+            "localities": dados.get("localities", []),
+            "rules": dados.get("rules", []),
+            "documents": dados.get("documents", []),
+            "validation": validation,
+            "estatisticas": validation.get("statistics", {}),
+            "requer_mapeamento_tarifario": validation.get("status") != "TABLE_VALIDATED",
+            "fonte": {"parser": "canonical_freight_v1"},
+        }
+    if dados.get("formato") in {"tariff_matrix_v1", "localities"}:
+        return {
+            "formato": dados["formato"],
+            "regions": dados.get("regions", []),
+            "localities": dados.get("localities", []),
+            "rules": dados.get("rules", []),
+            "documents": dados.get("documents", []),
+            "estatisticas": dados.get("statistics", {}),
+            "requer_mapeamento_tarifario": True,
+            "fonte": {"parser": dados["formato"]},
+        }
     if dados.get("formato") == "uf_zona_peso_v1":
         return {
             "formato": dados["formato"],

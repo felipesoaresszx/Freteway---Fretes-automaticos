@@ -22,7 +22,9 @@ def calcular_uf_zona(dados: dict, cotacao: dict) -> dict:
     if not volume_total_m3 and all(dimensoes):
         quantidade = int(cotacao.get("quantidade_volumes") or 1)
         volume_total_m3 = float(dimensoes[0]) * float(dimensoes[1]) * float(dimensoes[2]) * quantidade / 1_000_000
-    peso_cubado = volume_total_m3 * float(dados.get("fator_cubagem", 300))
+    if not dados.get("fator_cubagem"):
+        raise CalculoUfZonaError("Fator de cubagem não determinado na tabela")
+    peso_cubado = volume_total_m3 * float(dados["fator_cubagem"])
     peso = max(peso_real, peso_cubado)
     uf = str(cotacao.get("destino_uf") or "").upper()
     cidade = str(cotacao.get("destino_cidade") or cotacao.get("cidade_destino") or "").strip().upper()
@@ -49,21 +51,15 @@ def calcular_uf_zona(dados: dict, cotacao: dict) -> dict:
     faixa = next((item for item in tarifa["faixas_peso"] if peso <= item["ate_kg"]), None)
     frete_base = float(faixa["valor"]) if faixa else float(tarifa["faixas_peso"][-1]["valor"]) + (peso - 100) * float(tarifa["excedente_por_kg_acima_100"])
     valor_nf = float(cotacao.get("valor_nf") or 0)
-    origem_uf = str(cotacao.get("origem_uf") or "").upper()
-    calibracao = ((dados.get("regras_gerais") or {}).get("calibracao_portal_por_rota") or {}).get(f"{origem_uf}|{uf}", {})
-    ajuste_comercial = frete_base * float(calibracao.get("ajuste_frete_base_percentual") or 0)
     gris = valor_nf * float(tarifa.get("gris_percentual") or 0)
     ad_valorem = valor_nf * float(tarifa.get("ad_valorem_percentual") or 0)
-    pedagio_unitario = float(calibracao.get("pedagio_por_fracao_100kg") or tarifa.get("pedagio_por_fracao_100kg") or 0)
+    pedagio_unitario = float(tarifa.get("pedagio_por_fracao_100kg") or 0)
     pedagio = ceil(peso / 100) * pedagio_unitario
     tas = float(tarifa.get("tas_por_cte") or 0)
     tda = float(cobertura.get("tda") or 0)
     trt = float(cobertura.get("trt") or tarifa.get("trt") or 0)
-    taxas = {"ajuste_comercial": ajuste_comercial, "gris": gris, "ad_valorem": ad_valorem, "pedagio": pedagio, "tas": tas, "tda": tda, "trt": trt}
+    taxas = {"gris": gris, "ad_valorem": ad_valorem, "pedagio": pedagio, "tas": tas, "tda": tda, "trt": trt}
     subtotal = frete_base + sum(taxas.values())
-    aliquota_icms = float(calibracao.get("icms_aliquota") or 0)
-    icms = subtotal / (1 - aliquota_icms) - subtotal if aliquota_icms and calibracao.get("icms_calculo_por_dentro") else subtotal * aliquota_icms
-    taxas["icms"] = icms
     total_taxas = sum(taxas.values())
     return {
         "status": "success", "frete_base": round(frete_base, 2), "total_taxas": round(total_taxas, 2),
@@ -71,8 +67,5 @@ def calcular_uf_zona(dados: dict, cotacao: dict) -> dict:
         "valor_total": round(frete_base + total_taxas, 2), "prazo_dias": int(cobertura["prazo_dias"]),
         "peso_considerado_kg": round(peso, 3), "peso_real_kg": peso_real, "peso_cubado_kg": round(peso_cubado, 3),
         "cobertura": {"cidade": cobertura["cidade"], "uf": cobertura["uf"], "zona": cobertura["zona"]},
-        "observacao_impostos": (
-            f"ICMS de {aliquota_icms * 100:.2f}% calculado por dentro conforme calibração da rota."
-            if aliquota_icms else "ICMS não incluído: aplicar conforme legislação em vigor."
-        ),
+        "observacao_impostos": "ICMS não incluído: regra numérica não determinada no documento.",
     }

@@ -53,6 +53,7 @@ class ResultadoTransportadora(BaseModel):
     moeda: str = "BRL"
     erro: ErroResultado | None = None
     request_id: str
+    detalhamento: dict | None = None
 
 
 class CotacaoOut(BaseModel):

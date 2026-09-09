@@ -40,15 +40,23 @@ def extrair_texto_pdf_com_ocr(caminho: Path) -> tuple[str, bool]:
         imagens = list(pagina.images)
         if not imagens:
             continue
-        import pytesseract
+        try:
+            import pytesseract
+        except ImportError as exc:
+            raise ValueError("PDF escaneado exige um mecanismo OCR configurado") from exc
 
         usou_ocr = True
         # PDFs de scanner normalmente possuem uma imagem de página. Quando houver
         # mais, cada imagem é processada separadamente sem gravar arquivos temporários.
         for imagem in imagens:
-            partes.append(pytesseract.image_to_string(
-                imagem.image, lang="por", config="--psm 6"
-            ))
+            try:
+                partes.append(pytesseract.image_to_string(
+                    imagem.image, lang="por", config="--psm 6"
+                ))
+            except pytesseract.pytesseract.TesseractNotFoundError as exc:
+                raise ValueError(
+                    "PDF escaneado não pode ser analisado: executável Tesseract não configurado"
+                ) from exc
     return "\n".join(partes).strip(), usou_ocr
 
 
@@ -228,7 +236,7 @@ def consolidar(tabela: dict, pracas: dict) -> dict:
             revisao.append({"campo": f"rotas.{rota['codigo']}.destino", "valor_bruto_lido": rota["destino"], "motivo": "sem_correspondencia_pracas", "impeditivo": True})
     return {
         "formato": "transwells_pracas_peso_v1", "versao_schema": 1,
-        "fator_cubagem": tabela["regras_gerais"].get("cubagem_kg_por_m3") or 300,
+        "fator_cubagem": tabela["regras_gerais"].get("cubagem_kg_por_m3"),
         "faixas_peso_kg": tabela["faixas_peso_kg"], "rotas": tabela["rotas"],
         "filiais": pracas["filiais"], "consolidacao": consolidacao,
         "regras_gerais": tabela["regras_gerais"], "itens_para_revisao": revisao,

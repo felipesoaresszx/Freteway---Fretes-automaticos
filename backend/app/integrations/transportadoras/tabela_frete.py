@@ -111,6 +111,7 @@ class TabelaFreteAdapter(TransportadoraAdapter):
                     valor_frete=resultado.get("valor_total", 0),
                     prazo_dias=resultado.get("prazo_dias"),
                     moeda=tabela.moeda,
+                    detalhamento=resultado,
                 )
             else:
                 return ResultadoCotacao(

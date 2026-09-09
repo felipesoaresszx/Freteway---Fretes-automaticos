@@ -17,6 +17,7 @@ def _arquivo_duas_abas(caminho: Path) -> None:
     valores = ["Parana", "Interior", 10, 20, 30, 40, 50, 1.5, .0015, .0015, 6.29, 5.6, None]
     for coluna, valor in enumerate(valores, 1):
         tarifas.cell(7, coluna, valor)
+    tarifas["A27"] = "Cubagem: Fator cubagem a 1m³ = 300kg"
     malha = wb.create_sheet("Malha")
     cabecalho = CABECALHO_MALHA + ["SEG", "TER", "QUA", "QUI", "SEX", "TDA", "TRT", "BLOQ ENT", "BLOQ COL", "BLOQ AMBOS", "CEP INICIAL", "CEP FINAL"]
     for coluna, valor in enumerate(cabecalho, 1):
@@ -51,7 +52,7 @@ def test_calcula_tabela_uf_zona_importada(tmp_path):
     assert resultado["valor_total"] == 44.89
 
 
-def test_reproduz_cotacao_oficial_ouro_negro_2_50609():
+def test_calcula_somente_regras_presentes_no_contrato_sem_calibracao_nominal():
     dados = {
         "fator_cubagem": 300,
         "tarifas_por_zona": [{
@@ -65,10 +66,7 @@ def test_reproduz_cotacao_oficial_ouro_negro_2_50609():
             "cep_inicio": "96800000", "cep_fim": "96874999", "tda": 0, "trt": 0,
             "bloqueio_entrega": False, "bloqueio_ambos": False,
         }]},
-        "regras_gerais": {"calibracao_portal_por_rota": {"SP|RS": {
-            "ajuste_frete_base_percentual": .20141976193890718, "pedagio_por_fracao_100kg": 6.97,
-            "icms_aliquota": .12, "icms_calculo_por_dentro": True,
-        }}},
+        "regras_gerais": {},
     }
 
     resultado = calcular_uf_zona(dados, {
@@ -78,6 +76,6 @@ def test_reproduz_cotacao_oficial_ouro_negro_2_50609():
 
     assert resultado["peso_cubado_kg"] == 36
     assert resultado["prazo_dias"] == 6
-    assert next(item for item in resultado["taxas_detalhadas"] if item["tipo"] == "PEDAGIO")["valor"] == 6.97
-    assert next(item for item in resultado["taxas_detalhadas"] if item["tipo"] == "ICMS")["valor"] == 13.02
-    assert resultado["valor_total"] == 108.48
+    assert next(item for item in resultado["taxas_detalhadas"] if item["tipo"] == "PEDAGIO")["valor"] == 6.29
+    assert not any(item["tipo"] == "ICMS" for item in resultado["taxas_detalhadas"])
+    assert resultado["valor_total"] == 83.54

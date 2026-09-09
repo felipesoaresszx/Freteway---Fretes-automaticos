@@ -17,7 +17,9 @@ def calcular_transwells(dados: dict, cotacao: dict) -> dict:
     volume = float(cotacao.get("volume_total_m3") or 0)
     if not volume and all(dimensoes):
         volume = float(dimensoes[0]) * float(dimensoes[1]) * float(dimensoes[2]) * int(cotacao.get("quantidade_volumes") or 1) / 1_000_000
-    peso_cubado = volume * float(dados.get("fator_cubagem") or 300)
+    if not dados.get("fator_cubagem"):
+        raise CalculoTranswellsError("Fator de cubagem não determinado na tabela")
+    peso_cubado = volume * float(dados["fator_cubagem"])
     peso = max(peso_real, peso_cubado)
     cidade = normalizar_nome(cotacao.get("destino_cidade") or cotacao.get("cidade_destino"))
     if not cidade:

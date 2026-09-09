@@ -34,6 +34,7 @@ from app.services.cubagem import calcular_cubagem
 from app.services.tabela_frete.calculo_rodonaves import CalculoRodonavesError, calcular_rodonaves
 from app.services.tabela_frete.calculo_uf_zona import CalculoUfZonaError, calcular_uf_zona
 from app.services.tabela_frete.calculo_transwells import CalculoTranswellsError, calcular_transwells
+from app.services.tabela_frete.contrato_calculo import ContractError, calculate as calcular_contrato
 
 
 class TabelaFreteCalculoService:
@@ -95,6 +96,12 @@ class TabelaFreteCalculoService:
                     return calcular_transwells(tabela.dados_importados.dados, dados_cotacao)
                 except CalculoTranswellsError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_TRANSWELLS", "erro_mensagem": str(exc)}
+
+            if tabela.dados_importados and tabela.dados_importados.formato == "canonical_freight_v1":
+                try:
+                    return calcular_contrato(tabela.dados_importados.dados, dados_cotacao)
+                except ContractError as exc:
+                    return {"status": "error", "erro_codigo": "REGRA_TABELA_CANONICA", "erro_mensagem": str(exc)}
 
             # 2. Valida dados de entrada
             erro = self._validar_dados_entrada(dados_cotacao)
@@ -229,7 +236,9 @@ class TabelaFreteCalculoService:
         """Calcula peso cubado a partir das dimensões."""
         volume_total_m3 = dados.get("volume_total_m3")
         if volume_total_m3 is not None:
-            return float(volume_total_m3) * float(tabela.fator_cubagem or 300)
+            if not tabela.fator_cubagem:
+                raise ValueError("Fator de cubagem não determinado na tabela")
+            return float(volume_total_m3) * float(tabela.fator_cubagem)
 
         comprimento = dados.get("comprimento_cm")
         largura = dados.get("largura_cm")
@@ -238,8 +247,9 @@ class TabelaFreteCalculoService:
         if not all([comprimento, largura, altura]):
             return 0.0
 
-        # Usa fator da tabela ou default
-        fator = tabela.fator_cubagem or 300.0
+        if not tabela.fator_cubagem:
+            raise ValueError("Fator de cubagem não determinado na tabela")
+        fator = tabela.fator_cubagem
 
         # Calcula cubagem (volume em m³ × fator)
         volume_m3 = calcular_cubagem(comprimento, largura, altura, "cm")
