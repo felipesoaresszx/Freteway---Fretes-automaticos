@@ -15,14 +15,13 @@ Este procedimento preserva o banco e o volume legado `frete-system_postgres_data
 
 ## Preparar o servidor
 
-1. Aponte o registro DNS A de `app.freteway.com.br` para o IP público da VM e libere 80/443 no firewall/NSG.
+1. Aponte os registros DNS A de `modial-fretes.com.br` e `www.modial-fretes.com.br` para o IP público da VM e libere 80/443 no firewall/NSG. O endereço com `www` é redirecionado permanentemente para o domínio principal.
 2. Instale Git, Docker Engine e o plugin Docker Compose. Adicione o usuário de deploy ao grupo Docker conforme a política do host.
 3. Clone o repositório. Copie `.env.production.example` para `.env.production` e `backend/.env.production.example` para `backend/.env.production`; use `chmod 600` nos dois.
 4. Gere três valores independentes e estáveis: senha PostgreSQL, `JWT_SECRET` e `CREDENTIAL_ENCRYPTION_KEY`. Preencha `POSTGRES_PASSWORD_URLENCODED` com a mesma senha usando percent-encoding nos caracteres reservados (por exemplo, `@` vira `%40`). Não troque a chave de criptografia de uma instalação existente: isso pode tornar credenciais armazenadas ilegíveis.
-5. Ajuste `DOMAIN`, `CORS_ORIGINS` e `TRUSTED_HOSTS` ao domínio/IP efetivo. Não use `*`. Mantenha `localhost` nos hosts confiáveis para o healthcheck interno.
+5. Ajuste `DOMAIN`, `PUBLIC_BASE_URL`, `CORS_ORIGINS` e `TRUSTED_HOSTS` ao domínio efetivo. No ambiente padrão, use `DOMAIN=modial-fretes.com.br` e `PUBLIC_BASE_URL=https://modial-fretes.com.br`. Não inclua protocolo em `DOMAIN`, não use `*` e mantenha `localhost` nos hosts confiáveis para o healthcheck interno.
 
-Para acesso provisório por IP sem TLS, use `SITE_ADDRESS=http://IP`, `PUBLIC_BASE_URL=http://IP`,
-`COOKIE_SECURE=false` e `ALLOW_INSECURE_HTTP=true`. Essa exceção deve voltar para `false` assim que o domínio HTTPS estiver disponível.
+O proxy gerenciado não usa mais `SITE_ADDRESS`: o Caddy recebe apenas `DOMAIN`, emite o certificado HTTPS para esse host e redireciona `www.DOMAIN` para o domínio principal. Para acesso provisório por IP ou para manter outro proxy na frente da aplicação, deixe `ACTIVATE_PROXY=false` e configure explicitamente esse proxy externo; não enfraqueça cookies ou validações do ambiente definitivo.
 6. Confirme com `docker volume ls` que `frete-system_postgres_data` existe. O deploy interrompe se ele estiver ausente. Nunca renomeie/remova esse volume sem dump validado.
 
 ### Migrar arquivos do bind mount atual
@@ -36,7 +35,7 @@ chmod +x scripts/*.sh
 
 O script cria primeiro `backups/storage_<timestamp>.tar.gz`, recusa copiar para volume não vazio, copia sem apagar a origem e valida a contagem. O deploy fica bloqueado quando encontra arquivos legados e o volume ainda não existe.
 
-O Caddy fica desativado com `ACTIVATE_PROXY=false`, evitando conflito com o Nginx atual em `:80`. Somente na janela de troca, depois de validar backend/frontend e liberar 80/443, pare o Nginx, altere para `ACTIVATE_PROXY=true` e rode o deploy. O Caddy então obtém/renova TLS; certificados ficam no volume `caddy_data`, nunca no Git.
+No primeiro deploy, o Caddy fica desativado com `ACTIVATE_PROXY=false`, evitando conflito com outro proxy em `:80`. Somente na janela de troca, depois de validar backend/frontend e liberar 80/443, pare o proxy anterior, altere para `ACTIVATE_PROXY=true` e rode o deploy. Depois que o serviço `proxy` já existe, os redeploys também o atualizam mesmo que a variável seja alterada acidentalmente para `false`, evitando deixar uma instalação ativa com proxy desatualizado. Para desativá-lo deliberadamente, faça isso como uma operação separada. O Caddy obtém/renova TLS; certificados ficam no volume `caddy_data`, nunca no Git.
 
 ## Estratégia A — transportar o banco local
 

@@ -85,6 +85,8 @@ nohup.out
 *.tmp
 *.temp
 *~
+.codex-freteway-oracle-temp
+.codex-freteway-oracle-temp.pub
 
 # Misc
 .Dockerfile.swp

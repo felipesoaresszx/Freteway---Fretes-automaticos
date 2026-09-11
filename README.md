@@ -346,6 +346,8 @@ chmod +x deploy/deploy.sh scripts/*.sh
 ./deploy/deploy.sh
 ```
 
+O proxy Caddy usa `DOMAIN` sem protocolo (por padrão, `modial-fretes.com.br`), publica HTTPS nesse domínio e redireciona `www.DOMAIN` para ele. A antiga variável `SITE_ADDRESS` não é mais usada. Mantenha `ACTIVATE_PROXY=false` no primeiro deploy enquanto outro proxy ocupar 80/443 e altere para `true` na troca definitiva.
+
 O procedimento detalhado inclui migração de storage, transporte/restauração do banco, healthchecks, rollback e checklist pós-reboot.
 
 ## Segurança e cuidados operacionais

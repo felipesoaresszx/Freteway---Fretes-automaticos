@@ -50,7 +50,8 @@ worker_id="$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps -q work
   exit 1
 }
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
-if [[ "${ACTIVATE_PROXY:-false}" == "true" ]]; then
+if [[ "${ACTIVATE_PROXY:-false}" == "true" ]] || \
+   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps -q proxy | grep -q .; then
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --wait proxy
   echo "Proxy Caddy ativado."
 else
