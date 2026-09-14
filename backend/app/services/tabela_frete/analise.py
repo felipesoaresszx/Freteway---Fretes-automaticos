@@ -211,6 +211,24 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
         raise AnaliseDocumentoError("Documento não encontrado no armazenamento")
     if documento.tipo_arquivo in {"xlsx", "xlsm"}:
         from app.services.tabela_frete.uf_zona_excel import extrair_uf_zona_excel
+        from app.services.tabela_frete.rispa_excel import extrair_rispa_excel
+        try:
+            dados = extrair_rispa_excel(caminho)
+        except AnaliseDocumentoError:
+            pass
+        else:
+            dados["source_document"] = documento.nome_arquivo
+            return {
+                "dados_extraidos": dados,
+                "confianca_extracao": 0.98,
+                "erros_validacao": [],
+                "avisos": [
+                    "Tarifas RISPA e malha por faixa de CEP extraídas automaticamente.",
+                    "A alíquota numérica de ICMS não foi informada no documento.",
+                ],
+                "campos_com_duvida": [],
+                "resumo": dados["estatisticas"],
+            }
         try:
             dados = extrair_uf_zona_excel(caminho)
             dados["source_document"] = documento.nome_arquivo
