@@ -20,5 +20,5 @@ export const configuracoesService = {
   async integracoes() { return (await apiClient.get<IntegracaoGlobal[]>("/configuracoes/integracoes")).data; },
   async salvarIntegracao(id: string, dados: IntegracaoGlobalInput) { return (await apiClient.put<IntegracaoGlobal>(`/configuracoes/integracoes/${id}`, dados)).data; },
   async testarIntegracao(id: string) { return (await apiClient.post<IntegracaoGlobal>(`/configuracoes/integracoes/${id}/testar`)).data; },
-  async auditoria(page = 1) { return (await apiClient.get<AuditPage>("/configuracoes/auditoria", { params: { page, page_size: 25 } })).data; },
+  async auditoria(page = 1, recurso?: string) { return (await apiClient.get<AuditPage>("/configuracoes/auditoria", { params: { page, page_size: 25, recurso } })).data; },
 };

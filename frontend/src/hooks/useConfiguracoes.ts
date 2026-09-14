@@ -21,4 +21,4 @@ export function useStatusUsuario() { const q = useQueryClient(); return useMutat
 export const useIntegracoesGlobais = () => useQuery({ queryKey: ["configuracoes", "integracoes"], queryFn: service.integracoes });
 export function useSalvarIntegracaoGlobal() { const q = useQueryClient(); return useMutation({ mutationFn: ({ id, dados }: { id: string; dados: IntegracaoGlobalInput }) => service.salvarIntegracao(id, dados), onSuccess: () => invalidar(q, ["configuracoes", "integracoes"]) }); }
 export function useTestarIntegracaoGlobal() { const q = useQueryClient(); return useMutation({ mutationFn: service.testarIntegracao, onSuccess: () => invalidar(q, ["configuracoes", "integracoes"]) }); }
-export const useAuditoria = (page: number) => useQuery({ queryKey: ["configuracoes", "auditoria", page], queryFn: () => service.auditoria(page) });
+export const useAuditoria = (page: number, recurso?: string) => useQuery({ queryKey: ["configuracoes", "auditoria", page, recurso], queryFn: () => service.auditoria(page, recurso) });

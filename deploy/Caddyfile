@@ -21,6 +21,25 @@
         }
     }
 
+    # Documentacao OpenAPI: so responde quando API_DOCS_ENABLED=true no backend.
+    handle /docs {
+        reverse_proxy backend:8000 {
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    handle /redoc {
+        reverse_proxy backend:8000 {
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    handle /openapi.json {
+        reverse_proxy backend:8000 {
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
     handle {
         reverse_proxy frontend:80
     }

@@ -1,3 +1,4 @@
+from ipaddress import ip_address
 from typing import Any
 
 from fastapi import Request
@@ -18,7 +19,11 @@ async def registrar_auditoria(
 ) -> None:
     # O cabeçalho X-Forwarded-For é controlável pelo cliente. O proxy deve
     # sobrescrevê-lo e o endereço confiável pode ser tratado na infraestrutura.
-    ip = request.client.host if request.client else None
+    candidate = request.headers.get("x-real-ip") or (request.client.host if request.client else None)
+    try:
+        ip = str(ip_address(candidate)) if candidate else None
+    except ValueError:
+        ip = request.client.host if request.client else None
     db.add(AuditLog(
         user_id=usuario.id,
         acao=acao,

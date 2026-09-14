@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "strict"
     COOKIE_DOMAIN: str | None = None
     ENVIRONMENT: str = "development"
+    # Em producao, a documentacao so e exposta mediante habilitacao explicita.
+    # Em desenvolvimento, ela permanece disponivel por padrao.
+    API_DOCS_ENABLED: bool | None = None
     ALLOW_INSECURE_HTTP: bool = False
 
     BOOTSTRAP_TENANT_CODE: str = "MODIAL2026"
