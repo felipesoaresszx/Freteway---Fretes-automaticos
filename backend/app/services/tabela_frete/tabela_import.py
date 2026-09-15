@@ -39,6 +39,19 @@ def normalizar_preview(dados: dict) -> dict:
             "requer_mapeamento_tarifario": validation.get("status") != "TABLE_VALIDATED",
             "fonte": {"parser": "canonical_freight_v1"},
         }
+    if dados.get("formato") == "tabela_frete_universal_v1":
+        return {
+            "formato": dados["formato"],
+            "fator_cubagem": dados.get("fator_cubagem", 300),
+            "peso_limite_kg": dados.get("peso_limite_kg"),
+            "faixas_tarifarias": dados.get("faixas_tarifarias", []),
+            "pracas": dados.get("pracas", []),
+            "regras": dados.get("regras", {}),
+            "zonas_especiais": dados.get("zonas_especiais", {}),
+            "estatisticas": dados.get("estatisticas", {}),
+            "requer_mapeamento_tarifario": False,
+            "fonte": {"parser": "table_engine_universal"},
+        }
     if dados.get("formato") in {"tariff_matrix_v1", "localities"}:
         return {
             "formato": dados["formato"],

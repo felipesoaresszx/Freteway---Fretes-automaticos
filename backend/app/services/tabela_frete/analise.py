@@ -276,7 +276,52 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
             from app.services.tabela_frete.pdf_tarifario import extract_pdf_tariff
             dados = extract_pdf_tariff(caminho)
         except AnaliseDocumentoError:
-            pass
+            from app.services.tabela_frete.table_engine.service.table_import_service import (
+                import_table_document,
+            )
+
+            try:
+                contrato = import_table_document(
+                    caminho,
+                    carrier=tabela.transportadora_id,
+                    origin={"city": "Guarulhos", "state": "SP"},
+                )
+            except (OSError, ValueError):
+                contrato = None
+            if contrato and (contrato.get("validation") or {}).get("status") == "TABLE_VALIDATED":
+                dados = {
+                    "formato": "tabela_frete_universal_v1",
+                    "fator_cubagem": 300,
+                    "peso_limite_kg": max(
+                        (
+                            float(item.get("max_weight", 0))
+                            for item in contrato.get("weight_bands", [])
+                        ),
+                        default=7000,
+                    ),
+                    "faixas_tarifarias": contrato.get("weight_bands", []),
+                    "pracas": contrato.get("destinations", []),
+                    "regras": {
+                        "sobretaxas": contrato.get("surcharges", []),
+                        "entrega": contrato.get("delivery_rules", []),
+                        "coleta": contrato.get("collection_rules", []),
+                        "gerais": contrato.get("general_rules", []),
+                    },
+                    "zonas_especiais": {},
+                    "estatisticas": {
+                        "faixas": len(contrato.get("weight_bands", [])),
+                        "pracas": len(contrato.get("destinations", [])),
+                    },
+                    "source_document": documento.nome_arquivo,
+                }
+                return {
+                    "dados_extraidos": dados,
+                    "confianca_extracao": 0.98,
+                    "erros_validacao": [],
+                    "avisos": ["Matriz tarifária PDF identificada pelo motor universal de tabelas."],
+                    "campos_com_duvida": [],
+                    "resumo": dados["estatisticas"],
+                }
         else:
             return {
                 "dados_extraidos": dados, "confianca_extracao": 0.98,

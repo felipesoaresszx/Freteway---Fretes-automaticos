@@ -47,6 +47,23 @@ def test_csv_publico_usa_strategy_sem_chamar_fallback_legado(tmp_path: Path):
     assert result["dados_extraidos"]["tarifas"][0]["valor"] == 80
 
 
+def test_pdf_tarifario_usa_motor_universal_quando_parser_especifico_falha():
+    fixture = Path(__file__).parent / "fixtures" / "TABELA ALFA.pdf"
+    document = MagicMock(
+        nome_arquivo=fixture.name,
+        caminho_storage=str(fixture.relative_to(Path(__file__).parents[2])),
+        tipo_arquivo="pdf",
+    )
+    table = MagicMock(transportadora_id="carrier-1")
+
+    result = _analisar_documento_legacy(document, table, Path(__file__).parents[2])
+
+    assert result["dados_extraidos"]["formato"] == "tabela_frete_universal_v1"
+    assert result["confianca_extracao"] == 0.98
+    assert len(result["dados_extraidos"]["faixas_tarifarias"]) >= 20
+    assert len(result["dados_extraidos"]["pracas"]) >= 20
+
+
 def test_pipeline_executa_etapas_na_ordem_definida(tmp_path: Path):
     calls = []
     analysis = {
