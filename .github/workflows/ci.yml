@@ -110,4 +110,5 @@ jobs:
           ssh -i ~/.ssh/freteway_deploy
           -o BatchMode=yes
           -o IdentitiesOnly=yes
-          ubuntu@64.181.183.229 deploy
+          ubuntu@64.181.183.229
+          'bash /home/ubuntu/Freteway/deploy/github_deploy_entrypoint.sh'
