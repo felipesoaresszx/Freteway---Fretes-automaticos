@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.services.tabela_frete.table_engine.models import FreightTable, Surcharge, WeightBand
+from app.services.tabela_frete.table_engine.models import FreightTable
 
 
 def to_canonical_contract(table: FreightTable) -> dict[str, object]:

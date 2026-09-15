@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-
 from app.services.tabela_frete.table_engine.normalization.header_normalizer import normalize_header
 
 COLUMN_ALIASES = {

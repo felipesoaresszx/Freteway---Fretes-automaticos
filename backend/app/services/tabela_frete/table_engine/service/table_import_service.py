@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.services.tabela_frete.table_engine.adapters.normalized_table_adapter import to_canonical_contract
-from app.services.tabela_frete.table_engine.classification.column_classifier import classify_columns
 from app.services.tabela_frete.table_engine.detection.format_detector import detect_format
 from app.services.tabela_frete.table_engine.detection.structure_detector import detect_structure
 from app.services.tabela_frete.table_engine.extraction.document import extract_document
@@ -11,10 +10,7 @@ from app.services.tabela_frete.table_engine.mapping.destination_mapper import ma
 from app.services.tabela_frete.table_engine.mapping.semantic_mapper import SemanticMapper
 from app.services.tabela_frete.table_engine.mapping.surcharge_mapper import map_surcharges
 from app.services.tabela_frete.table_engine.mapping.weight_band_mapper import map_weight_bands
-from app.services.tabela_frete.table_engine.models import FreightTable, Surcharge, WeightBand
-from app.services.tabela_frete.table_engine.normalization.city_normalizer import normalize_city_name
-from app.services.tabela_frete.table_engine.normalization.cep_normalizer import normalize_cep
-from app.services.tabela_frete.table_engine.normalization.number_normalizer import normalize_number
+from app.services.tabela_frete.table_engine.models import FreightTable
 from app.services.tabela_frete.table_engine.rules.rule_detector import detect_rules
 from app.services.tabela_frete.table_engine.validation.table_validator import validate_table
 
