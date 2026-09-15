@@ -23,13 +23,26 @@ def _destination(data: dict, quote: dict) -> dict:
     city = quote.get("destino_cidade")
     state = quote.get("destino_uf")
     matches = []
-    for item in data.get("destinations", []):
+    destinations = data.get("destinations", [])
+    has_cep_ranges = any(
+        item.get("cep_start") and item.get("cep_end")
+        for item in destinations
+    )
+    for item in destinations:
         if cep and item.get("cep_start") and item.get("cep_end") and item["cep_start"] <= cep <= item["cep_end"]:
             matches.append(item)
-        elif not cep and city and state and key(item.get("city")) == key(city) and key(item.get("uf")) == key(state):
+        elif (
+            not cep
+            and city
+            and state
+            and key(item.get("city")) == key(city)
+            and key(item.get("uf")) == key(state)
+        ):
             matches.append(item)
         elif not cep and state and not city and key(item.get("uf")) == key(state):
             matches.append(item)
+    if cep and not has_cep_ranges and state:
+        matches = [item for item in destinations if key(item.get("uf")) == key(state)]
     if not matches:
         raise CalculoUniversalError("Destino sem correspondência na tabela da transportadora")
     if len(matches) > 1:

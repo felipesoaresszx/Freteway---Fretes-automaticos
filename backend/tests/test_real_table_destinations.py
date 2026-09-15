@@ -37,3 +37,20 @@ def test_alfa_uses_its_destination_tariffs_in_universal_calculator():
     assert quote["status"] == "success"
     assert quote["valor_total"] == pytest.approx(58.09)
     assert quote["destino_tabela"]["uf"] == "DF"
+
+
+def test_alfa_accepts_destination_cep_when_table_is_by_state():
+    result = import_table_document(
+        FIXTURES / "TABELA ALFA.pdf",
+        carrier="alfa",
+        origin={"city": "Guarulhos", "state": "SP"},
+    )
+
+    quote = calcular_universal(
+        result,
+        {"destino_cep": "70000-000", "destino_uf": "DF", "peso": 10},
+    )
+
+    assert quote["status"] == "success"
+    assert quote["valor_total"] == pytest.approx(58.09)
+    assert quote["destino_tabela"]["uf"] == "DF"
