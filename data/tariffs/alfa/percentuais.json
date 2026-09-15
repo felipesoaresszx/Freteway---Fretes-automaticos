@@ -1,0 +1,23 @@
+[
+  {
+    "zona_id": "*",
+    "componente": "frete_valor",
+    "percentual": 0.004,
+    "minimo": null,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "*",
+    "componente": "gris",
+    "percentual": 0.0015,
+    "minimo": 6.75,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "*",
+    "componente": "gris",
+    "percentual": 0.006,
+    "minimo": 9.18,
+    "excecao_uf": "RJ"
+  }
+]

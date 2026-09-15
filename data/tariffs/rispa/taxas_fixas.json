@@ -1,0 +1,731 @@
+[
+  {
+    "zona_id": "RMAI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 450.0
+  },
+  {
+    "zona_id": "RMTI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 209.1
+  },
+  {
+    "zona_id": "RIPP",
+    "tas": 4.0,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 20.0
+  },
+  {
+    "zona_id": "SSOP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 102.0
+  },
+  {
+    "zona_id": "SSOP MOVEL",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 102.0
+  },
+  {
+    "zona_id": "RIOP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "FLNP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 40.0
+  },
+  {
+    "zona_id": "PANI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RESP",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "GRFI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 390.0
+  },
+  {
+    "zona_id": "RBHP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RBHR",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RMSP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "APUI",
+    "tas": 6.7,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 104.0
+  },
+  {
+    "zona_id": "CWBI",
+    "tas": 6.7,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 104.0
+  },
+  {
+    "zona_id": "LDAI",
+    "tas": 6.7,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 39.0
+  },
+  {
+    "zona_id": "MGAI",
+    "tas": 6.7,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 91.0
+  },
+  {
+    "zona_id": "BLUP",
+    "tas": 7.0,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 26.67
+  },
+  {
+    "zona_id": "CRIP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 66.67
+  },
+  {
+    "zona_id": "PANR",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RBAP",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RESI",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "BMAI",
+    "tas": 6.67,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "GOYI",
+    "tas": 6.67,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "LAGI",
+    "tas": 6.67,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "UNIP",
+    "tas": 6.67,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 100.0
+  },
+  {
+    "zona_id": "ITJP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 13.33
+  },
+  {
+    "zona_id": "JOAP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 66.67
+  },
+  {
+    "zona_id": "JRSP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "JVLP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 40.0
+  },
+  {
+    "zona_id": "LGSP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 80.0
+  },
+  {
+    "zona_id": "RDSP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 106.67
+  },
+  {
+    "zona_id": "SBSP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 80.0
+  },
+  {
+    "zona_id": "TUBP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 40.0
+  },
+  {
+    "zona_id": "RTOP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RCEP",
+    "tas": 2.54,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "ATLI",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "PANP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "BMAR",
+    "tas": 6.67,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "GOYR",
+    "tas": 6.67,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "LAGR",
+    "tas": 6.67,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RIOR",
+    "tas": 6.67,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "CXSP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 160.0
+  },
+  {
+    "zona_id": "POAP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 53.33
+  },
+  {
+    "zona_id": "RSIR",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 400.0
+  },
+  {
+    "zona_id": "RSEP",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RALI",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RALP",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RBAI",
+    "tas": 6.0,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 450.0
+  },
+  {
+    "zona_id": "RMSI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 209.1
+  },
+  {
+    "zona_id": "RMSR",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 209.1
+  },
+  {
+    "zona_id": "RMTR",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RPEP",
+    "tas": 6.0,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "TRPI",
+    "tas": 6.0,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 350.0
+  },
+  {
+    "zona_id": "RROP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RPBP",
+    "tas": 6.0,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "CHAP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 160.0
+  },
+  {
+    "zona_id": "CENI",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 100.0
+  },
+  {
+    "zona_id": "CENP",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 850.0
+  },
+  {
+    "zona_id": "RBAR",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 350.0
+  },
+  {
+    "zona_id": "TEXI",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "TEXP",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RPIP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RRNI",
+    "tas": 2.54,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RRNP",
+    "tas": 2.54,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RSIP",
+    "tas": 6.666666666666667,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 160.0
+  },
+  {
+    "zona_id": "RSEI",
+    "tas": 2.6,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RPBI",
+    "tas": 6.0,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RPII",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 450.0
+  },
+  {
+    "zona_id": "RROI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 60.0
+  },
+  {
+    "zona_id": "RCEI",
+    "tas": 2.54,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RGOI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RMAP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RTOI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 140.0
+  },
+  {
+    "zona_id": "RPAP",
+    "tas": 5.0,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RACP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RAPP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RACI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": 247.0
+  },
+  {
+    "zona_id": "RAMP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RRRP",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  },
+  {
+    "zona_id": "RRRI",
+    "tas": null,
+    "trt": null,
+    "trt_regra_texto": "",
+    "pedagio_fracao_100kg": null,
+    "taxa_despacho": null,
+    "tda": null
+  }
+]

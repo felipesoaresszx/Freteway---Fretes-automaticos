@@ -1,0 +1,1430 @@
+[
+  {
+    "uf": "SP",
+    "cidade_original": "SAO PAULO",
+    "cidade_normalizada": "SAO PAULO",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "BRASILIA",
+    "cidade_normalizada": "BRASILIA",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "ES",
+    "cidade_original": "VITORIA",
+    "cidade_normalizada": "VITORIA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "ES",
+    "cidade_original": "CACHOEIRO DE ITAPEMIRIM",
+    "cidade_normalizada": "CACHOEIRO DE ITAPEMIRIM",
+    "codigo_tarifa": "1300",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "ES",
+    "cidade_original": "COLATINA",
+    "cidade_normalizada": "COLATINA",
+    "codigo_tarifa": "1300",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "ES",
+    "cidade_original": "LINHARES",
+    "cidade_normalizada": "LINHARES",
+    "codigo_tarifa": "1300",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "CATALAO",
+    "cidade_normalizada": "CATALAO",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "ITUMBIARA",
+    "cidade_normalizada": "ITUMBIARA",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "CALDAS NOVAS",
+    "cidade_normalizada": "CALDAS NOVAS",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "IPAMERI (VIRTUAL)",
+    "cidade_normalizada": null,
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": true
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "GOIANIA",
+    "cidade_normalizada": "GOIANIA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "QUIRINOPOLIS",
+    "cidade_normalizada": "QUIRINOPOLIS",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "RIO VERDE",
+    "cidade_normalizada": "RIO VERDE",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "SILVANIA",
+    "cidade_normalizada": "SILVANIA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "ANAPOLIS",
+    "cidade_normalizada": "ANAPOLIS",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "CERES",
+    "cidade_normalizada": "CERES",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "LUZIANIA",
+    "cidade_normalizada": "LUZIANIA",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "RIALMA",
+    "cidade_normalizada": "RIALMA",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "SIMOLANDIA",
+    "cidade_normalizada": "SIMOLANDIA",
+    "codigo_tarifa": "1300",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "GOIANESIA",
+    "cidade_normalizada": "GOIANESIA",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "INDIARA",
+    "cidade_normalizada": "INDIARA",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "ITABERAI",
+    "cidade_normalizada": "ITABERAI",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "PALMEIRAS DE GOIAS",
+    "cidade_normalizada": "PALMEIRAS DE GOIAS",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "PORANGATU",
+    "cidade_normalizada": "PORANGATU",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "SAO LUIS DE MONTES BELOS",
+    "cidade_normalizada": "SAO LUIS DE MONTES BELOS",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "GO",
+    "cidade_original": "Vicentinópolis",
+    "cidade_normalizada": "VICENTINOPOLIS",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "EXTREMA",
+    "cidade_normalizada": "EXTREMA",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "POUSO ALEGRE",
+    "cidade_normalizada": "POUSO ALEGRE",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "GUAXUPE",
+    "cidade_normalizada": "GUAXUPE",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "POÇOS DE CALDAS",
+    "cidade_normalizada": "POOS DE CALDAS",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "SAO SEBASTIAO DO PARAISO",
+    "cidade_normalizada": "SAO SEBASTIAO DO PARAISO",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "VARGINHA",
+    "cidade_normalizada": "VARGINHA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "DIVINOPOLIS",
+    "cidade_normalizada": "DIVINOPOLIS",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "ARAXA",
+    "cidade_normalizada": "ARAXA",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "BELO HORIZONTE",
+    "cidade_normalizada": "BELO HORIZONTE",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "CONSELHEIRO LAFAIETE",
+    "cidade_normalizada": "CONSELHEIRO LAFAIETE",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "JOAO MONLEVADE",
+    "cidade_normalizada": "JOAO MONLEVADE",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "JUIZ DE FORA",
+    "cidade_normalizada": "JUIZ DE FORA",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "MONTE CARMELO",
+    "cidade_normalizada": "MONTE CARMELO",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "NOVA SERRANA",
+    "cidade_normalizada": "NOVA SERRANA",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "OURO PRETO",
+    "cidade_normalizada": "OURO PRETO",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "SETE LAGOAS",
+    "cidade_normalizada": "SETE LAGOAS",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "UBERABA",
+    "cidade_normalizada": "UBERABA",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "UBERLANDIA",
+    "cidade_normalizada": "UBERLANDIA",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "CURVELO",
+    "cidade_normalizada": "CURVELO",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "IPATINGA",
+    "cidade_normalizada": "IPATINGA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "ITUIUTABA",
+    "cidade_normalizada": "ITUIUTABA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "ITURAMA",
+    "cidade_normalizada": "ITURAMA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "MARTINS SOARES",
+    "cidade_normalizada": "MARTINS SOARES",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "PATOS DE MINAS",
+    "cidade_normalizada": "PATOS DE MINAS",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "UNAÍ",
+    "cidade_normalizada": "UNA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "VICOSA",
+    "cidade_normalizada": "VICOSA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "PARACATU",
+    "cidade_normalizada": "PARACATU",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "GOVERNADOR VALADARES",
+    "cidade_normalizada": "GOVERNADOR VALADARES",
+    "codigo_tarifa": "1300",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "MONTES CLAROS",
+    "cidade_normalizada": "MONTES CLAROS",
+    "codigo_tarifa": "1300",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "CAPELINHA",
+    "cidade_normalizada": "CAPELINHA",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MG",
+    "cidade_original": "TEOFILO OTONI",
+    "cidade_normalizada": "TEOFILO OTONI",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MS",
+    "cidade_original": "TRES LAGOAS",
+    "cidade_normalizada": "TRES LAGOAS",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MS",
+    "cidade_original": "NOVA ANDRADINA",
+    "cidade_normalizada": "NOVA ANDRADINA",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MS",
+    "cidade_original": "ELDORADO",
+    "cidade_normalizada": "ELDORADO",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MS",
+    "cidade_original": "CAMPO GRANDE",
+    "cidade_normalizada": "CAMPO GRANDE",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MS",
+    "cidade_original": "DOURADOS",
+    "cidade_normalizada": "DOURADOS",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MS",
+    "cidade_original": "JARDIM",
+    "cidade_normalizada": "JARDIM",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MS",
+    "cidade_original": "CAMPO GRANDE INTERIOR",
+    "cidade_normalizada": null,
+    "codigo_tarifa": "1600",
+    "eh_zona_especial": true
+  },
+  {
+    "uf": "MS",
+    "cidade_original": "CAMPO GRANDE REGIAO SUL",
+    "cidade_normalizada": "CAMPO GRANDE REGIAO SUL",
+    "codigo_tarifa": "1600",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MT",
+    "cidade_original": "RONDONOPOLIS",
+    "cidade_normalizada": "RONDONOPOLIS",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MT",
+    "cidade_original": "CUIABÁ",
+    "cidade_normalizada": "CUIAB",
+    "codigo_tarifa": "1600",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MT",
+    "cidade_original": "LUCAS DO RIO VERDE",
+    "cidade_normalizada": "LUCAS DO RIO VERDE",
+    "codigo_tarifa": "2050",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MT",
+    "cidade_original": "SORRISO",
+    "cidade_normalizada": "SORRISO",
+    "codigo_tarifa": "2050",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MT",
+    "cidade_original": "SINOP",
+    "cidade_normalizada": "SINOP",
+    "codigo_tarifa": "2200",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MT",
+    "cidade_original": "GUARANTÃ DO NORTE",
+    "cidade_normalizada": "GUARANT DO NORTE",
+    "codigo_tarifa": "2350",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "MT",
+    "cidade_original": "CUIABÁ INTERIOR NORTÃO",
+    "cidade_normalizada": null,
+    "codigo_tarifa": "2950",
+    "eh_zona_especial": true
+  },
+  {
+    "uf": "MT",
+    "cidade_original": "CUIABÁ - VALE DO ARAGUAIA",
+    "cidade_normalizada": null,
+    "codigo_tarifa": "2950",
+    "eh_zona_especial": true
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "CORNELIO PROCOPIO",
+    "cidade_normalizada": "CORNELIO PROCOPIO",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "CURITIBA",
+    "cidade_normalizada": "CURITIBA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "IBAITI",
+    "cidade_normalizada": "IBAITI",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "JAGUARIAIVA",
+    "cidade_normalizada": "JAGUARIAIVA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "LONDRINA",
+    "cidade_normalizada": "LONDRINA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "PARANAGUA",
+    "cidade_normalizada": "PARANAGUA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "PONTA GROSSA",
+    "cidade_normalizada": "PONTA GROSSA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "APUCARANA",
+    "cidade_normalizada": "APUCARANA",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "GUARAPUAVA",
+    "cidade_normalizada": "GUARAPUAVA",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "MARINGA",
+    "cidade_normalizada": "MARINGA",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "TELEMACO BORBA",
+    "cidade_normalizada": "TELEMACO BORBA",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "UNIAO DA VITORIA",
+    "cidade_normalizada": "UNIAO DA VITORIA",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "CAMPO MOURAO",
+    "cidade_normalizada": "CAMPO MOURAO",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "CIANORTE",
+    "cidade_normalizada": "CIANORTE",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "LOANDA",
+    "cidade_normalizada": "LOANDA",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "PARANAVAI",
+    "cidade_normalizada": "PARANAVAI",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "QUEDAS DO IGUACU",
+    "cidade_normalizada": "QUEDAS DO IGUACU",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "UMUARAMA",
+    "cidade_normalizada": "UMUARAMA",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "CASCAVEL",
+    "cidade_normalizada": "CASCAVEL",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "DOIS VIZINHOS",
+    "cidade_normalizada": "DOIS VIZINHOS",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "FRANCISCO BELTRAO",
+    "cidade_normalizada": "FRANCISCO BELTRAO",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "MEDIANEIRA",
+    "cidade_normalizada": "MEDIANEIRA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "PALOTINA",
+    "cidade_normalizada": "PALOTINA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "PATO BRANCO",
+    "cidade_normalizada": "PATO BRANCO",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "PR",
+    "cidade_original": "FOZ DO IGUACU",
+    "cidade_normalizada": "FOZ DO IGUACU",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RJ",
+    "cidade_original": "ARARUAMA",
+    "cidade_normalizada": "ARARUAMA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RJ",
+    "cidade_original": "RIO DE JANEIRO",
+    "cidade_normalizada": "RIO DE JANEIRO",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RJ",
+    "cidade_original": "Barra Mansa",
+    "cidade_normalizada": "BARRA MANSA",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RJ",
+    "cidade_original": "NOVA FRIBURGO",
+    "cidade_normalizada": "NOVA FRIBURGO",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RJ",
+    "cidade_original": "CAMPOS DOS GOYTACAZES",
+    "cidade_normalizada": "CAMPOS DOS GOYTACAZES",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "CAXIAS DO SUL",
+    "cidade_normalizada": "CAXIAS DO SUL",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "ERECHIM",
+    "cidade_normalizada": "ERECHIM",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "FREDERICO WESTPHALEN",
+    "cidade_normalizada": "FREDERICO WESTPHALEN",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SARANDI",
+    "cidade_normalizada": "SARANDI",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "VACARIA",
+    "cidade_normalizada": "VACARIA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "CAMPO BOM",
+    "cidade_normalizada": "CAMPO BOM",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "CARAZINHO",
+    "cidade_normalizada": "CARAZINHO",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "FARROUPILHA",
+    "cidade_normalizada": "FARROUPILHA",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "IBIRUBA",
+    "cidade_normalizada": "IBIRUBA",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "IJUI",
+    "cidade_normalizada": "IJUI",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "LAJEADO",
+    "cidade_normalizada": "LAJEADO",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "NOVA PRATA",
+    "cidade_normalizada": "NOVA PRATA",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "PORTO ALEGRE",
+    "cidade_normalizada": "PORTO ALEGRE",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SANTA CRUZ DO SUL",
+    "cidade_normalizada": "SANTA CRUZ DO SUL",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SANTO ANTONIO DA PATRULHA",
+    "cidade_normalizada": "SANTO ANTONIO DA PATRULHA",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SAO SEBASTIAO DO CAI",
+    "cidade_normalizada": "SAO SEBASTIAO DO CAI",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "PELOTAS",
+    "cidade_normalizada": "PELOTAS",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SANTA MARIA",
+    "cidade_normalizada": "SANTA MARIA",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SANTIAGO",
+    "cidade_normalizada": "SANTIAGO",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SAO BORJA",
+    "cidade_normalizada": "SAO BORJA",
+    "codigo_tarifa": "1450",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "BAGE",
+    "cidade_normalizada": "BAGE",
+    "codigo_tarifa": "1600",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "CACAPAVA DO SUL",
+    "cidade_normalizada": "CACAPAVA DO SUL",
+    "codigo_tarifa": "1600",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "ROSARIO DO SUL",
+    "cidade_normalizada": "ROSARIO DO SUL",
+    "codigo_tarifa": "1600",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SAO GABRIEL",
+    "cidade_normalizada": "SAO GABRIEL",
+    "codigo_tarifa": "1600",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SAO PEDRO DO SUL",
+    "cidade_normalizada": "SAO PEDRO DO SUL",
+    "codigo_tarifa": "1600",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "ALEGRETE",
+    "cidade_normalizada": "ALEGRETE",
+    "codigo_tarifa": "1750",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "SANTA VITORIA DO PALMAR",
+    "cidade_normalizada": "SANTA VITORIA DO PALMAR",
+    "codigo_tarifa": "1750",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "RS",
+    "cidade_original": "URUGUAIANA",
+    "cidade_normalizada": "URUGUAIANA",
+    "codigo_tarifa": "1750",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "JOINVILLE",
+    "cidade_normalizada": "JOINVILLE",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "MAFRA",
+    "cidade_normalizada": "MAFRA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "SAO BENTO DO SUL",
+    "cidade_normalizada": "SAO BENTO DO SUL",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "BALNEARIO CAMBORIU",
+    "cidade_normalizada": "BALNEARIO CAMBORIU",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "BLUMENAU",
+    "cidade_normalizada": "BLUMENAU",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "BRUSQUE",
+    "cidade_normalizada": "BRUSQUE",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "FLORIANOPOLIS",
+    "cidade_normalizada": "FLORIANOPOLIS",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "ITAJAI",
+    "cidade_normalizada": "ITAJAI",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "JARAGUA DO SUL",
+    "cidade_normalizada": "JARAGUA DO SUL",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "RIO DO SUL",
+    "cidade_normalizada": "RIO DO SUL",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "CHAPECO",
+    "cidade_normalizada": "CHAPECO",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "CRICIUMA",
+    "cidade_normalizada": "CRICIUMA",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "SAO LOURENCO DO OESTE",
+    "cidade_normalizada": "SAO LOURENCO DO OESTE",
+    "codigo_tarifa": "1000",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "SAO MIGUEL D OESTE",
+    "cidade_normalizada": "SAO MIGUEL D OESTE",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SC",
+    "cidade_original": "TUBARAO",
+    "cidade_normalizada": "TUBARAO",
+    "codigo_tarifa": "1150",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "EMBU DAS ARTES",
+    "cidade_normalizada": "EMBU DAS ARTES",
+    "codigo_tarifa": "0100",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "SANTOS",
+    "cidade_normalizada": "SANTOS",
+    "codigo_tarifa": "0100",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "SAO PAULO",
+    "cidade_normalizada": "SAO PAULO",
+    "codigo_tarifa": "0100",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "AMPARO",
+    "cidade_normalizada": "AMPARO",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "BOTUCATU",
+    "cidade_normalizada": "BOTUCATU",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "CAMPINAS",
+    "cidade_normalizada": "CAMPINAS",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "GUARATINGUETA",
+    "cidade_normalizada": "GUARATINGUETA",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "MOGI MIRIM",
+    "cidade_normalizada": "MOGI MIRIM",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "PIRACICABA",
+    "cidade_normalizada": "PIRACICABA",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "REGISTRO",
+    "cidade_normalizada": "REGISTRO",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "RIO CLARO",
+    "cidade_normalizada": "RIO CLARO",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "SAO CARLOS",
+    "cidade_normalizada": "SAO CARLOS",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "SAO JOSE DOS CAMPOS",
+    "cidade_normalizada": "SAO JOSE DOS CAMPOS",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "SAO SEBASTIAO",
+    "cidade_normalizada": "SAO SEBASTIAO",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "Sorocaba",
+    "cidade_normalizada": "SOROCABA",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "TATUI",
+    "cidade_normalizada": "TATUI",
+    "codigo_tarifa": "0250",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "ARARAQUARA",
+    "cidade_normalizada": "ARARAQUARA",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "AVARE",
+    "cidade_normalizada": "AVARE",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "BAURU",
+    "cidade_normalizada": "BAURU",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "BEBEDOURO",
+    "cidade_normalizada": "BEBEDOURO",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "CATANDUVA",
+    "cidade_normalizada": "CATANDUVA",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "IBITINGA",
+    "cidade_normalizada": "IBITINGA",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "ITAPEVA",
+    "cidade_normalizada": "ITAPEVA",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "JAU",
+    "cidade_normalizada": "JAU",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "JAU (INTERIOR)",
+    "cidade_normalizada": null,
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": true
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "MOCOCA",
+    "cidade_normalizada": "MOCOCA",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "OURINHOS",
+    "cidade_normalizada": "OURINHOS",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "PENAPOLIS",
+    "cidade_normalizada": "PENAPOLIS",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "RIBEIRAO PRETO",
+    "cidade_normalizada": "RIBEIRAO PRETO",
+    "codigo_tarifa": "0400",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "ADAMANTINA",
+    "cidade_normalizada": "ADAMANTINA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "ANDRADINA",
+    "cidade_normalizada": "ANDRADINA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "ASSIS",
+    "cidade_normalizada": "ASSIS",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "BIRIGUI",
+    "cidade_normalizada": "BIRIGUI",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "FRANCA",
+    "cidade_normalizada": "FRANCA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "MARILIA",
+    "cidade_normalizada": "MARILIA",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "SAO JOSE DO RIO PRETO",
+    "cidade_normalizada": "SAO JOSE DO RIO PRETO",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "TUPÃ",
+    "cidade_normalizada": "TUP",
+    "codigo_tarifa": "0550",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "FERNANDOPOLIS",
+    "cidade_normalizada": "FERNANDOPOLIS",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "PRESIDENTE PRUDENTE",
+    "cidade_normalizada": "PRESIDENTE PRUDENTE",
+    "codigo_tarifa": "0700",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "REGENTE FEIJO e 7 não transportamos). TAD R$ 7",
+    "cidade_normalizada": "REGENTE FEIJO E 7 NAO TRANSPORTAMOS. TAD R 7",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "58 por CTE Taxa Paletização R$ 99",
+    "cidade_normalizada": "58 POR CTE TAXA PALETIZACAO R 99",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "79 por PALET TDA A partir de R$ 99",
+    "cidade_normalizada": "79 POR PALET TDA A PARTIR DE R 99",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "79 (Localidades de difícil acesso) ou conforme relação site Alfa Transportes TDE A partir de R$ 277",
+    "cidade_normalizada": "79 LOCALIDADES DE DIFICIL ACESSO OU CONFORME RELACAO SITE ALFA TRANSPORTES TDE A PARTIR DE R 277",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "20",
+    "cidade_normalizada": "20",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "conforme relação na área restrita do site TEC (Taxa emergencial de combustível) - R$ 9",
+    "cidade_normalizada": "CONFORME RELACAO NA AREA RESTRITA DO SITE TEC TAXA EMERGENCIAL DE COMBUSTIVEL - R 9",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "86 por CTE TPF - Taxa Pessoa Física R$ 44",
+    "cidade_normalizada": "86 POR CTE TPF - TAXA PESSOA FISICA R 44",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "35 por entrega TRT R$ 199",
+    "cidade_normalizada": "35 POR ENTREGA TRT R 199",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "58 (SP Capital e Região Metropolitana) - RJ 20% sobre o frete com mínimo de R$44",
+    "cidade_normalizada": "58 SP CAPITAL E REGIAO METROPOLITANA - RJ 20 SOBRE O FRETE COM MINIMO DE R44",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "35 TZR (TAXA DE ZONA RURAL) A partir de R$ 665",
+    "cidade_normalizada": "35 TZR TAXA DE ZONA RURAL A PARTIR DE R 665",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "28 (localidades acima de 5Km de estrada de chão) com adicional de R$5",
+    "cidade_normalizada": "28 LOCALIDADES ACIMA DE 5KM DE ESTRADA DE CHAO COM ADICIONAL DE R5",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "55 por KM excedente no MT e MS. Condições Gerais Observações Importantes Faturamento QUINZENAL com 13D FIXO 15.30 dias. Rescisão unilateral a qualquer tempo sem ônus para ambas as partes. Reajustes Automático conforme INTC ou acerto entre as partes",
+    "cidade_normalizada": "55 POR KM EXCEDENTE NO MT E MS. CONDICOES GERAIS OBSERVACOES IMPORTANTES FATURAMENTO QUINZENAL COM 13D FIXO 15.30 DIAS. RESCISAO UNILATERAL A QUALQUER TEMPO SEM ONUS PARA AMBAS AS PARTES. REAJUSTES AUTOMATICO CONFORME INTC OU ACERTO ENTRE AS PARTES",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "podendo ser reajustado em qualquer período do ano",
+    "cidade_normalizada": "PODENDO SER REAJUSTADO EM QUALQUER PERIODO DO ANO",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "de acordo com a variação  dos valores de combustível",
+    "cidade_normalizada": "DE ACORDO COM A VARIACAO DOS VALORES DE COMBUSTIVEL",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "pneus",
+    "cidade_normalizada": "PNEUS",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "pedágios e demais itens essenciais para o transporte. Os valores informados são livres de cargas e descargas e não contemplam serviços adicionais como içamentos de cargas ou outros. Validade Após um período de 60 dias sem movimentação esta proposta perderá a validade",
+    "cidade_normalizada": "PEDAGIOS E DEMAIS ITENS ESSENCIAIS PARA O TRANSPORTE. OS VALORES INFORMADOS SAO LIVRES DE CARGAS E DESCARGAS E NAO CONTEMPLAM SERVICOS ADICIONAIS COMO ICAMENTOS DE CARGAS OU OUTROS. VALIDADE APOS UM PERIODO DE 60 DIAS SEM MOVIMENTACAO ESTA PROPOSTA PERDERA A VALIDADE",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "ou em 28-02-2027 Esta proposta substitui todas as negociações anteriores. ICMS Acrescido conforme legislação. Os serviços de subir lance de escadas ou acomodação de materiais dentro do depósito do cliente não estão inclusos no valor padrão de frete. Caso sejam necessários",
+    "cidade_normalizada": "OU EM 28-02-2027 ESTA PROPOSTA SUBSTITUI TODAS AS NEGOCIACOES ANTERIORES. ICMS ACRESCIDO CONFORME LEGISLACAO. OS SERVICOS DE SUBIR LANCE DE ESCADAS OU ACOMODACAO DE MATERIAIS DENTRO DO DEPOSITO DO CLIENTE NAO ESTAO INCLUSOS NO VALOR PADRAO DE FRETE. CASO SEJAM NECESSARIOS",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "os custos serão avaliados no momento da entrega e repassadas ao pagador. Agrupamento de Notas Responsabilidade do Embarcador. Vigência a partir de:27-08-2026 _______________________________________________ MODIAL COMERCIO DE ARTIGOS FUNERARIOS LTDA ____/____/______ Data _______________________________________________ Departamento Comercial 14/09/2026",
+    "cidade_normalizada": "OS CUSTOS SERAO AVALIADOS NO MOMENTO DA ENTREGA E REPASSADAS AO PAGADOR. AGRUPAMENTO DE NOTAS RESPONSABILIDADE DO EMBARCADOR. VIGENCIA A PARTIR DE27-08-2026  MODIAL COMERCIO DE ARTIGOS FUNERARIOS LTDA  DATA  DEPARTAMENTO COMERCIAL 14092026",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  },
+  {
+    "uf": "SP",
+    "cidade_original": "14:50 about:blank about:blank 3/3",
+    "cidade_normalizada": "1450 ABOUTBLANK ABOUTBLANK 33",
+    "codigo_tarifa": "0850",
+    "eh_zona_especial": false
+  }
+]

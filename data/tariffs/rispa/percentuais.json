@@ -1,0 +1,569 @@
+[
+  {
+    "zona_id": "RMAI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RMTI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RIPP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "SSOP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "SSOP MOVEL",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RIOP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "FLNP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "PANI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RESP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "GRFI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RBHP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RBHR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RMSP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "APUI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "CWBI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "LDAI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "MGAI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "BLUP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "CRIP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "PANR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RBAP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RESI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "BMAI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "GOYI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "LAGI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "UNIP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "ITJP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "JOAP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "JRSP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "JVLP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "LGSP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RDSP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "SBSP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "TUBP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RTOP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RCEP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "ATLI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "PANP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "BMAR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "GOYR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "LAGR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RIOR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "CXSP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "POAP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RSIR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RSEP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RALI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RALP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RBAI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RMSI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RMSR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RMTR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RPEP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "TRPI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RROP",
+    "componente": "gris_advalorem",
+    "percentual": 0.0102,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RPBP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "CHAP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "CENI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "CENP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RBAR",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "TEXI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "TEXP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RPIP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RRNI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RRNP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RSIP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RSEI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RPBI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RPII",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RROI",
+    "componente": "gris_advalorem",
+    "percentual": 0.0102,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RCEI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RGOI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RMAP",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RTOI",
+    "componente": "gris_advalorem",
+    "percentual": 0.006,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RPAP",
+    "componente": "gris_advalorem",
+    "percentual": 0.0102,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RACP",
+    "componente": "gris_advalorem",
+    "percentual": 0.0102,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RAPP",
+    "componente": "gris_advalorem",
+    "percentual": 0.01,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RACI",
+    "componente": "gris_advalorem",
+    "percentual": 0.0102,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RAMP",
+    "componente": "gris_advalorem",
+    "percentual": 0.01,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RRRP",
+    "componente": "gris_advalorem",
+    "percentual": 0.01,
+    "minimo": 6.7,
+    "excecao_uf": null
+  },
+  {
+    "zona_id": "RRRI",
+    "componente": "gris_advalorem",
+    "percentual": 0.01,
+    "minimo": 6.7,
+    "excecao_uf": null
+  }
+]

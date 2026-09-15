@@ -1,0 +1,450 @@
+[
+  {
+    "zona_id": "1150",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 58.09
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 70.54
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 83.01
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 95.46
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 114.13
+      }
+    ],
+    "excedente_kg": 114.1298,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "1000",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 50.31
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 60.49
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 70.66
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 80.8
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 96.08
+      }
+    ],
+    "excedente_kg": 96.0757,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "1300",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 69.12
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 82.8
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 96.49
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 110.18
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 130.74
+      }
+    ],
+    "excedente_kg": 130.7382,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "0700",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 35.71
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 42.93
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 49.81
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 56.85
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 67.44
+      }
+    ],
+    "excedente_kg": 67.4426,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "0850",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 42.58
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 51.52
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 60.43
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 69.37
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 82.77
+      }
+    ],
+    "excedente_kg": 82.7675,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "1450",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 74.29
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 90.06
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 105.82
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 121.6
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 145.25
+      }
+    ],
+    "excedente_kg": 145.251,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "0400",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 27.39
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 32.38
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 37.37
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 42.33
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 49.81
+      }
+    ],
+    "excedente_kg": 49.8085,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "0550",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 32.17
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 38.4
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 44.63
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 50.84
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 60.17
+      }
+    ],
+    "excedente_kg": 60.1709,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "1600",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 78.83
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 95.46
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 112.05
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 128.67
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 153.54
+      }
+    ],
+    "excedente_kg": 153.538,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "2050",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 94.42
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 117.59
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 141.6
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 166.41
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 199.67
+      }
+    ],
+    "excedente_kg": 199.6746,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "2200",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 100.08
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 124.63
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 150.09
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 176.4
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 217.63
+      }
+    ],
+    "excedente_kg": 217.6322,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "2350",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 106.08
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 132.11
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 159.1
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 186.98
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 230.69
+      }
+    ],
+    "excedente_kg": 230.6926,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "2950",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 141.67
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 176.43
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 212.47
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 249.71
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 308.08
+      }
+    ],
+    "excedente_kg": 308.0812,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "1750",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 84.04
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 102.7
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 121.39
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 140.06
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 168.06
+      }
+    ],
+    "excedente_kg": 168.0577,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "0100",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 20.53
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 24.28
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 28.02
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 31.74
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 37.37
+      }
+    ],
+    "excedente_kg": 37.371,
+    "taxa_embarque_minima": null
+  },
+  {
+    "zona_id": "0250",
+    "transportadora": "ALFA",
+    "faixas": [
+      {
+        "peso_ate_kg": 10,
+        "valor": 22.82
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 26.99
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 31.14
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 35.29
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 41.51
+      }
+    ],
+    "excedente_kg": 41.5112,
+    "taxa_embarque_minima": null
+  }
+]

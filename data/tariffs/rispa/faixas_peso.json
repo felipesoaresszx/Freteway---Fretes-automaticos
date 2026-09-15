@@ -1,0 +1,1439 @@
+[
+  {
+    "zona_id": "RMAI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 437.0,
+        "valor_bruto": 437
+      }
+    ],
+    "excedente_kg": 2.49
+  },
+  {
+    "zona_id": "RMTI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 50,
+        "valor": 240.0,
+        "valor_bruto": 240
+      }
+    ],
+    "excedente_kg": 2.6
+  },
+  {
+    "zona_id": "RIPP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 41.0,
+        "valor_bruto": 41
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 43.0,
+        "valor_bruto": 43
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 51.0,
+        "valor_bruto": 51
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 78.0,
+        "valor_bruto": 78
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 81.0,
+        "valor_bruto": 81
+      }
+    ],
+    "excedente_kg": 0.72
+  },
+  {
+    "zona_id": "SSOP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 42.0,
+        "valor_bruto": 42
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 52.0,
+        "valor_bruto": 52
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 71.0,
+        "valor_bruto": 71
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 90.0,
+        "valor_bruto": 90
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 120.0,
+        "valor_bruto": 120
+      }
+    ],
+    "excedente_kg": 0.95
+  },
+  {
+    "zona_id": "SSOP MOVEL",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 57.0,
+        "valor_bruto": 57
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 75.0,
+        "valor_bruto": 75
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 111.0,
+        "valor_bruto": 111
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 148.0,
+        "valor_bruto": 148
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 201.0,
+        "valor_bruto": 201
+      }
+    ],
+    "excedente_kg": 1.82
+  },
+  {
+    "zona_id": "RIOP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 91.0,
+        "valor_bruto": 91
+      }
+    ],
+    "excedente_kg": 0.74
+  },
+  {
+    "zona_id": "FLNP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 149.87272727272727,
+        "valor_bruto": 149.87272727272727
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 154.03636363636363,
+        "valor_bruto": 154.03636363636363
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 158.2,
+        "valor_bruto": 158.2
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 162.36363636363635,
+        "valor_bruto": 162.36363636363635
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 187.34545454545454,
+        "valor_bruto": 187.34545454545454
+      }
+    ],
+    "excedente_kg": 1.0909090909090908
+  },
+  {
+    "zona_id": "PANI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 182.0,
+        "valor_bruto": 182
+      }
+    ],
+    "excedente_kg": 1.24
+  },
+  {
+    "zona_id": "RESP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 149.0,
+        "valor_bruto": 149
+      }
+    ],
+    "excedente_kg": 1.2
+  },
+  {
+    "zona_id": "GRFI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 185.0,
+        "valor_bruto": 185
+      }
+    ],
+    "excedente_kg": 1.67
+  },
+  {
+    "zona_id": "RBHP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 97.0,
+        "valor_bruto": 97
+      }
+    ],
+    "excedente_kg": 0.89
+  },
+  {
+    "zona_id": "RBHR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 106.0,
+        "valor_bruto": 106
+      }
+    ],
+    "excedente_kg": 0.94
+  },
+  {
+    "zona_id": "RMSP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 50,
+        "valor": 153.0,
+        "valor_bruto": 153
+      }
+    ],
+    "excedente_kg": 1.24
+  },
+  {
+    "zona_id": "APUI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 173.0,
+        "valor_bruto": 173
+      }
+    ],
+    "excedente_kg": 2.36
+  },
+  {
+    "zona_id": "CWBI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 80.0,
+        "valor_bruto": 80
+      }
+    ],
+    "excedente_kg": 0.91
+  },
+  {
+    "zona_id": "LDAI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 173.0,
+        "valor_bruto": 173
+      }
+    ],
+    "excedente_kg": 2.36
+  },
+  {
+    "zona_id": "MGAI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 173.0,
+        "valor_bruto": 173
+      }
+    ],
+    "excedente_kg": 2.36
+  },
+  {
+    "zona_id": "BLUP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 149.87272727272727,
+        "valor_bruto": 149.87272727272727
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 154.03636363636363,
+        "valor_bruto": 154.03636363636363
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 158.2,
+        "valor_bruto": 158.2
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 162.36363636363635,
+        "valor_bruto": 162.36363636363635
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 187.34545454545454,
+        "valor_bruto": 187.34545454545454
+      }
+    ],
+    "excedente_kg": 1.0909090909090908
+  },
+  {
+    "zona_id": "CRIP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 160.29090909090908,
+        "valor_bruto": 160.29090909090908
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 164.45454545454544,
+        "valor_bruto": 164.45454545454544
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 168.6181818181818,
+        "valor_bruto": 168.6181818181818
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 172.78181818181818,
+        "valor_bruto": 172.78181818181818
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 197.76363636363635,
+        "valor_bruto": 197.76363636363635
+      }
+    ],
+    "excedente_kg": 1.1818181818181817
+  },
+  {
+    "zona_id": "PANR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 50,
+        "valor": 180.0,
+        "valor_bruto": 180
+      }
+    ],
+    "excedente_kg": 1.5
+  },
+  {
+    "zona_id": "RBAP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 70,
+        "valor": 235.0,
+        "valor_bruto": 235
+      }
+    ],
+    "excedente_kg": 1.75
+  },
+  {
+    "zona_id": "RESI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 266.0,
+        "valor_bruto": 266
+      }
+    ],
+    "excedente_kg": 2.38
+  },
+  {
+    "zona_id": "BMAI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 125.0,
+        "valor_bruto": 125
+      }
+    ],
+    "excedente_kg": 1.27
+  },
+  {
+    "zona_id": "GOYI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 125.0,
+        "valor_bruto": 125
+      }
+    ],
+    "excedente_kg": 1.27
+  },
+  {
+    "zona_id": "LAGI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 125.0,
+        "valor_bruto": 125
+      }
+    ],
+    "excedente_kg": 1.27
+  },
+  {
+    "zona_id": "UNIP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 119.0,
+        "valor_bruto": 119
+      }
+    ],
+    "excedente_kg": 1.18
+  },
+  {
+    "zona_id": "ITJP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 149.87272727272727,
+        "valor_bruto": 149.87272727272727
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 154.03636363636363,
+        "valor_bruto": 154.03636363636363
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 158.2,
+        "valor_bruto": 158.2
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 162.36363636363635,
+        "valor_bruto": 162.36363636363635
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 187.34545454545454,
+        "valor_bruto": 187.34545454545454
+      }
+    ],
+    "excedente_kg": 1.0909090909090908
+  },
+  {
+    "zona_id": "JOAP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 149.87272727272727,
+        "valor_bruto": 149.87272727272727
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 154.03636363636363,
+        "valor_bruto": 154.03636363636363
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 158.2,
+        "valor_bruto": 158.2
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 162.36363636363635,
+        "valor_bruto": 162.36363636363635
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 187.34545454545454,
+        "valor_bruto": 187.34545454545454
+      }
+    ],
+    "excedente_kg": 1.0909090909090908
+  },
+  {
+    "zona_id": "JRSP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 149.87272727272727,
+        "valor_bruto": 149.87272727272727
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 154.03636363636363,
+        "valor_bruto": 154.03636363636363
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 158.2,
+        "valor_bruto": 158.2
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 162.36363636363635,
+        "valor_bruto": 162.36363636363635
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 187.34545454545454,
+        "valor_bruto": 187.34545454545454
+      }
+    ],
+    "excedente_kg": 1.0909090909090908
+  },
+  {
+    "zona_id": "JVLP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 164.45454545454544,
+        "valor_bruto": 164.45454545454544
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 168.6181818181818,
+        "valor_bruto": 168.6181818181818
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 172.78181818181818,
+        "valor_bruto": 172.78181818181818
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 176.9454545454545,
+        "valor_bruto": 176.9454545454545
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 201.9272727272727,
+        "valor_bruto": 201.9272727272727
+      }
+    ],
+    "excedente_kg": 1.1818181818181817
+  },
+  {
+    "zona_id": "LGSP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 164.45454545454544,
+        "valor_bruto": 164.45454545454544
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 168.6181818181818,
+        "valor_bruto": 168.6181818181818
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 172.78181818181818,
+        "valor_bruto": 172.78181818181818
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 176.9454545454545,
+        "valor_bruto": 176.9454545454545
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 201.9272727272727,
+        "valor_bruto": 201.9272727272727
+      }
+    ],
+    "excedente_kg": 1.1818181818181817
+  },
+  {
+    "zona_id": "RDSP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 160.29090909090908,
+        "valor_bruto": 160.29090909090908
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 164.45454545454544,
+        "valor_bruto": 164.45454545454544
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 168.6181818181818,
+        "valor_bruto": 168.6181818181818
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 172.78181818181818,
+        "valor_bruto": 172.78181818181818
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 197.76363636363635,
+        "valor_bruto": 197.76363636363635
+      }
+    ],
+    "excedente_kg": 1.1818181818181817
+  },
+  {
+    "zona_id": "SBSP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 149.87272727272727,
+        "valor_bruto": 149.87272727272727
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 154.03636363636363,
+        "valor_bruto": 154.03636363636363
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 158.2,
+        "valor_bruto": 158.2
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 162.36363636363635,
+        "valor_bruto": 162.36363636363635
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 187.34545454545454,
+        "valor_bruto": 187.34545454545454
+      }
+    ],
+    "excedente_kg": 1.0909090909090908
+  },
+  {
+    "zona_id": "TUBP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 160.29090909090908,
+        "valor_bruto": 160.29090909090908
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 164.45454545454544,
+        "valor_bruto": 164.45454545454544
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 168.6181818181818,
+        "valor_bruto": 168.6181818181818
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 172.78181818181818,
+        "valor_bruto": 172.78181818181818
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 197.76363636363635,
+        "valor_bruto": 197.76363636363635
+      }
+    ],
+    "excedente_kg": 1.1818181818181817
+  },
+  {
+    "zona_id": "RTOP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 219.0,
+        "valor_bruto": 219
+      }
+    ],
+    "excedente_kg": 2.18
+  },
+  {
+    "zona_id": "RCEP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 219.0,
+        "valor_bruto": 219
+      }
+    ],
+    "excedente_kg": 1.99
+  },
+  {
+    "zona_id": "ATLI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 220.0,
+        "valor_bruto": 220
+      }
+    ],
+    "excedente_kg": 2.2
+  },
+  {
+    "zona_id": "PANP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 146.0,
+        "valor_bruto": 146
+      }
+    ],
+    "excedente_kg": 1.09
+  },
+  {
+    "zona_id": "BMAR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 119.0,
+        "valor_bruto": 119
+      }
+    ],
+    "excedente_kg": 1.18
+  },
+  {
+    "zona_id": "GOYR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 119.0,
+        "valor_bruto": 119
+      }
+    ],
+    "excedente_kg": 1.18
+  },
+  {
+    "zona_id": "LAGR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 119.0,
+        "valor_bruto": 119
+      }
+    ],
+    "excedente_kg": 1.18
+  },
+  {
+    "zona_id": "RIOR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 119.0,
+        "valor_bruto": 119
+      }
+    ],
+    "excedente_kg": 1.18
+  },
+  {
+    "zona_id": "CXSP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 183.18181818181816,
+        "valor_bruto": 183.18181818181816
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 187.34545454545454,
+        "valor_bruto": 187.34545454545454
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 201.9272727272727,
+        "valor_bruto": 201.9272727272727
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 218.56363636363633,
+        "valor_bruto": 218.56363636363633
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 281.0181818181818,
+        "valor_bruto": 281.0181818181818
+      }
+    ],
+    "excedente_kg": 1.6727272727272726
+  },
+  {
+    "zona_id": "POAP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 164.45454545454544,
+        "valor_bruto": 164.45454545454544
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 168.6181818181818,
+        "valor_bruto": 168.6181818181818
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 172.78181818181818,
+        "valor_bruto": 172.78181818181818
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 176.9454545454545,
+        "valor_bruto": 176.9454545454545
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 201.9272727272727,
+        "valor_bruto": 201.9272727272727
+      }
+    ],
+    "excedente_kg": 1.4909090909090907
+  },
+  {
+    "zona_id": "RSIR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 253.96363636363637,
+        "valor_bruto": 253.96363636363637
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 258.1272727272727,
+        "valor_bruto": 258.1272727272727
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 262.29090909090905,
+        "valor_bruto": 262.29090909090905
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 270.6181818181818,
+        "valor_bruto": 270.6181818181818
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 333.05454545454546,
+        "valor_bruto": 333.05454545454546
+      }
+    ],
+    "excedente_kg": 2.4545454545454546
+  },
+  {
+    "zona_id": "RSEP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 295.0,
+        "valor_bruto": 295
+      }
+    ],
+    "excedente_kg": 1.98
+  },
+  {
+    "zona_id": "RALI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 277.0,
+        "valor_bruto": 277
+      }
+    ],
+    "excedente_kg": 2.38
+  },
+  {
+    "zona_id": "RALP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 277.0,
+        "valor_bruto": 277
+      }
+    ],
+    "excedente_kg": 2.38
+  },
+  {
+    "zona_id": "RBAI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 70,
+        "valor": 484.0,
+        "valor_bruto": 484
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 682.0,
+        "valor_bruto": 682
+      }
+    ],
+    "excedente_kg": 3.98
+  },
+  {
+    "zona_id": "RMSI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 50,
+        "valor": 208.0,
+        "valor_bruto": 208
+      }
+    ],
+    "excedente_kg": 2.11
+  },
+  {
+    "zona_id": "RMSR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 50,
+        "valor": 181.0,
+        "valor_bruto": 181
+      }
+    ],
+    "excedente_kg": 1.84
+  },
+  {
+    "zona_id": "RMTR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 50,
+        "valor": 210.0,
+        "valor_bruto": 210
+      }
+    ],
+    "excedente_kg": 2.25
+  },
+  {
+    "zona_id": "RPEP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 30,
+        "valor": 160.0,
+        "valor_bruto": 160
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 233.0,
+        "valor_bruto": 233
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 271.0,
+        "valor_bruto": 271
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 349.0,
+        "valor_bruto": 349
+      },
+      {
+        "peso_ate_kg": 150,
+        "valor": 493.0,
+        "valor_bruto": 493
+      }
+    ],
+    "excedente_kg": 3.07
+  },
+  {
+    "zona_id": "TRPI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 30,
+        "valor": 210.0,
+        "valor_bruto": 210
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 306.0,
+        "valor_bruto": 306
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 357.0,
+        "valor_bruto": 357
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 459.0,
+        "valor_bruto": 459
+      },
+      {
+        "peso_ate_kg": 150,
+        "valor": 648.0,
+        "valor_bruto": 648
+      }
+    ],
+    "excedente_kg": 4.51
+  },
+  {
+    "zona_id": "RROP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 200.0,
+        "valor_bruto": 200
+      }
+    ],
+    "excedente_kg": 1.53
+  },
+  {
+    "zona_id": "RPBP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 30,
+        "valor": 164.0,
+        "valor_bruto": 164
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 239.0,
+        "valor_bruto": 239
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 277.0,
+        "valor_bruto": 277
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 357.0,
+        "valor_bruto": 357
+      },
+      {
+        "peso_ate_kg": 150,
+        "valor": 504.0,
+        "valor_bruto": 504
+      }
+    ],
+    "excedente_kg": 3.44
+  },
+  {
+    "zona_id": "CHAP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 201.9272727272727,
+        "valor_bruto": 201.9272727272727
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 206.09090909090907,
+        "valor_bruto": 206.09090909090907
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 210.23636363636362,
+        "valor_bruto": 210.23636363636362
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 214.39999999999998,
+        "valor_bruto": 214.39999999999998
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 291.4363636363636,
+        "valor_bruto": 291.4363636363636
+      }
+    ],
+    "excedente_kg": 1.7090909090909088
+  },
+  {
+    "zona_id": "CENI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 70,
+        "valor": 255.0,
+        "valor_bruto": 255
+      }
+    ],
+    "excedente_kg": 2.55
+  },
+  {
+    "zona_id": "CENP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 70,
+        "valor": 182.0,
+        "valor_bruto": 182
+      }
+    ],
+    "excedente_kg": 1.55
+  },
+  {
+    "zona_id": "RBAR",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 70,
+        "valor": 235.0,
+        "valor_bruto": 235
+      }
+    ],
+    "excedente_kg": 1.75
+  },
+  {
+    "zona_id": "TEXI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 70,
+        "valor": 342.0,
+        "valor_bruto": 342
+      }
+    ],
+    "excedente_kg": 2.16
+  },
+  {
+    "zona_id": "TEXP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 70,
+        "valor": 235.0,
+        "valor_bruto": 235
+      }
+    ],
+    "excedente_kg": 1.44
+  },
+  {
+    "zona_id": "RPIP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 246.0,
+        "valor_bruto": 246
+      }
+    ],
+    "excedente_kg": 1.95
+  },
+  {
+    "zona_id": "RRNI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 455.0,
+        "valor_bruto": 455
+      }
+    ],
+    "excedente_kg": 2.73
+  },
+  {
+    "zona_id": "RRNP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 328.0,
+        "valor_bruto": 328
+      }
+    ],
+    "excedente_kg": 2.05
+  },
+  {
+    "zona_id": "RSIP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 20,
+        "valor": 233.1454545454545,
+        "valor_bruto": 233.1454545454545
+      },
+      {
+        "peso_ate_kg": 30,
+        "valor": 237.3090909090909,
+        "valor_bruto": 237.3090909090909
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 241.47272727272727,
+        "valor_bruto": 241.47272727272727
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 245.6363636363636,
+        "valor_bruto": 245.6363636363636
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 312.25454545454545,
+        "valor_bruto": 312.25454545454545
+      }
+    ],
+    "excedente_kg": 2.0727272727272723
+  },
+  {
+    "zona_id": "RSEI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 395.0,
+        "valor_bruto": 395
+      }
+    ],
+    "excedente_kg": 2.49
+  },
+  {
+    "zona_id": "RPBI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 30,
+        "valor": 211.0,
+        "valor_bruto": 211
+      },
+      {
+        "peso_ate_kg": 50,
+        "valor": 306.0,
+        "valor_bruto": 306
+      },
+      {
+        "peso_ate_kg": 70,
+        "valor": 357.0,
+        "valor_bruto": 357
+      },
+      {
+        "peso_ate_kg": 100,
+        "valor": 459.0,
+        "valor_bruto": 459
+      },
+      {
+        "peso_ate_kg": 150,
+        "valor": 648.0,
+        "valor_bruto": 648
+      }
+    ],
+    "excedente_kg": 4.76
+  },
+  {
+    "zona_id": "RPII",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 428.0,
+        "valor_bruto": 428
+      }
+    ],
+    "excedente_kg": 2.49
+  },
+  {
+    "zona_id": "RROI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 215.0,
+        "valor_bruto": 215
+      }
+    ],
+    "excedente_kg": 1.64
+  },
+  {
+    "zona_id": "RCEI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 455.0,
+        "valor_bruto": 455
+      }
+    ],
+    "excedente_kg": 2.99
+  },
+  {
+    "zona_id": "RGOI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 182.0,
+        "valor_bruto": 182
+      }
+    ],
+    "excedente_kg": 1.84
+  },
+  {
+    "zona_id": "RMAP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 437.0,
+        "valor_bruto": 437
+      }
+    ],
+    "excedente_kg": 2.49
+  },
+  {
+    "zona_id": "RTOI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 271.0,
+        "valor_bruto": 271
+      }
+    ],
+    "excedente_kg": 2.71
+  },
+  {
+    "zona_id": "RPAP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 219.0,
+        "valor_bruto": 219
+      }
+    ],
+    "excedente_kg": 2.19
+  },
+  {
+    "zona_id": "RACP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 228.0,
+        "valor_bruto": 228
+      }
+    ],
+    "excedente_kg": 2.33
+  },
+  {
+    "zona_id": "RAPP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 491.0,
+        "valor_bruto": 491
+      }
+    ],
+    "excedente_kg": 4.8
+  },
+  {
+    "zona_id": "RACI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 267.0,
+        "valor_bruto": 267
+      }
+    ],
+    "excedente_kg": 3.6
+  },
+  {
+    "zona_id": "RAMP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 437.0,
+        "valor_bruto": 437
+      }
+    ],
+    "excedente_kg": 4.18
+  },
+  {
+    "zona_id": "RRRP",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 573.0,
+        "valor_bruto": 573
+      }
+    ],
+    "excedente_kg": 5.69
+  },
+  {
+    "zona_id": "RRRI",
+    "transportadora": "RISPA",
+    "faixas": [
+      {
+        "peso_ate_kg": 100,
+        "valor": 673.0,
+        "valor_bruto": 673
+      }
+    ],
+    "excedente_kg": 6.65
+  }
+]

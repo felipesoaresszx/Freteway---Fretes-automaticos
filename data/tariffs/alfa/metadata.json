@@ -1,0 +1,14 @@
+{
+  "transportadora": "ALFA TRANSPORTES",
+  "cnpj": null,
+  "cliente_tenant": "MODIAL COMERCIO DE ARTIGOS FUNERARIOS LTDA",
+  "cliente_tenant_cnpj": "04917818000124",
+  "origem_uf": "SP",
+  "origem_cidade": "GUARULHOS",
+  "codigo_filial": "10",
+  "vigencia_inicio": null,
+  "vigencia_fim": null,
+  "versao_tabela": "REV 14",
+  "cubagem_kg_m3": 250.0,
+  "data_emissao": "2026-09-14"
+}
