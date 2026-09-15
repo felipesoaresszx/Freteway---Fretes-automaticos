@@ -51,7 +51,7 @@ export function TabelasFreteManager({ transportadoraId, transportadoraNome, onCl
           <button aria-label="Fechar" onClick={onClose} className="h-9 rounded border border-border px-3"><X size={15} /></button>
         </div>
       </div>
-      {exibirForm && <TabelaFreteForm transportadoraId={transportadoraId} salvando={criar.isPending || upload.isPending || analisar.isPending} onSave={salvar} onCancel={() => setExibirForm(false)} />}
+      {exibirForm && <TabelaFreteForm transportadoraId={transportadoraId} transportadoraNome={transportadoraNome} salvando={criar.isPending || upload.isPending || analisar.isPending} onSave={salvar} onCancel={() => setExibirForm(false)} />}
       {erro && <p className="text-sm text-state-error">{erro}</p>}
       {tabelaEmRevisao && <TabelaFreteRevisao tabelaId={tabelaEmRevisao} transportadoraId={transportadoraId} onClose={() => setTabelaEmRevisao(null)} />}
       {tabelas.isLoading && <p className="text-sm text-text-secondary">Carregando tabelas...</p>}

@@ -60,8 +60,9 @@ def test_pdf_tarifario_usa_motor_universal_quando_parser_especifico_falha():
 
     assert result["dados_extraidos"]["formato"] == "tabela_frete_universal_v1"
     assert result["confianca_extracao"] == 0.98
-    assert len(result["dados_extraidos"]["faixas_tarifarias"]) >= 20
+    assert len(result["dados_extraidos"]["faixas_tarifarias"]) == 5
     assert len(result["dados_extraidos"]["pracas"]) >= 20
+    assert len(result["dados_extraidos"]["pracas"][0]["weight_rates"]) == 5
 
 
 def test_pipeline_executa_etapas_na_ordem_definida(tmp_path: Path):

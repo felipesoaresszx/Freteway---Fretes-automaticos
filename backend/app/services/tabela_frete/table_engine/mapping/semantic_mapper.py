@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from app.services.tabela_frete.table_engine.classification.column_classifier import classify_columns
 from app.services.tabela_frete.table_engine.normalization.city_normalizer import normalize_city_name
 from app.services.tabela_frete.table_engine.normalization.cep_normalizer import normalize_cep
@@ -15,10 +17,15 @@ class SemanticMapper:
                 key = str(raw_key)
                 if not key or key.isdigit():
                     continue
-                canonical = classify_columns([key]).get(key, "unknown")
+                weight_match = re.search(r"(?:AT[EÉ�]|ATE|PESO)\s*(\d+)\s*KG", key, flags=re.IGNORECASE)
+                canonical = (
+                    f"weight_rate_{weight_match.group(1)}"
+                    if weight_match
+                    else classify_columns([key]).get(key, "unknown")
+                )
                 if canonical == "destination_city":
                     city = normalize_city_name(raw_value)
-                    item[canonical] = city
+                    item[canonical] = city.get("normalized_value") if isinstance(city, dict) else city
                 elif canonical in {"cep_start", "cep_end"}:
                     item[canonical] = normalize_cep(raw_value)
                 elif canonical in {"weight_limit", "price", "excess_rate", "gris", "ad_valorem", "pedagio", "delivery_days"}:

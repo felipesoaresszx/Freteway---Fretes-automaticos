@@ -7,6 +7,7 @@ import type { TabelaFreteCreate } from "../../types/tabelaFrete";
 
 interface Props {
   transportadoraId: string;
+  transportadoraNome: string;
   salvando: boolean;
   onSave: (dados: TabelaFreteCreate, arquivos: File[]) => Promise<void>;
   onCancel: () => void;
@@ -18,7 +19,15 @@ function dataFutura(dias: number) {
   return data.toISOString().slice(0, 10);
 }
 
-export function TabelaFreteForm({ transportadoraId, salvando, onSave, onCancel }: Props) {
+function nomeTabelaPadrao(transportadoraNome: string, arquivoBase: string) {
+  const nome = transportadoraNome.trim();
+  const normalizado = nome.toLowerCase();
+  if (normalizado.includes("alfa")) return "Tabela Alfa";
+  if (normalizado.includes("rodonaves")) return "Tabela Rodonaves";
+  return `Tabela ${nome || arquivoBase}`;
+}
+
+export function TabelaFreteForm({ transportadoraId, transportadoraNome, salvando, onSave, onCancel }: Props) {
   const arquivoRef = useRef<HTMLInputElement>(null);
   const [arquivos, setArquivos] = useState<File[]>([]);
   const { register, handleSubmit, formState: { errors } } = useForm<TabelaFreteCreate>({
@@ -49,7 +58,7 @@ export function TabelaFreteForm({ transportadoraId, salvando, onSave, onCancel }
       const base = arquivos[0].name.replace(/\.[^.]+$/, "");
       onSave({
         ...dados,
-        nome: dados.nome.trim() || base,
+        nome: dados.nome.trim() || nomeTabelaPadrao(transportadoraNome, base),
         codigo: dados.codigo.trim() || `IMP-${Date.now()}`,
         versao: dados.versao.trim() || "1",
         fator_cubagem: Number.isFinite(dados.fator_cubagem) ? dados.fator_cubagem : 300,

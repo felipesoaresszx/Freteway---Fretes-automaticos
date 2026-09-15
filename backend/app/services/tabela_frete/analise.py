@@ -291,6 +291,16 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
             if contrato and (contrato.get("validation") or {}).get("status") == "TABLE_VALIDATED":
                 dados = {
                     "formato": "tabela_frete_universal_v1",
+                    "carrier": contrato.get("carrier"),
+                    "origin": contrato.get("origin"),
+                    "validity": contrato.get("validity"),
+                    "currency": contrato.get("currency", "BRL"),
+                    "weight_bands": contrato.get("weight_bands", []),
+                    "destinations": contrato.get("destinations", []),
+                    "surcharges": contrato.get("surcharges", []),
+                    "delivery_rules": contrato.get("delivery_rules", []),
+                    "collection_rules": contrato.get("collection_rules", []),
+                    "general_rules": contrato.get("general_rules", []),
                     "fator_cubagem": 300,
                     "peso_limite_kg": max(
                         (
@@ -548,21 +558,22 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
         tabela.fator_cubagem = float(dados.get("fator_cubagem", tabela.fator_cubagem))
         return
     if dados.get("formato") == "tabela_frete_universal_v1":
-        if not dados.get("faixas_tarifarias") or not dados.get("pracas"):
+        if not dados.get("destinations"):
             raise AnaliseDocumentoError("Informe ao menos uma faixa tarifária e uma praça/CEP")
-        dados = {
-            "formato": "rodonaves_km_peso_v1",
-            "fator_cubagem": dados.get("fator_cubagem", tabela.fator_cubagem),
-            "peso_limite_kg": dados.get("peso_limite_kg") or 7000,
-            "matriz_tarifas": dados["faixas_tarifarias"],
-            "coberturas": dados["pracas"],
-            "regras": dados.get("regras", {}),
-            "zonas": dados.get("zonas_especiais", {}),
-            "estatisticas": {
-                "faixas_km": len(dados["faixas_tarifarias"]),
-                "coberturas_cep": len(dados["pracas"]),
-            },
-        }
+        await db.execute(
+            delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
+        )
+        db.add(TabelaFreteDadosImportados(
+            tabela_frete_id=tabela.id,
+            formato=dados["formato"],
+            dados=dados,
+            quantidade_coberturas=len(dados["destinations"]),
+            quantidade_tarifas=sum(
+                len(destination.get("weight_rates", []))
+                for destination in dados["destinations"]
+            ),
+        ))
+        return
     if dados.get("formato") == "rodonaves_km_peso_v1":
         await db.execute(
             delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)

@@ -26,6 +26,7 @@ from app.services.tabela_frete.calculo_rodonaves import CalculoRodonavesError, c
 from app.services.tabela_frete.calculo_uf_zona import CalculoUfZonaError, calcular_uf_zona
 from app.services.tabela_frete.calculo_transwells import CalculoTranswellsError, calcular_transwells
 from app.services.tabela_frete.contrato_calculo import ContractError, calculate as calcular_contrato
+from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
 
 
 class TabelaFreteCalculoService:
@@ -93,6 +94,12 @@ class TabelaFreteCalculoService:
                     return calcular_contrato(tabela.dados_importados.dados, dados_cotacao)
                 except ContractError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_CANONICA", "erro_mensagem": str(exc)}
+
+            if tabela.dados_importados and tabela.dados_importados.formato == "tabela_frete_universal_v1":
+                try:
+                    return calcular_universal(tabela.dados_importados.dados, dados_cotacao)
+                except CalculoUniversalError as exc:
+                    return {"status": "error", "erro_codigo": "REGRA_TABELA_UNIVERSAL", "erro_mensagem": str(exc)}
 
             # 2. Valida dados de entrada
             erro = self._validar_dados_entrada(dados_cotacao)

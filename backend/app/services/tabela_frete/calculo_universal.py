@@ -1,0 +1,68 @@
+"""Cálculo para tabelas normalizadas pelo motor universal."""
+
+from __future__ import annotations
+
+import re
+
+from app.services.tabela_frete.contrato import key
+
+
+class CalculoUniversalError(ValueError):
+    pass
+
+
+def _cep(value: str | None) -> str:
+    cep = re.sub(r"\D", "", value or "")
+    if len(cep) != 8:
+        raise CalculoUniversalError("CEP de destino inválido ou ausente")
+    return cep
+
+
+def _destination(data: dict, quote: dict) -> dict:
+    cep = _cep(quote.get("destino_cep")) if quote.get("destino_cep") else None
+    city = quote.get("destino_cidade")
+    state = quote.get("destino_uf")
+    matches = []
+    for item in data.get("destinations", []):
+        if cep and item.get("cep_start") and item.get("cep_end") and item["cep_start"] <= cep <= item["cep_end"]:
+            matches.append(item)
+        elif not cep and city and state and key(item.get("city")) == key(city) and key(item.get("uf")) == key(state):
+            matches.append(item)
+        elif not cep and state and not city and key(item.get("uf")) == key(state):
+            matches.append(item)
+    if not matches:
+        raise CalculoUniversalError("Destino sem correspondência na tabela da transportadora")
+    if len(matches) > 1:
+        raise CalculoUniversalError("Destino ambíguo na tabela da transportadora")
+    return matches[0]
+
+
+def calcular_universal(data: dict, quote: dict) -> dict:
+    real = float(quote.get("peso") or 0)
+    if real <= 0:
+        raise CalculoUniversalError("Peso deve ser maior que zero")
+    destination = _destination(data, quote)
+    volume = float(quote.get("volume_total_m3") or 0)
+    factor = float(data.get("fator_cubagem") or 0)
+    cubed = volume * factor
+    weight = max(real, cubed)
+    bands = sorted(destination.get("weight_rates", []), key=lambda item: float(item.get("max_weight", 0)))
+    band = next((item for item in bands if weight <= float(item.get("max_weight", 0))), None)
+    if band is None:
+        raise CalculoUniversalError("Não existe tarifa para o peso informado")
+    total = float(band.get("price") or 0)
+    return {
+        "status": "success",
+        "valor_total": round(total, 2),
+        "frete_base": round(total, 2),
+        "total_taxas": 0.0,
+        "taxas_detalhadas": [],
+        "prazo_dias": destination.get("delivery_days"),
+        "peso_considerado_kg": round(weight, 3),
+        "peso_real_kg": real,
+        "peso_cubado_kg": round(cubed, 3),
+        "destino_tabela": {
+            "uf": destination.get("uf"),
+            "cidade": destination.get("city"),
+        },
+    }
