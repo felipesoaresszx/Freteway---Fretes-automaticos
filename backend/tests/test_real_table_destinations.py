@@ -54,3 +54,32 @@ def test_alfa_accepts_destination_cep_when_table_is_by_state():
     assert quote["status"] == "success"
     assert quote["valor_total"] == pytest.approx(58.09)
     assert quote["destino_tabela"]["uf"] == "DF"
+
+
+def test_alfa_quote_uses_cubed_weight_from_screen_data():
+    result = import_table_document(
+        FIXTURES / "TABELA ALFA.pdf",
+        carrier="alfa",
+        origin={"city": "Guarulhos", "state": "SP"},
+    )
+    result["fator_cubagem"] = 300
+
+    quote = calcular_universal(
+        result,
+        {
+            "origem_cep": "07042-180",
+            "origem_cidade": "Guarulhos",
+            "origem_uf": "SP",
+            "destino_cep": "09990-690",
+            "destino_cidade": "Diadema",
+            "destino_uf": "SP",
+            "peso": 10,
+            "valor_nf": 628,
+            "volume_total_m3": 0.110,
+        },
+    )
+
+    assert quote["status"] == "success"
+    assert quote["peso_cubado_kg"] == pytest.approx(33)
+    assert quote["peso_considerado_kg"] == pytest.approx(33)
+    assert quote["valor_total"] == pytest.approx(60.43)

@@ -13,6 +13,7 @@ Testa:
 
 import pytest
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 from app.services.tabela_frete.calculo import TabelaFreteCalculoService
@@ -113,6 +114,51 @@ def criar_tarifa_mock(
     tarifa.abrangencia_id = abrangencia_id
     tarifa.rota_id = None
     return tarifa
+
+
+@pytest.mark.asyncio
+async def test_calcula_tabela_alfa_legada_salva_com_formato_rodonaves():
+    tabela = SimpleNamespace(
+        status="active",
+        data_inicio=datetime.utcnow() - timedelta(days=1),
+        data_fim=datetime.utcnow() + timedelta(days=1),
+        moeda="BRL",
+        dados_importados=SimpleNamespace(
+            formato="rodonaves_km_peso_v1",
+            dados={
+                "fator_cubagem": 300,
+                "coberturas": [{
+                    "uf": "SP",
+                    "city": "REGENTE FEIJO 085",
+                    "weight_rates": [
+                        {"max_weight": 20, "price": 42.58},
+                        {"max_weight": 30, "price": 51.52},
+                        {"max_weight": 50, "price": 60.43},
+                    ],
+                }],
+            },
+        ),
+    )
+    service = TabelaFreteCalculoService(AsyncMock())
+
+    async def load_table(_table_id):
+        return tabela
+
+    service._carregar_tabela_com_regras = load_table
+    result = await service.calcular("alfa-table", {
+        "origem_cep": "07042-180",
+        "origem_cidade": "Guarulhos",
+        "origem_uf": "SP",
+        "destino_cep": "09990-690",
+        "destino_cidade": "Diadema",
+        "destino_uf": "SP",
+        "peso": 10,
+        "valor_nf": 628,
+        "volume_total_m3": 0.11,
+    })
+
+    assert result["status"] == "success"
+    assert result["valor_total"] == pytest.approx(60.43)
 
 
 def criar_taxa_mock(

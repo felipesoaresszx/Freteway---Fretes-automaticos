@@ -68,8 +68,23 @@ class TabelaFreteCalculoService:
                 }
 
             if tabela.dados_importados and tabela.dados_importados.formato == "rodonaves_km_peso_v1":
+                dados = tabela.dados_importados.dados
+                # Versões anteriores armazenaram a tabela universal da Alfa
+                # com o formato Rodonaves e mantiveram as praças em
+                # ``coberturas``. Essas praças têm weight_rates, não CEPs.
+                if any("weight_rates" in item for item in dados.get("coberturas", [])):
+                    dados_universal = dict(dados)
+                    dados_universal["destinations"] = dados["coberturas"]
+                    try:
+                        return calcular_universal(dados_universal, dados_cotacao)
+                    except CalculoUniversalError as exc:
+                        return {
+                            "status": "error",
+                            "erro_codigo": "REGRA_TABELA_UNIVERSAL",
+                            "erro_mensagem": str(exc),
+                        }
                 try:
-                    return calcular_rodonaves(tabela.dados_importados.dados, dados_cotacao)
+                    return calcular_rodonaves(dados, dados_cotacao)
                 except CalculoRodonavesError as exc:
                     return {
                         "status": "error",
