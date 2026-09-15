@@ -246,7 +246,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
         from app.services.tabela_frete.rodonaves_excel import extrair_rodonaves_excel
         try:
             dados = extrair_rodonaves_excel(caminho)
-        except AnaliseDocumentoError:
+        except (AnaliseDocumentoError, RuntimeError):
             from app.services.tabela_frete.extracao_generica import extrair_documento_generico
             dados = extrair_documento_generico(caminho, documento.tipo_arquivo)
             return {
