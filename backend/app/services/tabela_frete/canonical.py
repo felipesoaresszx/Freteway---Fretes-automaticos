@@ -235,6 +235,7 @@ class FreightTableVersion:
     parser_version: str | None = None
     normalizer_version: str | None = None
     analysis_confidence: Decimal | None = None
+    cubage_kg_m3: Decimal | None = None
     destinations: list[Destination] = field(default_factory=list)
     destination_groups: list[DestinationGroup] = field(default_factory=list)
     cep_ranges: list[CepRange] = field(default_factory=list)
@@ -260,6 +261,7 @@ class FreightCalculation:
     matched_cep_range: str | None
     matched_weight_band: str
     calculation_steps: tuple[str, ...]
+    composition: tuple[dict[str, Any], ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         result = asdict(self)
@@ -269,6 +271,10 @@ class FreightCalculation:
         result["surcharges"] = [
             {key: (float(value) if isinstance(value, Decimal) else value) for key, value in item.items()}
             for item in self.surcharges
+        ]
+        result["composition"] = [
+            {key: (float(value) if isinstance(value, Decimal) else value) for key, value in item.items()}
+            for item in self.composition
         ]
         result["calculation_steps"] = list(self.calculation_steps)
         return result
@@ -338,6 +344,14 @@ def calculate_freight(version: FreightTableVersion, request: dict[str, Any]) -> 
     """Calculate using only canonical entities, never source-file structures."""
     weight = Decimal(str(request["weight_kg"]))
     invoice_value = Decimal(str(request.get("invoice_value", 0)))
+    volume = Decimal(str(request.get("volume_total_m3", 0) or 0))
+    cubage_kg_m3 = version.cubage_kg_m3
+    if cubage_kg_m3 is None:
+        cubage_rule = next((item for item in version.calculation_rules if item.code.upper() in {"CUBAGEM", "CUBAGE"}), None)
+        if cubage_rule and cubage_rule.conditions.get("factor_kg_m3") is not None:
+            cubage_kg_m3 = Decimal(str(cubage_rule.conditions["factor_kg_m3"]))
+    if cubage_kg_m3 is not None and volume > 0:
+        weight = max(weight, volume * cubage_kg_m3)
     if weight <= 0:
         raise ValueError("Peso deve ser maior que zero")
     destination, destination_type, cep_range_id = resolve_destination(
@@ -346,13 +360,16 @@ def calculate_freight(version: FreightTableVersion, request: dict[str, Any]) -> 
         city=request.get("destination", {}).get("city"),
         state=request.get("destination", {}).get("state"),
     )
+    sorted_bands = sorted(version.weight_bands, key=lambda item: (item.max_weight, item.sequence))
     eligible = [
-        band for band in version.weight_bands
+        band for band in sorted_bands
         if band.min_weight < weight <= band.max_weight
     ]
     excess = Decimal("0")
     if not eligible:
-        band = max(version.weight_bands, key=lambda item: item.max_weight)
+        band = max(sorted_bands, key=lambda item: item.max_weight) if sorted_bands else None
+        if band is None:
+            raise ValueError("Não existem faixas de peso na tabela")
         rule = next(
             (
                 item
@@ -381,6 +398,10 @@ def calculate_freight(version: FreightTableVersion, request: dict[str, Any]) -> 
     )
     base = rate.amount if rate else band.amount
     lines: list[dict[str, Any]] = []
+    composition = [
+        {"code": "FRETE_PESO", "description": "Frete pela faixa", "base": "WEIGHT_BAND", "valor": _money(base)},
+        {"code": "EXCEDENTE", "description": "Excedente de peso", "base": "EXCESS", "valor": _money(excess)},
+    ]
     for surcharge in sorted(version.surcharges, key=lambda item: item.code):
         if not surcharge.active:
             continue
@@ -398,9 +419,11 @@ def calculate_freight(version: FreightTableVersion, request: dict[str, Any]) -> 
             amount = max(amount, surcharge.minimum_amount)
         if surcharge.maximum_amount is not None:
             amount = min(amount, surcharge.maximum_amount)
-        lines.append({"code": surcharge.code, "amount": _money(amount), "basis": surcharge.basis})
+        amount = _money(amount)
+        lines.append({"code": surcharge.code, "amount": amount, "basis": surcharge.basis, "description": surcharge.name})
+        composition.append({"code": surcharge.code, "description": surcharge.name, "base": surcharge.basis or "FREIGHT", "valor": amount})
     total_surcharges = sum((item["amount"] for item in lines), Decimal("0"))
-    return FreightCalculation(
+    freight = FreightCalculation(
         total=_money(base + excess + total_surcharges),
         currency="BRL",
         base_freight=_money(base),
@@ -417,4 +440,6 @@ def calculate_freight(version: FreightTableVersion, request: dict[str, Any]) -> 
             "calculate_excess",
             "apply_surcharges",
         ),
+        composition=tuple(composition),
     )
+    return freight
