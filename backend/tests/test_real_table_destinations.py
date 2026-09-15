@@ -5,7 +5,7 @@ import pytest
 from app.services.tabela_frete.table_engine.service.table_import_service import import_table_document
 
 
-ROOT = Path(__file__).parents[2]
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.mark.parametrize(
@@ -16,7 +16,7 @@ ROOT = Path(__file__).parents[2]
     ],
 )
 def test_real_tables_extract_destination_rules(filename: str, minimum_destinations: int):
-    result = import_table_document(ROOT / filename)
+    result = import_table_document(FIXTURES / filename)
 
     assert result["validation"]["status"] == "TABLE_VALIDATED"
     assert len(result["destinations"]) >= minimum_destinations
