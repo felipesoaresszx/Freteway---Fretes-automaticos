@@ -13,7 +13,7 @@ fi
 cd "$ROOT_DIR"
 git fetch --prune origin main
 git checkout main
-git -c core.filemode=false merge --ff-only origin/main
+git reset --hard origin/main
 
 chmod +x deploy/deploy.sh deploy/github_deploy_entrypoint.sh scripts/pre_deploy_backup.sh
 ENV_FILE=.env.production COMPOSE_FILE=docker-compose.production.yml ./deploy/deploy.sh
