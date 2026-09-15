@@ -275,7 +275,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
         try:
             from app.services.tabela_frete.pdf_tarifario import extract_pdf_tariff
             dados = extract_pdf_tariff(caminho)
-        except AnaliseDocumentoError:
+        except (AnaliseDocumentoError, RuntimeError):
             from app.services.tabela_frete.table_engine.service.table_import_service import (
                 import_table_document,
             )
