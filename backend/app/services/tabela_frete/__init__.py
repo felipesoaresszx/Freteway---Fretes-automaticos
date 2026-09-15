@@ -1,10 +1,46 @@
 """Serviços para Tabela de Frete Universal."""
 
 from app.services.tabela_frete.table_engine import FreightTable, Surcharge, TableImportService, WeightBand
+from app.services.tabela_frete.canonical import (
+    Carrier,
+    CepRange,
+    CoverageRule,
+    Destination,
+    FreightCalculation,
+    FreightRate,
+    FreightTable as CanonicalFreightTable,
+    FreightTableVersion,
+    ImportAnalysis,
+    ImportSource,
+    Surcharge as CanonicalSurcharge,
+    ValidationIssue,
+    WeightBand as CanonicalWeightBand,
+    calculate_freight,
+    normalize_cep,
+    normalize_city,
+    resolve_destination,
+)
 
 __all__ = [
     "FreightTable",
     "Surcharge",
     "TableImportService",
     "WeightBand",
+    "Carrier",
+    "CepRange",
+    "CoverageRule",
+    "Destination",
+    "FreightCalculation",
+    "FreightRate",
+    "CanonicalFreightTable",
+    "FreightTableVersion",
+    "ImportAnalysis",
+    "ImportSource",
+    "CanonicalSurcharge",
+    "ValidationIssue",
+    "CanonicalWeightBand",
+    "calculate_freight",
+    "normalize_cep",
+    "normalize_city",
+    "resolve_destination",
 ]

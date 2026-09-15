@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import re
+import unicodedata
+import csv
+import io
 from pathlib import Path
 
 from app.services.tabela_frete.table_engine.adapters.normalized_table_adapter import to_canonical_contract
@@ -44,40 +48,118 @@ class TableImportService:
         return contract
 
     def _extract_rows(self, raw_text: str) -> list[dict[str, object]]:
-        rows: list[dict[str, object]] = []
         lines = [line for line in raw_text.splitlines() if line.strip()]
         if not lines:
-            return rows
+            return []
+
+        # Spreadsheet exports commonly repeat the tariff header between
+        # regions and use blank UF cells for continuation rows.
+        for index, line in enumerate(lines):
+            parts = [part.strip() for part in line.split("|")]
+            normalized = _header_key(line)
+            if "UF" in normalized and "DESTINO" in normalized and _weight_header_count(parts) >= 3:
+                rows = _pipe_rows(lines[index:], parts)
+                if rows:
+                    return rows
+
+        # PDF text extraction does not preserve table delimiters. Its stable
+        # semantic anchors are the destination UF and the five tariff values.
+        pdf_rows = _pdf_tariff_rows(lines)
+        if pdf_rows:
+            return pdf_rows
+
         delimiter = "|" if any("|" in line for line in lines) else ","
-        try:
-            import csv
-            import io
+        reader = csv.reader(io.StringIO(raw_text), delimiter=delimiter)
+        table = [row for row in reader if row and any(cell.strip() for cell in row)]
+        if len(table) >= 2:
+            header = [cell.strip() for cell in table[0]]
+            return [
+                {
+                    header_name: values[position].strip()
+                    for position, header_name in enumerate(header)
+                    if position < len(values) and header_name
+                }
+                for values in table[1:]
+            ]
+        return []
 
-            reader = csv.reader(io.StringIO(raw_text), delimiter=delimiter)
-            table = [row for row in reader if row and any(cell.strip() for cell in row)]
-            if len(table) >= 2:
-                header = [cell.strip() for cell in table[0]]
-                for values in table[1:]:
-                    row = {}
-                    for idx, header_name in enumerate(header):
-                        if idx < len(values):
-                            row[header_name] = values[idx].strip()
-                    if row:
-                        rows.append(row)
-                return rows
-        except Exception:
-            pass
 
-        for line in lines:
-            if "|" in line:
-                parts = [part.strip() for part in line.split("|")]
-                headers = [part for part in parts if part]
-                if len(headers) >= 2:
-                    rows.append({str(index): value for index, value in enumerate(headers)})
-            elif ":" in line and len(line.split(":")) >= 2:
-                key, value = line.split(":", 1)
-                rows.append({key.strip(): value.strip()})
-        return rows
+def _header_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    return "".join(char for char in normalized if not unicodedata.combining(char)).upper()
+
+
+def _weight_header_count(parts: list[str]) -> int:
+    return sum(bool(re.search(r"(?:ATE|AT[EÉ]|KG|PESO)", part, re.IGNORECASE)) for part in parts)
+
+
+def _pipe_rows(lines: list[str], header: list[str]) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    state: str | None = None
+    for line in lines[1:]:
+        parts = [part.strip() for part in line.split("|")]
+        if _header_key(line).count("DESTINO") and _header_key(line).count("UF"):
+            continue
+        if len(parts) < 2:
+            continue
+        if re.fullmatch(r"[A-Za-z]{2}", parts[0]):
+            state = parts[0].upper()
+            destination = parts[1]
+            values = parts
+        else:
+            destination = parts[0]
+            values = [state or "", *parts]
+        if not state or not destination or _header_key(destination) in {"DESTINO", "UF"}:
+            continue
+        row = {
+            header[position]: values[position].strip()
+            for position in range(min(len(header), len(values)))
+            if header[position]
+        }
+        row["UF"] = state
+        row["DESTINO"] = destination
+        rows.append(row)
+    return rows
+
+
+def _pdf_tariff_rows(lines: list[str]) -> list[dict[str, object]]:
+    states = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split()
+    state_pattern = re.compile("|".join(states))
+    number_pattern = re.compile(r"\d{2,3}[,.]\d{2}")
+    rows: list[dict[str, object]] = []
+    current_state: str | None = None
+    for line in lines:
+        compact = " ".join(line.split())
+        match = number_pattern.search(compact)
+        if not match:
+            continue
+        prefix = compact[: match.start()].strip()
+        codes = [item.group(0) for item in state_pattern.finditer(prefix)]
+        if codes:
+            current_state = codes[-1]
+        if not current_state:
+            continue
+        city = prefix
+        if codes:
+            marker = prefix.rfind(codes[-1])
+            city = prefix[marker + 2 :].strip()
+        city = re.sub(r"^(?:ORIGEM|DESTINO)\s+", "", city, flags=re.IGNORECASE).strip()
+        values = number_pattern.findall(compact[match.start():])
+        if not city or len(values) < 3:
+            continue
+        values.extend([values[-1]] * (5 - len(values)))
+        rows.append(
+            {
+                "UF": current_state,
+                "DESTINO": city,
+                "ATÉ 20 KG": values[0],
+                "ATÉ 30 KG": values[1],
+                "ATÉ 50 KG": values[2],
+                "ATÉ 70 KG": values[3],
+                "ATÉ 100 KG": values[4],
+            }
+        )
+    return rows
 
 
 def import_table_document(path: str | Path, *, carrier: str | None = None, origin: dict[str, str] | None = None) -> dict[str, object]:
