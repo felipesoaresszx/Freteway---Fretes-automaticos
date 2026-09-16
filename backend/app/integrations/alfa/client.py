@@ -84,7 +84,7 @@ class AlfaClient:
         
         # Teste simples: verificar se a API responde
         try:
-            await self._make_request(AlfaQuoteRequest(
+            await self.quote(AlfaQuoteRequest(
                 idr=self.api_key,
                 cliTip="1",
                 cepRem="07042180",

@@ -417,11 +417,6 @@ async def salvar_configuracao_api(
     if transportadora.nome.strip().lower().startswith("braspress") and dados.ativa:
         if dados.tipo_autenticacao != "braspress_basic" or not configuracao.usuario_integracao or not configuracao.documento_devedor:
             raise HTTPException(status_code=422, detail="Informe usuario, senha e CNPJ remetente da Braspress")
-    if transportadora.nome.strip().lower().startswith("alfa") and dados.ativa:
-        raise HTTPException(
-            status_code=422,
-            detail="A integração Alfa aguarda chave, documentação privada e homologação do contrato técnico",
-        )
     if dados.ativa and dados.tipo_autenticacao != "nenhuma" and not configuracao.credencial_criptografada:
         raise HTTPException(status_code=422, detail="Informe a chave/token antes de ativar a API")
     transportadora.status_integracao = "ativo" if configuracao.ativa else "pendente_credencial"

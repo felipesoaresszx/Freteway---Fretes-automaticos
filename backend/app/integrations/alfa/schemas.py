@@ -8,7 +8,7 @@ import re
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, TypeAdapter, field_validator
 
 
 class AlfaCredentials(BaseModel):
@@ -24,7 +24,7 @@ class AlfaCredentials(BaseModel):
     """
     model_config = ConfigDict(validate_default=True)
     
-    base_url: HttpUrl = "https://api.alfatransportes.com.br"
+    base_url: str = "https://api.alfatransportes.com.br"
     endpoint: str = "/cotacao/"
     api_key: str = Field(min_length=1, max_length=255, description="API Key / IDR da Alfa Transportes")
     login: str | None = Field(default=None, max_length=80, description="Login (opcional, para outros recursos)")
@@ -35,6 +35,7 @@ class AlfaCredentials(BaseModel):
     @classmethod
     def normalize_base_url(cls, value: str) -> str:
         normalized = value.strip().rstrip("/")
+        TypeAdapter(HttpUrl).validate_python(normalized)
         return normalized
 
     @field_validator("endpoint")
@@ -76,7 +77,7 @@ class AlfaQuoteRequest(BaseModel):
     cliTip: AlfaCustomerType = Field(description="Tipo de cliente: 1=Jurídica, 0=Física")
     cepRem: str = Field(min_length=8, max_length=8, description="CEP de origem (apenas dígitos)")
     cliCep: str = Field(min_length=8, max_length=8, description="CEP de destino (apenas dígitos)")
-    cliCnpj: str = Field(min_length=14, max_length=14, description="CNPJ do destinatário (apenas dígitos)")
+    cliCnpj: str = Field(min_length=0, max_length=14, description="CNPJ do destinatário (vazio para pessoa física)")
     merVlr: float = Field(ge=0, description="Valor da mercadoria/NF")
     merPeso: float = Field(gt=0, description="Peso tarifável (kg)")
     merM3: float = Field(ge=0, description="Cubagem total (m³)")
