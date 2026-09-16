@@ -9,7 +9,7 @@ Este procedimento preserva o banco e o volume legado `frete-system_postgres_data
 - Produção publica somente 80/443 pelo Caddy; PostgreSQL, backend e frontend ficam nas redes Docker.
 - O volume PostgreSQL de produção é externo e fixo em `frete-system_postgres_data`, impedindo que uma variável incorreta crie um banco aparentemente vazio.
 - `TRUSTED_HOSTS`, CORS, cookies, banco e segredos vêm do ambiente. Produção rejeita curingas e segredos/cookies inseguros.
-- `python -m app.bootstrap` cria somente o tenant/tema ausentes. Não cria nem inventa empresa, CNPJ, usuário, credenciais ou integrações e não sobrescreve dados existentes.
+- `python -m app.bootstrap` verifica a conexão com o banco sem alterar dados.
 - O seed legado não integra o deploy: ele contém dados demonstrativos e uma credencial padrão, portanto não deve ser executado em produção.
 - Não foi criada migration. O head permanece `024_doc_intel`; os scripts só executam `alembic upgrade head` depois do backup.
 
@@ -58,12 +58,12 @@ Depois, valide antes de liberar tráfego:
 
 ```bash
 docker compose --env-file .env.production -f docker-compose.production.yml exec postgres \
-  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT version_num FROM alembic_version; SELECT codigo_login, schema_name, ativo FROM public.tenants;"'
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT version_num FROM alembic_version;"'
 ```
 
 ## Estratégia B — banco novo
 
-O deploy cria o volume apenas após confirmação textual, aplica migrations e executa o bootstrap idempotente. `MODIAL2026` usa `public` por compatibilidade, a menos que `BOOTSTRAP_TENANT_SCHEMA` indique um schema já existente e corretamente migrado. Empresa principal e usuário não são inventados; cadastre-os depois com valores reais ou restaure o banco local.
+O deploy cria o volume apenas após confirmação textual, aplica migrations e verifica a conexão. Empresa principal e usuário não são inventados; cadastre-os depois com valores reais ou restaure o banco local.
 
 ```bash
 chmod +x deploy/deploy.sh scripts/*.sh

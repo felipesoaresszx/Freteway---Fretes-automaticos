@@ -8,7 +8,9 @@ from typing import Any
 SAFE_FIELDS = {
     "quote_id", "job_id", "carrier_id", "provider", "request_id",
     "attempt", "duration_ms", "status", "error_code",
-    "method", "path", "tenant_id", "job_type",
+    "method", "path", "job_type",
+    "nunota", "codemp", "origin_zip", "destination_zip", "volume_count",
+    "carriers_analyzed", "carriers_returned", "success_count",
 }
 
 

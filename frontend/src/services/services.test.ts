@@ -7,7 +7,6 @@ const apiClientMock = vi.hoisted(() => ({
 vi.mock("../api/client", () => ({ apiClient: apiClientMock }));
 
 import { authService } from "./authService";
-import { companyService } from "./companyService";
 import { cotacaoService } from "./cotacaoService";
 import { transportadoraService } from "./transportadoraService";
 
@@ -27,16 +26,6 @@ describe("authService", () => {
     apiClientMock.post.mockResolvedValueOnce({});
     await authService.logout();
     expect(apiClientMock.post).toHaveBeenCalledWith("/auth/logout");
-  });
-});
-
-describe("companyService", () => {
-  it("limpa contexto anterior antes de identificar outra empresa", async () => {
-    apiClientMock.delete.mockRejectedValueOnce(new Error("sem contexto"));
-    apiClientMock.post.mockResolvedValueOnce({ data: { company: { id: "c1" }, expires_in: 600 } });
-    await companyService.identify("MODIAL2026");
-    expect(apiClientMock.delete).toHaveBeenCalledWith("/companies/context");
-    expect(apiClientMock.post).toHaveBeenCalledWith("/companies/identify", { access_code: "MODIAL2026" });
   });
 });
 

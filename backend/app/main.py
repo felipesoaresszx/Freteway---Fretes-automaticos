@@ -12,10 +12,8 @@ from app.api.v1.router import api_router
 from app.api.v1.endpoints.sankhya import root_router as sankhya_root_router
 from app.core.config import get_settings, validate_runtime_settings
 from app.core.observability import log_event
-from app.db.session import AsyncSessionLocal, quote_schema
-from sqlalchemy import text
+from app.db.session import AsyncSessionLocal
 from app.models.models import AuditLog
-from app.core.tenant import apply_tenant_from_cookie
 
 settings = get_settings()
 logger = logging.getLogger("freteway.http")
@@ -62,13 +60,6 @@ async def seguranca_http(request: Request, call_next):
     request_id = request.headers.get("x-request-id", "")[:100] or str(uuid.uuid4())
     request.state.request_id = request_id
     inicio = time.perf_counter()
-    try:
-        if request.url.path != f"{settings.API_V1_PREFIX}/companies/identify":
-            await apply_tenant_from_cookie(request)
-    except Exception as exc:
-        if hasattr(exc, "status_code"):
-            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
-        raise
     if request.method in {"POST", "PUT", "PATCH", "DELETE"} and request.cookies.get("access_token"):
         origem = request.headers.get("origin")
         if not origem or origem not in settings.CORS_ORIGINS:
@@ -78,7 +69,6 @@ async def seguranca_http(request: Request, call_next):
     is_api_request = request.url.path.startswith(settings.API_V1_PREFIX)
     if user_id and is_api_request and response.status_code < 400:
         async with AsyncSessionLocal() as audit_db:
-            await audit_db.execute(text(f"SET search_path TO {quote_schema(request.state.tenant_schema)}, public"))
             audit_db.add(AuditLog(
                 user_id=user_id,
                 acao={"GET": "consultar", "POST": "criar_executar", "PUT": "atualizar", "PATCH": "alterar", "DELETE": "excluir"}.get(request.method, request.method.lower()),
@@ -88,8 +78,6 @@ async def seguranca_http(request: Request, call_next):
                 ip_address=client_ip(request),
                 user_agent=request.headers.get("user-agent", "")[:500] or None,
             ))
-            await audit_db.commit()
-            await audit_db.execute(text("RESET search_path"))
             await audit_db.commit()
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -112,7 +100,6 @@ async def seguranca_http(request: Request, call_next):
         logger, "request_completed", request_id=request_id, method=request.method,
         path=request.url.path, status=response.status_code,
         duration_ms=round((time.perf_counter() - inicio) * 1000, 2),
-        tenant_id=getattr(request.state, "tenant_id", None),
     )
     return response
 

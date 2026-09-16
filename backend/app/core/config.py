@@ -11,10 +11,6 @@ class Settings(BaseSettings):
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
     DATABASE_URL: str = "postgresql+asyncpg://frete:frete@localhost:5432/frete"
-    MASTER_DATABASE_URL: str | None = None
-    DEFAULT_TENANT_SCHEMA: str = "public"
-    TENANT_CONTEXT_EXPIRE_MINUTES: int = 10
-    PLATFORM_ADMIN_API_KEY: str | None = None
 
     JWT_SECRET: str = "change-me"
     CREDENTIAL_ENCRYPTION_KEY: str | None = None
@@ -33,11 +29,6 @@ class Settings(BaseSettings):
     # Em desenvolvimento, ela permanece disponivel por padrao.
     API_DOCS_ENABLED: bool | None = None
     ALLOW_INSECURE_HTTP: bool = False
-
-    BOOTSTRAP_TENANT_CODE: str = "MODIAL2026"
-    BOOTSTRAP_TENANT_NAME: str = "Grupo Modial"
-    BOOTSTRAP_TENANT_SLUG: str = "modial"
-    BOOTSTRAP_TENANT_SCHEMA: str = "public"
 
     # Consulta cadastral de CNPJ. O provedor pode ser trocado sem alterar o frontend.
     CNPJ_CONSULTA_BASE_URL: str = "https://brasilapi.com.br/api/cnpj/v1"
@@ -74,7 +65,7 @@ class Settings(BaseSettings):
     INTEGRATION_CIRCUIT_FAILURES: int = 5
     INTEGRATION_CIRCUIT_RESET_SECONDS: int = 60
 
-    # Fila PostgreSQL: concorrencia ocorre entre tenants, com uma sessao isolada por job.
+    # Fila PostgreSQL: limita o processamento concorrente de jobs.
     WORKER_MAX_CONCURRENCY: int = 4
     WORKER_JOB_TIMEOUT_SECONDS: int = 300
     WORKER_STALE_AFTER_SECONDS: int = 300

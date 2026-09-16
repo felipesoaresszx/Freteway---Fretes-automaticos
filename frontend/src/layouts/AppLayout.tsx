@@ -5,7 +5,6 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { apiClient } from "../api/client";
 import { Brand } from "../components/Brand";
 import { useAuth } from "../hooks/useAuth";
-import { useCompany } from "../contexts/CompanyContext";
 import { prefetchRouteModule, type AppRoute } from "../routes/routeModules";
 
 const NAV_ITEMS: Array<{ to: AppRoute; label: string; icon: typeof LayoutDashboard; permission?: string }> = [
@@ -48,7 +47,6 @@ export function AppLayout() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const backendOnline = useBackendStatus();
   const { user, logout, isLoggingOut } = useAuth();
-  const { company, clearCompany } = useCompany();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -73,13 +71,6 @@ export function AppLayout() {
       setUserMenuOpen(false);
       navigate("/login", { replace: true });
     }
-  }
-
-  async function handleSwitchCompany() {
-    try { await logout(); } catch { /* o contexto ainda deve ser removido localmente */ }
-    await clearCompany();
-    setUserMenuOpen(false);
-    navigate("/login", { replace: true });
   }
 
   return (
@@ -145,9 +136,6 @@ export function AppLayout() {
                   <p className="mt-0.5 truncate text-xs text-text-secondary">{user?.email}</p>
                 </div>
                 <div className="p-1.5">
-                  <button type="button" role="menuitem" onClick={() => void handleSwitchCompany()} className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm text-text-secondary transition hover:bg-surface2 hover:text-text-primary">
-                    <Brand compact /> Trocar empresa{company ? ` (${company.display_name})` : ""}
-                  </button>
                   <button
                     type="button"
                     role="menuitem"

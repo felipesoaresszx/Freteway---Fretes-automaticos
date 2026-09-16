@@ -1,13 +1,93 @@
 import pytest
 import httpx
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
+from sqlalchemy.exc import SQLAlchemyError
+from types import SimpleNamespace
 
-from app.api.v1.endpoints.sankhya import validar_api_key
+import app.api.v1.endpoints.sankhya as sankhya_endpoint
+from app.api.v1.endpoints.sankhya import router, validar_api_key
 from app.core.config import get_settings
+from app.db.session import get_db
 from app.schemas.sankhya import CotacaoSankhyaIn, ItemPedidoSankhya, MapeamentoSankhyaIn
 from app.integrations.sankhya_client import SankhyaClient, SankhyaCredentials, SankhyaError
 from app.integrations.sankhya.provider import SankhyaQuoteProvider
 from app.schemas.cotacao import ErroResultado, ResultadoTransportadora
+
+
+PAYLOAD_SANKHYA = {
+    "CODEMP": 7,
+    "NUNOTA": 21259,
+    "VlrNota": 1250,
+    "CepOrigem": "01001-000",
+    "CepDestino": "30110-000",
+    "Volumes": [
+        {"Quantidade": 2, "Peso": 10, "Altura": 30, "Largura": 40, "Comprimento": 50},
+        {"Quantidade": 1, "Peso": 5, "Altura": 10, "Largura": 20, "Comprimento": 30},
+    ],
+}
+
+
+class _Scalars:
+    def __init__(self, values):
+        self.values = values
+
+    def all(self):
+        return self.values
+
+
+class _Result:
+    def __init__(self, values):
+        self.values = values
+
+    def scalars(self):
+        return _Scalars(self.values)
+
+
+class _FakeDb:
+    def __init__(self):
+        self.info = {}
+        self.execute_calls = 0
+        self.audit_rows = []
+
+    async def scalar(self, _statement):
+        return SimpleNamespace(id="empresa-1")
+
+    async def execute(self, _statement):
+        self.execute_calls += 1
+        if self.execute_calls == 1:
+            return _Result([SimpleNamespace(id="t1", codigo="CORREIOS")])
+        if self.execute_calls == 2:
+            return _Result([])
+        return _Result([SimpleNamespace(
+            transportadora_id="t1", codigo_parceiro=1234,
+            codigo_servico="04014", servico="SEDEX",
+        )])
+
+    def add(self, row):
+        self.audit_rows.append(row)
+
+    async def commit(self):
+        return None
+
+
+def _http_client(monkeypatch, quote_results, fake_db=None):
+    fake_db = fake_db or _FakeDb()
+    calls = []
+
+    async def override_db():
+        yield fake_db
+
+    async def fake_quote(cotacao, db):
+        calls.append((cotacao, db))
+        return quote_results
+
+    monkeypatch.setattr(get_settings(), "SANKHYA_API_KEY", "integration-secret")
+    monkeypatch.setattr(sankhya_endpoint, "executar_cotacao", fake_quote)
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1")
+    app.dependency_overrides[get_db] = override_db
+    return TestClient(app), calls, fake_db
 
 
 def test_item_aceita_dimensoes_e_converte_para_volume():
@@ -130,6 +210,87 @@ def test_api_key_usa_comparacao_com_segredo_configurado(monkeypatch):
     validar_api_key("segredo")
     with pytest.raises(HTTPException):
         validar_api_key("incorreta")
+
+
+def test_api_key_ausente_e_rejeitada(monkeypatch):
+    monkeypatch.setattr(get_settings(), "SANKHYA_API_KEY", "integration-secret")
+    with pytest.raises(HTTPException) as erro:
+        validar_api_key(None)
+    assert erro.value.status_code == 401
+
+
+def test_endpoint_processa_chamada_externa_e_multiplos_volumes(monkeypatch):
+    resultados = [ResultadoTransportadora(
+        transportadora_id="t1", transportadora="Correios", status="success",
+        valor_frete=89.9, prazo_dias=3, request_id="carrier-request",
+    )]
+    client, calls, fake_db = _http_client(monkeypatch, resultados)
+
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"}, json=PAYLOAD_SANKHYA,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"ShippingSevicesArray": [{
+        "ServiceCode": "04014", "ServiceDescription": "SEDEX",
+        "Carrier": "Correios", "CarrierCode": "CORREIOS", "CodParcTransp": 1234,
+        "ShippingPrice": "89.90", "DeliveryTime": "3", "Error": False, "Msg": "",
+    }]}
+    assert len(calls) == 1
+    cotacao, used_db = calls[0]
+    assert used_db is fake_db
+    assert cotacao.peso == 25
+    assert sum(volume.quantidade for volume in cotacao.volumes) == 3
+    assert len(fake_db.audit_rows) == 1
+    assert fake_db.audit_rows[0].recurso_id == "21259"
+
+
+@pytest.mark.parametrize("headers", [{}, {"X-API-Key": "incorreta"}])
+def test_endpoint_rejeita_api_key_ausente_ou_invalida_sem_executar_motor(monkeypatch, headers):
+    client, calls, _fake_db = _http_client(monkeypatch, [])
+    response = client.post("/api/v1/integrations/sankhya/cotacao", headers=headers, json=PAYLOAD_SANKHYA)
+    assert response.status_code == 401
+    assert calls == []
+
+
+def test_endpoint_rejeita_json_e_cep_invalidos(monkeypatch):
+    client, calls, _fake_db = _http_client(monkeypatch, [])
+    headers = {"X-API-Key": "integration-secret", "Content-Type": "application/json"}
+    invalid_json = client.post("/api/v1/integrations/sankhya/cotacao", headers=headers, content="{")
+    assert invalid_json.status_code == 422
+
+    payload = {**PAYLOAD_SANKHYA, "CepDestino": "123"}
+    invalid_zip = client.post("/api/v1/integrations/sankhya/cotacao", headers=headers, json=payload)
+    assert invalid_zip.status_code == 422
+    assert calls == []
+
+
+def test_endpoint_retorna_array_vazio_quando_nao_ha_transportadora(monkeypatch):
+    client, calls, _fake_db = _http_client(monkeypatch, [])
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"}, json=PAYLOAD_SANKHYA,
+    )
+    assert response.status_code == 200
+    assert response.json() == {"ShippingSevicesArray": []}
+    assert len(calls) == 1
+
+
+def test_endpoint_retorna_erro_controlado_quando_banco_falha(monkeypatch):
+    class FailedDb(_FakeDb):
+        async def scalar(self, _statement):
+            raise SQLAlchemyError("database details must not leak")
+
+    client, calls, _fake_db = _http_client(monkeypatch, [], FailedDb())
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"}, json=PAYLOAD_SANKHYA,
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"]["codigo"] == "BANCO_INDISPONIVEL"
+    assert "database details" not in response.text
+    assert calls == []
 
 
 @pytest.mark.asyncio

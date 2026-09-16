@@ -5,12 +5,11 @@ import logging
 import time
 from datetime import datetime, timedelta
 
-from sqlalchemy import or_, select, text
+from sqlalchemy import or_, select
 
 from app.core.config import get_settings
-from app.db.session import AsyncSessionLocal, MasterSessionLocal, quote_schema
+from app.db.session import AsyncSessionLocal
 from app.core.observability import log_event
-from app.models.master import Tenant
 from app.models.models import AuditoriaTabela, Cotacao, ProcessamentoJob, TabelaFrete, Transportadora
 from app.services.cotacao_jobs import executar_job_analise_tabela, executar_job_cotacao, reagendar_job
 from app.services.enrichment import CarrierEnrichmentService
@@ -37,25 +36,12 @@ def proximo_job_query(agora: datetime, stale_after_seconds: int):
     )
 
 
-async def processar_schemas_concorrente(
-    schemas: list[str], processor, max_concurrency: int
-) -> list[bool]:
-    semaphore = asyncio.Semaphore(max(1, max_concurrency))
-
-    async def limited(schema: str) -> bool:
-        async with semaphore:
-            return await processor(schema)
-
-    return list(await asyncio.gather(*(limited(schema) for schema in schemas)))
-
-
 async def executar_com_timeout(execution, timeout_seconds: int):
     return await asyncio.wait_for(execution, timeout=timeout_seconds)
 
 
-async def processar_schema(schema: str) -> bool:
+async def processar_job() -> bool:
     async with AsyncSessionLocal() as db:
-        await db.execute(text(f"SET search_path TO {quote_schema(schema)}, public"))
         agora = datetime.utcnow()
         job = await db.scalar(proximo_job_query(agora, settings.WORKER_STALE_AFTER_SECONDS))
         if not job:
@@ -103,7 +89,7 @@ async def processar_schema(schema: str) -> bool:
             await db.rollback()
             job = await db.get(ProcessamentoJob, job_id)
             if not job:
-                logger.warning("job_removed_during_processing schema=%s job_id=%s", schema, job_id)
+                logger.warning("job_removed_during_processing job_id=%s", job_id)
                 return True
             # Invalid/unreadable documents are deterministic failures; retrying only
             # delays feedback and repeatedly performs the same expensive extraction.
@@ -137,9 +123,8 @@ async def processar_schema(schema: str) -> bool:
         return True
 
 
-async def executar_manutencao_schema(schema: str) -> None:
+async def executar_manutencao() -> None:
     async with AsyncSessionLocal() as db:
-        await db.execute(text(f"SET search_path TO {quote_schema(schema)}, public"))
         agora = datetime.utcnow()
         expiradas = list(await db.scalars(
             select(TabelaFrete).where(TabelaFrete.status == "active", TabelaFrete.data_fim < agora)
@@ -155,29 +140,17 @@ async def executar_manutencao_schema(schema: str) -> None:
             ))
         if expiradas:
             await db.commit()
-            logger.info("tables_expired schema=%s count=%s", schema, len(expiradas))
-
-
-async def schemas_ativos() -> list[str]:
-    async with MasterSessionLocal() as db:
-        return list(await db.scalars(select(Tenant.schema_name).where(
-            Tenant.ativo.is_(True), Tenant.status_assinatura == "ativa"
-        )))
+            logger.info("tables_expired count=%s", len(expiradas))
 
 
 async def main() -> None:
     logger.info("worker_started")
     ultima_manutencao: datetime | None = None
     while True:
-        schemas = await schemas_ativos()
-        resultados = await processar_schemas_concorrente(
-            schemas, processar_schema, settings.WORKER_MAX_CONCURRENCY
-        )
-        trabalhou = any(resultados)
+        trabalhou = await processar_job()
         agora = datetime.utcnow()
         if not ultima_manutencao or agora - ultima_manutencao >= timedelta(minutes=5):
-            for schema in schemas:
-                await executar_manutencao_schema(schema)
+            await executar_manutencao()
             ultima_manutencao = agora
         if not trabalhou:
             await asyncio.sleep(2)

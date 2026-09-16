@@ -433,7 +433,7 @@ class Cotacao(Base):
 
 
 class Empresa(Base):
-    """Empresa emissora dentro do tenant; não delimita cotações nem tabelas de frete."""
+    """Empresa emissora usada para identificar a CODEMP do Sankhya."""
 
     __tablename__ = "empresas"
 
@@ -489,7 +489,7 @@ class LogIntegracao(Base):
 
 
 class ProcessamentoJob(Base):
-    """Fila durável por tenant para tarefas que não devem depender do processo HTTP."""
+    """Fila durável para tarefas que não devem depender do processo HTTP."""
 
     __tablename__ = "processamento_jobs"
 

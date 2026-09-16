@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.cotacao import Endereco, VolumeIn
 from app.schemas.transportadora import somente_digitos
@@ -19,12 +19,12 @@ class EnderecoSankhya(Endereco):
 
 class ItemPedidoSankhya(BaseModel):
     quantidade: int = Field(default=1, gt=0)
-    peso_kg: float = Field(gt=0)
-    comprimento_cm: float | None = Field(default=None, gt=0)
-    largura_cm: float | None = Field(default=None, gt=0)
-    altura_cm: float | None = Field(default=None, gt=0)
-    volume_m3: float | None = Field(default=None, gt=0)
-    valor: float | None = Field(default=None, ge=0)
+    peso_kg: float = Field(gt=0, allow_inf_nan=False)
+    comprimento_cm: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    largura_cm: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    altura_cm: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    volume_m3: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    valor: float | None = Field(default=None, ge=0, allow_inf_nan=False)
 
     @model_validator(mode="before")
     @classmethod
@@ -62,7 +62,7 @@ class CotacaoSankhyaIn(BaseModel):
     origem: EnderecoSankhya
     destino: EnderecoSankhya
     itens: list[ItemPedidoSankhya] = Field(min_length=1)
-    valor_mercadoria: float = Field(gt=0)
+    valor_mercadoria: float = Field(gt=0, allow_inf_nan=False)
     numero_pedido: str = Field(min_length=1, max_length=100)
     transportadoras_ids: list[str] | None = None
 
@@ -93,6 +93,28 @@ class CotacaoSankhyaIn(BaseModel):
         if "destino" not in data and cep_destino:
             data["destino"] = {"cep": cep_destino}
         return data
+
+
+class LinhaCotacaoSankhyaOut(BaseModel):
+    """Linha no contrato consumido pela rotina GerarCotacoesFrete."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    service_code: str = Field(alias="ServiceCode")
+    service_description: str = Field(alias="ServiceDescription")
+    carrier: str = Field(alias="Carrier")
+    carrier_code: str = Field(alias="CarrierCode")
+    codparc_transp: int = Field(alias="CodParcTransp")
+    shipping_price: str = Field(alias="ShippingPrice")
+    delivery_time: str = Field(alias="DeliveryTime")
+    error: bool = Field(alias="Error")
+    message: str = Field(alias="Msg")
+
+
+class CotacaoSankhyaOut(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    shipping_services: list[LinhaCotacaoSankhyaOut] = Field(alias="ShippingSevicesArray")
 
 
 class MapeamentoSankhyaIn(BaseModel):

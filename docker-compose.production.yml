@@ -35,7 +35,6 @@ services:
       - ${BACKEND_ENV_FILE:-./backend/.env.production}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED:?Defina POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
-      MASTER_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
       TABELA_FRETE_STORAGE_DIR: /app/storage/tabelas_frete
       EMPRESA_LOGO_STORAGE_DIR: /app/storage/configuracoes/logos
       DOCUMENT_STORAGE_DIR: /app/storage/documentos
@@ -73,7 +72,6 @@ services:
       - ${BACKEND_ENV_FILE:-./backend/.env.production}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED:?Defina POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
-      MASTER_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
       TABELA_FRETE_STORAGE_DIR: /app/storage/tabelas_frete
       EMPRESA_LOGO_STORAGE_DIR: /app/storage/configuracoes/logos
       DOCUMENT_STORAGE_DIR: /app/storage/documentos

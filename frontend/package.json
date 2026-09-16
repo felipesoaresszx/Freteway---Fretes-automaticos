@@ -14,7 +14,6 @@
     "test:run": "vitest --run"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.9.0",
     "@tanstack/react-query": "^5.56.2",
     "axios": "^1.7.7",
     "lucide-react": "^0.445.0",
@@ -22,8 +21,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.53.0",
     "react-router-dom": "^7.18.2",
-    "zod": "^3.23.8",
-    "zustand": "^4.5.5"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -7,15 +7,6 @@ class LoginRequest(BaseModel):
     otp: str | None = None
 
 
-class TenantResolveRequest(BaseModel):
-    codigo: str
-
-
-class TenantResolveResponse(BaseModel):
-    tenant_name: str
-    expires_in: int
-
-
 class TokenResponse(BaseModel):
     authenticated: bool = True
 

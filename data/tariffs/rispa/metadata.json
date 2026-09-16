@@ -1,8 +1,8 @@
 {
   "transportadora": "RISPA TRANSPORTES",
   "cnpj": null,
-  "cliente_tenant": "MODIAL COMERCIO DE ARTIGOS FUNERARIOS LTDA",
-  "cliente_tenant_cnpj": "34185588000117",
+  "cliente_nome": "MODIAL COMERCIO DE ARTIGOS FUNERARIOS LTDA",
+  "cliente_cnpj": "34185588000117",
   "origem_uf": "SP",
   "origem_cidade": "GUARULHOS",
   "codigo_filial": null,

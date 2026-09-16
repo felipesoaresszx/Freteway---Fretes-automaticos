@@ -17,4 +17,4 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres sh -eu
   'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null'
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres sh -eu -c \
   'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl --exit-on-error' < "$DUMP_FILE"
-echo "Restore concluído. Valide contagens, tenants e alembic_version antes de liberar tráfego."
+echo "Restore concluído. Valide contagens e alembic_version antes de liberar tráfego."

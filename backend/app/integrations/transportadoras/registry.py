@@ -31,4 +31,3 @@ registry.register("ssw", SSWProvider)
 registry.register("risso", RissoProvider)
 registry.register("correios", CorreiosProvider)
 registry.register("alfa", AlfaProvider)
-ADAPTER_REGISTRY = registry
