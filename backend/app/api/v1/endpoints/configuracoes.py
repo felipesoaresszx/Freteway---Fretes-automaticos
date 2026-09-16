@@ -6,16 +6,18 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.deps import get_db, require_permission
 from app.core.security import hash_password
-from app.models.models import AuditLog, IntegrationCredential, Role, SystemSetting, User, user_roles
+from app.models.models import AuditLog, Empresa, IntegrationCredential, Role, SystemSetting, User, user_roles
 from app.schemas.configuracoes import (
-    AuditLogOut, AuditLogPage, CotacaoSettings, EmpresaSettings, IntegrationOut,
+    AuditLogOut, AuditLogPage, CotacaoSettings, EmpresaSankhyaInput, EmpresaSankhyaOut,
+    EmpresaSettings, IntegrationOut,
     IntegrationUpdate, NotificacaoSettings, RoleOut, SegurancaSettings,
     UserCreate, UserOut, UserStatusUpdate, UserUpdate,
 )
@@ -57,6 +59,50 @@ async def salvar_empresa(dados: EmpresaSettings, request: Request, db: AsyncSess
     atual = await _setting(db, "empresa", "perfil")
     dados.logo_path = atual.valor.get("logo_path")
     return await _salvar_setting(db, usuario, request, "empresa", "perfil", dados)
+
+
+@router.get("/empresas-sankhya", response_model=list[EmpresaSankhyaOut])
+async def listar_empresas_sankhya(db: AsyncSession = Depends(get_db), _=Depends(require_permission("settings.view"))):
+    resultado = await db.execute(select(Empresa).order_by(Empresa.razao_social))
+    return list(resultado.scalars().all())
+
+
+@router.post("/empresas-sankhya", response_model=EmpresaSankhyaOut, status_code=status.HTTP_201_CREATED)
+async def criar_empresa_sankhya(dados: EmpresaSankhyaInput, request: Request, db: AsyncSession = Depends(get_db), usuario=Depends(require_permission("settings.manage"))):
+    existente = await db.scalar(select(Empresa.id).where(or_(Empresa.codigo_empresa_sankhya == dados.codigo_empresa_sankhya, Empresa.cnpj == dados.cnpj)))
+    if existente:
+        raise HTTPException(status_code=409, detail="CODEMP ou CNPJ já cadastrado")
+    empresa = Empresa(**dados.model_dump())
+    db.add(empresa)
+    await registrar_auditoria(db, usuario, request, "criar", "empresa_sankhya", empresa.id, None, dados.model_dump())
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="CODEMP ou CNPJ já cadastrado") from exc
+    await db.refresh(empresa)
+    return empresa
+
+
+@router.put("/empresas-sankhya/{empresa_id}", response_model=EmpresaSankhyaOut)
+async def atualizar_empresa_sankhya(empresa_id: str, dados: EmpresaSankhyaInput, request: Request, db: AsyncSession = Depends(get_db), usuario=Depends(require_permission("settings.manage"))):
+    empresa = await db.get(Empresa, empresa_id)
+    if not empresa:
+        raise HTTPException(status_code=404, detail="Empresa Sankhya não encontrada")
+    conflito = await db.scalar(select(Empresa.id).where(Empresa.id != empresa_id, or_(Empresa.codigo_empresa_sankhya == dados.codigo_empresa_sankhya, Empresa.cnpj == dados.cnpj)))
+    if conflito:
+        raise HTTPException(status_code=409, detail="CODEMP ou CNPJ já cadastrado")
+    anterior = {campo: getattr(empresa, campo) for campo in dados.model_fields}
+    for campo, valor in dados.model_dump().items():
+        setattr(empresa, campo, valor)
+    await registrar_auditoria(db, usuario, request, "atualizar", "empresa_sankhya", empresa.id, anterior, dados.model_dump())
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="CODEMP ou CNPJ já cadastrado") from exc
+    await db.refresh(empresa)
+    return empresa
 
 
 @router.post("/empresa/logo", response_model=EmpresaSettings)

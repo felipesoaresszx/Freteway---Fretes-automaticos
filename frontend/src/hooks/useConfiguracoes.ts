@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { configuracoesService as service } from "../services/configuracoesService";
-import type { CotacaoSettings, EmpresaSettings, IntegracaoGlobalInput, NotificacaoSettings, SegurancaSettings, UsuarioInput } from "../types/configuracoes";
+import type { CotacaoSettings, EmpresaSankhyaInput, EmpresaSettings, IntegracaoGlobalInput, NotificacaoSettings, SegurancaSettings, UsuarioInput } from "../types/configuracoes";
 
 const invalidar = (queryClient: ReturnType<typeof useQueryClient>, chave: string[]) => queryClient.invalidateQueries({ queryKey: chave });
 export const useCurrentUser = () => useQuery({ queryKey: ["auth", "me"], queryFn: service.me });
 export const useEmpresaSettings = () => useQuery({ queryKey: ["configuracoes", "empresa"], queryFn: service.empresa });
 export function useSalvarEmpresa() { const q = useQueryClient(); return useMutation({ mutationFn: (d: EmpresaSettings) => service.salvarEmpresa(d), onSuccess: () => invalidar(q, ["configuracoes", "empresa"]) }); }
+export const useEmpresasSankhya = () => useQuery({ queryKey: ["configuracoes", "empresas-sankhya"], queryFn: service.empresasSankhya });
+export function useCriarEmpresaSankhya() { const q=useQueryClient(); return useMutation({ mutationFn: (d: EmpresaSankhyaInput)=>service.criarEmpresaSankhya(d), onSuccess:()=>invalidar(q,["configuracoes","empresas-sankhya"]) }); }
+export function useAtualizarEmpresaSankhya() { const q=useQueryClient(); return useMutation({ mutationFn: ({id,dados}:{id:string;dados:EmpresaSankhyaInput})=>service.atualizarEmpresaSankhya(id,dados), onSuccess:()=>invalidar(q,["configuracoes","empresas-sankhya"]) }); }
 export function useUploadLogo() { const q = useQueryClient(); return useMutation({ mutationFn: service.uploadLogo, onSuccess: () => invalidar(q, ["configuracoes", "empresa"]) }); }
 export const useCotacaoSettings = () => useQuery({ queryKey: ["configuracoes", "cotacao"], queryFn: service.cotacao });
 export function useSalvarCotacaoSettings() { const q = useQueryClient(); return useMutation({ mutationFn: (d: CotacaoSettings) => service.salvarCotacao(d), onSuccess: () => invalidar(q, ["configuracoes", "cotacao"]) }); }

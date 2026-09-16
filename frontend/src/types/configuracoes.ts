@@ -1,5 +1,7 @@
 export interface EnderecoEmpresa { cep: string; logradouro: string; numero: string; complemento: string; bairro: string; cidade: string; uf: string }
 export interface EmpresaSettings { razao_social: string; cnpj: string; logo_path: string | null; endereco_origem: EnderecoEmpresa }
+export interface EmpresaSankhya { id: string; codigo_empresa_sankhya: string; razao_social: string; cnpj: string; ativa: boolean; created_at: string }
+export type EmpresaSankhyaInput = Omit<EmpresaSankhya, "id" | "created_at">;
 export interface CotacaoSettings { margem_padrao_percentual: number; regra_arredondamento: "duas_casas" | "cima" | "baixo" | "inteiro"; validade_padrao_dias: number; unidade_peso: "kg"; unidade_volume: "m3"; casas_decimais: number }
 export interface CanalNotificacao { email: boolean; webhook: boolean }
 export interface NotificacaoSettings { cotacao_criada: CanalNotificacao; cotacao_expirada: CanalNotificacao; falha_integracao: CanalNotificacao; destinatarios: string[]; webhook_url: string }

@@ -104,6 +104,7 @@ class LinhaCotacaoSankhyaOut(BaseModel):
     service_description: str = Field(alias="ServiceDescription")
     carrier: str = Field(alias="Carrier")
     carrier_code: str = Field(alias="CarrierCode")
+    carrier_cnpj: str = Field(alias="CarrierCnpj")
     codparc_transp: int = Field(alias="CodParcTransp")
     shipping_price: str = Field(alias="ShippingPrice")
     delivery_time: str = Field(alias="DeliveryTime")

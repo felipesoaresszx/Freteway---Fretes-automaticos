@@ -56,7 +56,9 @@ class _FakeDb:
     async def execute(self, _statement):
         self.execute_calls += 1
         if self.execute_calls == 1:
-            return _Result([SimpleNamespace(id="t1", codigo="CORREIOS")])
+            return _Result([SimpleNamespace(
+                id="t1", codigo="CORREIOS", cnpj_cpf="12.345.678/0001-90",
+            )])
         if self.execute_calls == 2:
             return _Result([])
         return _Result([SimpleNamespace(
@@ -163,7 +165,7 @@ def test_provider_serializa_disponivel_e_indisponivel_sem_quebrar_parser():
         erro=ErroResultado(codigo="SEM_ROTA", mensagem='Fora da faixa {regiao} [1] "x"'), request_id="r2",
     )
     linhas = [
-        provider.line(disponivel, carrier_code="CORREIOS", codparc=1234,
+        provider.line(disponivel, carrier_code="CORREIOS", carrier_cnpj="12.345.678/0001-90", codparc=1234,
                       service_code="04014", service_description='SEDEX [Hoje]'),
         provider.line(indisponivel, carrier_code="JAMEF", codparc=0),
     ]
@@ -173,8 +175,10 @@ def test_provider_serializa_disponivel_e_indisponivel_sem_quebrar_parser():
     assert decoded[0]["ShippingPrice"] == "1250.00"
     assert decoded[0]["DeliveryTime"] == "3"
     assert decoded[0]["CodParcTransp"] == 1234
+    assert decoded[0]["CarrierCnpj"] == "12345678000190"
     assert decoded[0]["Error"] is False
     assert decoded[1]["CodParcTransp"] == 0
+    assert decoded[1]["CarrierCnpj"] == ""
     assert decoded[1]["Error"] is True
     assert decoded[1]["ShippingPrice"] == "0"
     assert decoded[1]["DeliveryTime"] == "0"
@@ -234,7 +238,8 @@ def test_endpoint_processa_chamada_externa_e_multiplos_volumes(monkeypatch):
     assert response.status_code == 200
     assert response.json() == {"ShippingSevicesArray": [{
         "ServiceCode": "04014", "ServiceDescription": "SEDEX",
-        "Carrier": "Correios", "CarrierCode": "CORREIOS", "CodParcTransp": 1234,
+        "Carrier": "Correios", "CarrierCode": "CORREIOS", "CarrierCnpj": "12345678000190",
+        "CodParcTransp": 1234,
         "ShippingPrice": "89.90", "DeliveryTime": "3", "Error": False, "Msg": "",
     }]}
     assert len(calls) == 1

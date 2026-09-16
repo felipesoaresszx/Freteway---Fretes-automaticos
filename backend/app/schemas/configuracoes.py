@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.schemas.transportadora import documento_valido, somente_digitos
 
@@ -48,6 +48,33 @@ class EmpresaSettings(BaseModel):
         if len(normalizado) != 14 or not documento_valido(normalizado):
             raise ValueError("CNPJ inválido")
         return normalizado
+
+
+class EmpresaSankhyaInput(BaseModel):
+    codigo_empresa_sankhya: str = Field(min_length=1, max_length=80)
+    razao_social: str = Field(min_length=2, max_length=255)
+    cnpj: str
+    ativa: bool = True
+
+    @field_validator("codigo_empresa_sankhya", "razao_social")
+    @classmethod
+    def limpar_texto(cls, valor: str) -> str:
+        return valor.strip()
+
+    @field_validator("cnpj")
+    @classmethod
+    def validar_cnpj(cls, valor: str) -> str:
+        normalizado = somente_digitos(valor)
+        if len(normalizado) != 14 or not documento_valido(normalizado):
+            raise ValueError("CNPJ inválido")
+        return normalizado
+
+
+class EmpresaSankhyaOut(EmpresaSankhyaInput):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    created_at: datetime
 
 
 class CotacaoSettings(BaseModel):

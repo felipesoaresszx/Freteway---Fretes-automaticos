@@ -41,8 +41,11 @@ class SankhyaQuoteProvider:
             raise ValueError("Prazo de entrega invalido")
         return str(int(number))
 
-    def line(self, result: ResultadoTransportadora, *, carrier_code: str = "",
+    def line(self, result: ResultadoTransportadora, *, carrier_code: str = "", carrier_cnpj: str = "",
              codparc: int = 0, service_code: str = "", service_description: str = "") -> dict[str, Any]:
+        normalized_cnpj = re.sub(r"\D", "", self.sanitize(carrier_cnpj))
+        if len(normalized_cnpj) != 14:
+            normalized_cnpj = ""
         error = result.status != "success" or result.valor_frete is None or result.prazo_dias is None
         message = ""
         shipping_price = "0"
@@ -64,6 +67,7 @@ class SankhyaQuoteProvider:
             "ServiceDescription": self.sanitize(service_description or result.transportadora),
             "Carrier": self.sanitize(result.transportadora),
             "CarrierCode": self.sanitize(carrier_code),
+            "CarrierCnpj": normalized_cnpj,
             "CodParcTransp": int(codparc) if codparc and int(codparc) > 0 else 0,
             "ShippingPrice": shipping_price,
             "DeliveryTime": delivery_time,

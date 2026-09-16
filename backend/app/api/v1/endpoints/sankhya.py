@@ -91,6 +91,7 @@ async def _cotar(payload: CotacaoSankhyaIn, request: Request, db: AsyncSession) 
         linhas.append(provider.line(
             resultado,
             carrier_code=(transportadora.codigo if transportadora else "") or "",
+            carrier_cnpj=(transportadora.cnpj_cpf if transportadora else "") or "",
             codparc=mapeamento.codigo_parceiro if mapeamento else 0,
             service_code=(mapeamento.codigo_servico if mapeamento else "") or "",
             service_description=(mapeamento.servico if mapeamento else "") or resultado.transportadora,

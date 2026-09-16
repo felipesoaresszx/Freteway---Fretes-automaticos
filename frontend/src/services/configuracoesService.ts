@@ -1,10 +1,13 @@
 import { apiClient } from "../api/client";
-import type { AuditPage, CotacaoSettings, CurrentUser, EmpresaSettings, IntegracaoGlobal, IntegracaoGlobalInput, NotificacaoSettings, Role, SegurancaSettings, Usuario, UsuarioInput } from "../types/configuracoes";
+import type { AuditPage, CotacaoSettings, CurrentUser, EmpresaSankhya, EmpresaSankhyaInput, EmpresaSettings, IntegracaoGlobal, IntegracaoGlobalInput, NotificacaoSettings, Role, SegurancaSettings, Usuario, UsuarioInput } from "../types/configuracoes";
 
 export const configuracoesService = {
   async me() { return (await apiClient.get<CurrentUser>("/auth/me")).data; },
   async empresa() { return (await apiClient.get<EmpresaSettings>("/configuracoes/empresa")).data; },
   async salvarEmpresa(dados: EmpresaSettings) { return (await apiClient.put<EmpresaSettings>("/configuracoes/empresa", dados)).data; },
+  async empresasSankhya() { return (await apiClient.get<EmpresaSankhya[]>("/configuracoes/empresas-sankhya")).data; },
+  async criarEmpresaSankhya(dados: EmpresaSankhyaInput) { return (await apiClient.post<EmpresaSankhya>("/configuracoes/empresas-sankhya", dados)).data; },
+  async atualizarEmpresaSankhya(id: string, dados: EmpresaSankhyaInput) { return (await apiClient.put<EmpresaSankhya>(`/configuracoes/empresas-sankhya/${id}`, dados)).data; },
   async uploadLogo(arquivo: File) { const form = new FormData(); form.append("arquivo", arquivo); return (await apiClient.post<EmpresaSettings>("/configuracoes/empresa/logo", form)).data; },
   async cotacao() { return (await apiClient.get<CotacaoSettings>("/configuracoes/cotacao")).data; },
   async salvarCotacao(dados: CotacaoSettings) { return (await apiClient.put<CotacaoSettings>("/configuracoes/cotacao", dados)).data; },

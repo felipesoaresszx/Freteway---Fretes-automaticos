@@ -1,12 +1,44 @@
-# Integração Sankhya → FreteWay
+# API de cotação de frete — Sankhya
 
-## Cotação
+Esta API permite que o Sankhya solicite ao **FreteWay** cotações de frete para
+um pedido ou nota. O FreteWay consulta as transportadoras elegíveis, normaliza
+os resultados e devolve preço, prazo e o código do parceiro correspondente no
+Sankhya.
 
-`POST /integracoes/sankhya/cotacao` (aliases: `/integrations/sankhya/cotacao` e
-`/api/v1/integrations/sankhya/cotacao`). A autenticação usa `X-API-Key`. Em
-A chave é única para a instalação e é configurada por `SANKHYA_API_KEY`.
+## Visão geral do processo
 
-Contrato recomendado:
+```mermaid
+sequenceDiagram
+    participant S as Sankhya
+    participant F as FreteWay
+    participant T as Transportadoras
+
+    S->>F: POST /api/v1/integrations/sankhya/cotacao
+    F->>F: Autentica e valida os dados
+    F->>T: Solicita as cotações elegíveis
+    T-->>F: Retorna preços e prazos
+    F->>F: Aplica o de-para de transportadoras
+    F-->>S: ShippingSevicesArray
+```
+
+1. O Sankhya envia os dados da carga, origem, destino, empresa e nota.
+2. O FreteWay valida a chave de acesso e a empresa informada.
+3. O motor consulta as transportadoras ativas e elegíveis.
+4. O FreteWay relaciona cada transportadora ao seu `CODPARC` no Sankhya.
+5. O Sankhya recebe uma lista com preço, prazo e eventuais erros por opção.
+
+## Endpoint
+
+```http
+POST https://modial-fretes.com.br/api/v1/integrations/sankhya/cotacao
+Content-Type: application/json
+X-API-Key: <API_KEY>
+```
+
+O ambiente deve fornecer uma chave exclusiva no header `X-API-Key`. A chave
+real não deve ser gravada no código-fonte ou em arquivos versionados.
+
+## Corpo da requisição
 
 ```json
 {
@@ -15,94 +47,112 @@ Contrato recomendado:
   "CepOrigem": "01001-000",
   "CepDestino": "30110-000",
   "VlrNota": 6781.00,
-  "Volumes": [{
-    "Quantidade": 2,
-    "Peso": 12.5,
-    "Altura": 30,
-    "Largura": 40,
-    "Comprimento": 50
-  }]
+  "Volumes": [
+    {
+      "Quantidade": 2,
+      "Peso": 12.5,
+      "Altura": 30,
+      "Largura": 40,
+      "Comprimento": 50
+    }
+  ]
 }
 ```
 
-Também são aceitos os nomes internos `numero_pedido`, `empresa_sankhya_id`,
-`valor_mercadoria`, `origem`, `destino` e `itens`. Cidade e UF podem acompanhar
-os endereços e aumentam a cobertura de tabelas baseadas em localidade. Cada
-volume aceita as dimensões em centímetros ou `volume_m3`.
+### Campos principais
 
-Resposta:
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|:---:|---|
+| `NUNOTA` | número ou texto | Sim | Número único da nota ou pedido no Sankhya. |
+| `CODEMP` | número ou texto | Sim | Código da empresa vinculada no FreteWay. |
+| `CepOrigem` | texto | Sim | CEP de origem, com ou sem pontuação. |
+| `CepDestino` | texto | Sim | CEP de destino, com ou sem pontuação. |
+| `VlrNota` | número positivo | Sim | Valor total da mercadoria. |
+| `Volumes` | array | Sim | Um ou mais grupos de volumes da carga. |
+
+### Campos de cada volume
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|:---:|---|
+| `Quantidade` | inteiro positivo | Não | Quantidade de volumes iguais. O padrão é `1`. |
+| `Peso` | número positivo | Sim | Peso unitário, em quilogramas. |
+| `Altura` | número positivo | Condicional | Altura unitária, em centímetros. |
+| `Largura` | número positivo | Condicional | Largura unitária, em centímetros. |
+| `Comprimento` | número positivo | Condicional | Comprimento unitário, em centímetros. |
+| `VolumeM3` | número positivo | Condicional | Cubagem unitária, em metros cúbicos. |
+
+Cada item deve informar `VolumeM3` **ou** o conjunto completo `Altura`,
+`Largura` e `Comprimento`. O FreteWay multiplica peso e cubagem pela quantidade
+antes de cotar.
+
+Também são aceitos os nomes internos da API, como `numero_pedido`,
+`empresa_sankhya_id`, `valor_mercadoria`, `origem`, `destino` e `itens`.
+
+## Resposta de sucesso
+
+Uma requisição válida retorna HTTP `200`:
 
 ```json
-{"ShippingSevicesArray":[{"ServiceCode":"04014","ServiceDescription":"SEDEX","Carrier":"Correios","CarrierCode":"CORREIOS","CodParcTransp":1234,"ShippingPrice":"89.90","DeliveryTime":"3","Error":false,"Msg":""}]}
+{
+  "ShippingSevicesArray": [
+    {
+      "ServiceCode": "04014",
+      "ServiceDescription": "SEDEX",
+      "Carrier": "Correios",
+      "CarrierCode": "CORREIOS",
+      "CarrierCnpj": "12345678000190",
+      "CodParcTransp": 1234,
+      "ShippingPrice": "89.90",
+      "DeliveryTime": "3",
+      "Error": false,
+      "Msg": ""
+    }
+  ]
+}
 ```
 
-`ShippingSevicesArray` mantém propositalmente o typo usado pela Frenet e pelo
-parser atual. A resposta contém exatamente um array, somente objetos planos e
-strings sem aspas, colchetes ou chaves. Opções indisponíveis permanecem no array
-com `Error: true`. Uma transportadora sem de-para continua disponível com
-`CodParcTransp: 0`.
+> `ShippingSevicesArray` mantém propositalmente a grafia do contrato legado
+> compatível com o parser atual do Sankhya.
 
-Se o motor falhar antes de produzir resultados, o contrato adotado até a
-homologação é retornar uma linha indisponível (`FRETEWAY_COTACAO_ERRO`). Isso
-preserva um diagnóstico visível na grade. Confirme essa decisão no teste ponta a
-ponta; ela pode ser alterada para array vazio sem mudar o parser.
-
-## De-para de transportadoras
-
-O mapeamento vive no banco da instalação, portanto um `CODPARC` nunca é
-reutilizado entre clientes:
-
-- `GET /api/v1/integrations/sankhya/mapeamentos`
-- `PUT /api/v1/integrations/sankhya/mapeamentos/{transportadora_id}`
-
-O `PUT` recebe `transportadora_id`, `empresa_sankhya_id` (a `CODEMP`),
-`codigo_parceiro`, `nome_parceiro` e, opcionalmente, `codigo_servico`, `servico`
-e `ativo`. Mapeamentos sem empresa continuam como fallback geral;
-um mapeamento específico da `CODEMP` sempre prevalece. Esses endpoints
-administrativos exigem as permissões normais do FreteWay.
-
-Cada chamada de cotação registra empresa, nota, transportadoras retornadas,
-total de linhas e request ID no log de auditoria, sem guardar a API key.
-
-## Contrato para homologação
-
-Endpoint oficial:
-
-```text
-POST https://modial-fretes.com.br/api/v1/integrations/sankhya/cotacao
-Content-Type: application/json
-X-API-Key: <API_KEY>
-```
-
-Campos obrigatórios:
+### Campos da resposta
 
 | Campo | Tipo | Descrição |
-|---|---:|---|
-| `NUNOTA` | número ou texto | Número único da nota/pedido no Sankhya. |
-| `CODEMP` | número ou texto | Código da empresa emissora vinculada no FreteWay. |
-| `CepOrigem` | texto | CEP de origem; pontuação é opcional. |
-| `CepDestino` | texto | CEP de destino; pontuação é opcional. |
-| `VlrNota` | número positivo | Valor total da mercadoria. |
-| `Volumes` | array não vazio | Grupos de volumes da carga. |
-| `Volumes[].Peso` | número positivo | Peso unitário em kg; é multiplicado por `Quantidade`. |
-| `Volumes[].Quantidade` | inteiro positivo | Quantidade de volumes do grupo; padrão `1`. |
+|---|---|---|
+| `ServiceCode` | texto | Código do serviço definido no de-para. |
+| `ServiceDescription` | texto | Descrição do serviço ou da transportadora. |
+| `Carrier` | texto | Nome da transportadora no FreteWay. |
+| `CarrierCode` | texto | Código interno da transportadora. |
+| `CarrierCnpj` | texto | CNPJ da transportadora, somente com dígitos. |
+| `CodParcTransp` | inteiro | `CODPARC` da transportadora no Sankhya. |
+| `ShippingPrice` | texto | Valor do frete com duas casas decimais. |
+| `DeliveryTime` | texto | Prazo de entrega em dias inteiros. |
+| `Error` | booleano | Indica se a opção não pôde ser cotada. |
+| `Msg` | texto | Motivo do erro, quando houver. |
 
-Cada volume deve informar `VolumeM3` ou o conjunto `Altura`, `Largura` e
-`Comprimento`. As dimensões são unitárias e expressas em centímetros. Peso,
-cubagem e quantidade são totalizados pelo motor oficial de cotação.
-
-Uma resposta bem-sucedida usa HTTP `200`. `ShippingPrice` contém duas casas
-decimais e `DeliveryTime` contém dias inteiros, ambos como texto por exigência
-do parser atual. `Error: true` identifica uma transportadora analisada que não
-produziu uma opção válida. Se nenhuma transportadora estiver ativa/elegível, o
-retorno controlado é:
+Quando não houver transportadoras ativas ou elegíveis, a resposta será:
 
 ```json
 {"ShippingSevicesArray":[]}
 ```
 
-Erros de autenticação retornam HTTP `401`; JSON ou campos inválidos retornam
-HTTP `422`; indisponibilidade do banco retorna HTTP `503` com corpo estruturado:
+Se uma transportadora for consultada, mas não produzir uma cotação válida, ela
+permanece na lista com `Error: true`, preço e prazo iguais a `"0"`, além da
+explicação em `Msg`.
+
+Uma transportadora sem de-para configurado também pode ser retornada, mas terá
+`CodParcTransp: 0`. Quando não houver um CNPJ válido, `CarrierCnpj` será uma
+string vazia.
+
+## Códigos HTTP e erros
+
+| HTTP | Situação |
+|---:|---|
+| `200` | Solicitação processada, mesmo que alguma opção tenha `Error: true`. |
+| `401` | Header `X-API-Key` ausente ou inválido. |
+| `422` | JSON inválido, campo obrigatório ausente ou empresa não vinculada. |
+| `503` | Banco de dados temporariamente indisponível. |
+
+Exemplo de indisponibilidade:
 
 ```json
 {
@@ -114,10 +164,7 @@ HTTP `422`; indisponibilidade do banco retorna HTTP `503` com corpo estruturado:
 }
 ```
 
-## Chamada manual
-
-Configure uma chave forte e exclusiva em `SANKHYA_API_KEY` no ambiente legado,
-Configure `SANKHYA_API_KEY` no ambiente da aplicação. Nunca grave a chave real em arquivos versionados.
+## Exemplo com cURL
 
 ```bash
 curl --request POST \
@@ -140,14 +187,38 @@ curl --request POST \
   }'
 ```
 
-Procedimento sugerido para o desenvolvedor Sankhya:
+## Pré-requisitos no FreteWay
 
-1. Configurar a URL, o header `X-API-Key` e timeout superior ao timeout das
-   transportadoras no ambiente de homologação.
-2. Enviar uma `NUNOTA` e `CODEMP` conhecidas com CEPs atendidos por uma tabela
-   ativa do FreteWay.
-3. Confirmar HTTP `200`, o único array `ShippingSevicesArray`, `CodParcTransp`,
-   transportadora, valor e prazo.
-4. Repetir sem a chave e com CEP inválido para confirmar HTTP `401` e `422`.
-5. Informar ao time FreteWay o `X-Request-ID` da resposta em caso de divergência;
-   ele correlaciona logs sem expor a API key.
+Antes da homologação, é necessário:
+
+- cadastrar e ativar a empresa com o mesmo código enviado em `CODEMP`;
+- cadastrar e habilitar as transportadoras que participarão da cotação;
+- configurar credenciais ou tabelas de frete válidas para essas transportadoras;
+- cadastrar o de-para entre cada transportadora e seu `CODPARC` no Sankhya;
+- configurar a chave compartilhada `SANKHYA_API_KEY` no ambiente da aplicação.
+
+Um de-para específico para a `CODEMP` prevalece sobre o mapeamento geral.
+
+## Roteiro mínimo de homologação
+
+1. Enviar uma nota conhecida, com empresa e CEPs válidos.
+2. Confirmar HTTP `200` e a presença de `ShippingSevicesArray`.
+3. Conferir transportadora, `CodParcTransp`, valor e prazo.
+4. Repetir a chamada sem a API key e confirmar HTTP `401`.
+5. Repetir com CEP inválido e confirmar HTTP `422`.
+6. Em caso de divergência, informar ao time FreteWay o `X-Request-ID` retornado
+   na resposta para facilitar a localização dos logs.
+
+## Endpoints administrativos do de-para
+
+Estes endpoints são destinados à administração do FreteWay e exigem uma sessão
+com as permissões correspondentes:
+
+```http
+GET /api/v1/integrations/sankhya/mapeamentos
+PUT /api/v1/integrations/sankhya/mapeamentos/{transportadora_id}
+```
+
+O mapeamento armazena o identificador da transportadora, a `CODEMP` opcional, o
+`CODPARC`, o nome do parceiro e, opcionalmente, o código e a descrição do
+serviço.
