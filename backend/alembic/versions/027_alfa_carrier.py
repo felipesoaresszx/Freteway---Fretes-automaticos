@@ -25,16 +25,13 @@ def upgrade() -> None:
         INSERT INTO transportadoras (
             id, codigo, nome, razao_social, segmento, tipo_integracao,
             metodo_calculo, status_integracao, ativa, taxa_sucesso,
-            tempo_medio_ms, precisa_revisao, status_validacao, metadata,
-            cnpj_cpf, nome_fantasia, rntrc, site, email_comercial, telefone, cep, cidade, uf
+            tempo_medio_ms, precisa_revisao, status_validacao, metadata
         )
         SELECT
             '00000000-0000-4000-8000-000000000027', 'alfa',
             'Alfa Transportes', 'Alfa Transportes Ltda',
             'cargas_fracionadas', 'api', 'api', 'pendente_credencial', true,
-            0, 0, false, 'A_VALIDAR', '{"provider":"Alfa Transportes API"}'::jsonb,
-            '04917818000124', 'Alfa Transportes', NULL, 
-            'https://www.alfatransportes.com.br', NULL, NULL, NULL, NULL, NULL, NULL
+            0, 0, false, 'A_VALIDAR', '{"provider":"Alfa Transportes API"}'::jsonb
         WHERE NOT EXISTS (
             SELECT 1 FROM transportadoras
             WHERE codigo = 'alfa' OR lower(nome) LIKE '%alfa%'
@@ -45,16 +42,11 @@ def upgrade() -> None:
     op.execute("""
         INSERT INTO carrier_integrations (
             id, carrier_id, integration_type, adapter_code, active,
-            priority, configuration, status, provider, url,
-            endpoint_base, documentation_url, requirements, is_public, confidence_score, source_url
+            priority, configuration, status
         )
         SELECT
             '00000000-0000-4000-8000-000000000127', t.id,
-            'API', 'alfa', true, 100, '{}'::jsonb, 'not_configured',
-            'Alfa Transportes', 'https://api.alfatransportes.com.br',
-            '/cotacao/', 'https://api.alfatransportes.com.br',
-            '{"api_key": "obrigatório", "base_url": "opcional", "endpoint": "opcional"}'::jsonb,
-            true, 0.85, 'https://api.alfatransportes.com.br'
+            'API', 'alfa', true, 100, '{}'::jsonb, 'not_configured'
         FROM transportadoras t
         WHERE (t.codigo = 'alfa' OR lower(t.nome) LIKE '%alfa%')
           AND NOT EXISTS (
