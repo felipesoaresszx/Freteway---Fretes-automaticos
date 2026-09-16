@@ -6,7 +6,6 @@ Implementa a interface CarrierAdapter para integração com a API Alfa.
 import json
 import logging
 from time import perf_counter
-from typing import Any
 
 import httpx
 
@@ -16,7 +15,7 @@ from app.integrations.alfa.exceptions import (
     AlfaNoQuoteError, AlfaResponseError, AlfaTimeoutError,
 )
 from app.integrations.alfa.mapper import to_alfa_request, to_freteway_result
-from app.integrations.alfa.schemas import AlfaCredentials, AlfaQuoteResponse
+from app.integrations.alfa.schemas import AlfaCredentials
 from app.integrations.transportadoras.carrier_base import CarrierAdapter
 from app.schemas.carrier import FreightQuoteRequest, FreightQuoteResult
 

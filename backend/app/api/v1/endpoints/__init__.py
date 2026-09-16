@@ -1,1 +1,1 @@
-from .alfa_setup import router as alfa_setup
+from . import alfa_setup as alfa_setup

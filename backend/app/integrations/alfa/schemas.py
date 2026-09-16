@@ -4,7 +4,6 @@ Informações baseadas em implementação pública descoberta.
 A Alfa confirma possessão de API de cotação, mas acesso depende de liberação regional/comercial.
 """
 
-import re
 from enum import Enum
 from typing import Literal
 

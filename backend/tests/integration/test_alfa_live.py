@@ -31,9 +31,8 @@ from decimal import Decimal
 import pytest
 
 from app.integrations.alfa.client import AlfaClient
-from app.integrations.alfa.mapper import to_alfa_request, to_freteway_result
+from app.integrations.alfa.mapper import to_alfa_request
 from app.integrations.alfa.provider import AlfaProvider
-from app.integrations.alfa.schemas import AlfaCredentials
 from app.schemas.carrier import FreightQuoteRequest
 
 
@@ -120,7 +119,7 @@ async def test_alfa_live_full_quote():
     
     # Log do resultado para verificação manual
     print(f"\n{'='*60}")
-    print(f"Alfa Transportes - Teste de Homologação")
+    print("Alfa Transportes - Teste de Homologação")
     print(f"{'='*60}")
     print(f"Valor do Frete: R$ {result.price:.2f}")
     print(f"Dias para Entrega: {result.delivery_days}")
@@ -161,9 +160,6 @@ async def test_alfa_live_comparison_with_table():
     
     NOTA: Esta é apenas uma ferramenta de validação, não altera dados automaticamente.
     """
-    from app.integrations.transportadoras.tabela_frete import TabelaFreteAdapter
-    from sqlalchemy.ext.asyncio import create_async_engine
-    from sqlalchemy.ext.asyncio import AsyncSession
     
     # Obter cotação da API Alfa
     creds = live_credentials()
@@ -173,11 +169,11 @@ async def test_alfa_live_comparison_with_table():
     api_days = api_results[0].delivery_days
     
     print(f"\n{'='*60}")
-    print(f"COMPARAÇÃO: Alfa API vs Motor FreteWay")
+    print("COMPARAÇÃO: Alfa API vs Motor FreteWay")
     print(f"{'='*60}")
-    print(f"Alfa API:")
+    print("Alfa API:")
     print(f"  Valor: R$ {api_value:.2f}")
     print(f"  Dias: {api_days}")
-    print(f"\nNOTA: Para comparar com o motor de tabela, é necessário")
-    print(f"      ter uma tabela de frete da Alfa cadastrada no FreteWay.")
+    print("\nNOTA: Para comparar com o motor de tabela, é necessário")
+    print("      ter uma tabela de frete da Alfa cadastrada no FreteWay.")
     print(f"{'='*60}\n")

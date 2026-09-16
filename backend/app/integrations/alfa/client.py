@@ -10,7 +10,7 @@ Implementa chamadas à API de cotação com:
 import asyncio
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any, ClassVar
 from urllib.parse import urlencode
 
@@ -19,11 +19,10 @@ import httpx
 from app.core.config import get_settings
 from app.core.url_security import validate_external_url
 from app.integrations.alfa.exceptions import (
-    AlfaAuthenticationError, AlfaConnectionError, AlfaIntegrationError,
-    AlfaInvalidRequestError, AlfaNoQuoteError, AlfaRateLimitError,
+    AlfaAuthenticationError, AlfaConnectionError, AlfaInvalidRequestError, AlfaNoQuoteError, AlfaRateLimitError,
     AlfaResponseError, AlfaTimeoutError,
 )
-from app.integrations.alfa.schemas import AlfaCredentials, AlfaQuoteRequest, AlfaQuoteResponse
+from app.integrations.alfa.schemas import AlfaQuoteRequest, AlfaQuoteResponse
 
 logger = logging.getLogger(__name__)
 

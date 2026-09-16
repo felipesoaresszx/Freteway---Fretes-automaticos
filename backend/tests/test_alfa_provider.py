@@ -17,15 +17,14 @@ Testes unitários com mocks para garantir que:
 """
 
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
 
 from app.integrations.alfa.client import AlfaClient
 from app.integrations.alfa.exceptions import (
-    AlfaAuthenticationError, AlfaConnectionError, AlfaIntegrationError,
-    AlfaInvalidRequestError, AlfaNoQuoteError, AlfaRateLimitError,
+    AlfaAuthenticationError, AlfaConnectionError, AlfaInvalidRequestError, AlfaNoQuoteError, AlfaRateLimitError,
     AlfaResponseError, AlfaTimeoutError,
 )
 from app.integrations.alfa.mapper import (

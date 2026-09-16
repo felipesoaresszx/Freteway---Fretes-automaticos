@@ -14,7 +14,7 @@ Informações:
 from alembic import op
 
 revision = "027_alfa_carrier"
-down_revision = "026_cotacao_breakdown"
+down_revision = "026_quote_breakdown"
 branch_labels = None
 depends_on = None
 

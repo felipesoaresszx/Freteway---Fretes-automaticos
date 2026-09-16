@@ -9,7 +9,7 @@ import re
 from decimal import Decimal
 from typing import Any
 
-from app.integrations.alfa.schemas import AlfaCustomerType, AlfaQuoteRequest, AlfaQuoteResponse, AlfaQuoteResult
+from app.integrations.alfa.schemas import AlfaCustomerType, AlfaQuoteRequest, AlfaQuoteResponse
 from app.schemas.carrier import FreightQuoteRequest, FreightQuoteResult
 
 
