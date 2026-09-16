@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import auth, carriers, companies, configuracoes, cotacoes, dashboard, enderecos, enrichment, health, sankhya, ssw, transportadoras, tabelas_frete, tenants_admin
+from app.api.v1.endpoints import alfa_setup
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -17,3 +18,4 @@ api_router.include_router(sankhya.router)
 api_router.include_router(tenants_admin.router)
 api_router.include_router(enderecos.router)
 api_router.include_router(companies.router)
+api_router.include_router(alfa_setup.router, tags=["alfa", "setup"])

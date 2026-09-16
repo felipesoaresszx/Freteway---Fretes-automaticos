@@ -43,6 +43,9 @@ class CarrierIntegrationManager:
         elif integration.adapter_code == "correios":
             from app.integrations.correios.schemas import CorreiosCredentials
             credentials = CorreiosCredentials.model_validate(credentials).model_dump(mode="json")
+        elif integration.adapter_code == "alfa":
+            from app.integrations.alfa.schemas import AlfaCredentials
+            credentials = AlfaCredentials.model_validate(credentials).model_dump(mode="json")
         current = await self.repo.credential(integration.id)
         payload = criptografar(json.dumps(credentials, separators=(",", ":")))
         if current:

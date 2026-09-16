@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+from app.integrations.alfa.provider import AlfaProvider
 from app.integrations.transportadoras.carrier_base import CarrierAdapter
 from app.integrations.transportadoras.mock_adapter import MockCarrierAdapter
 from app.integrations.ssw.provider import SSWProvider
@@ -29,4 +30,5 @@ registry.register("mock", MockCarrierAdapter)
 registry.register("ssw", SSWProvider)
 registry.register("risso", RissoProvider)
 registry.register("correios", CorreiosProvider)
+registry.register("alfa", AlfaProvider)
 ADAPTER_REGISTRY = registry
