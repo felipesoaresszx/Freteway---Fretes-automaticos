@@ -466,6 +466,10 @@ async def obter_dados_revisao(
         revisao = carregar_revisao(documento)
     except AnaliseDocumentoError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # O preview é uma projeção descartável. Recriá-lo evita manter contagens e
+    # aliases obsoletos quando o normalizador evolui após a análise original.
+    from app.services.tabela_frete.tabela_import import normalizar_preview
+    revisao["preview_estruturado"] = normalizar_preview(revisao.get("dados_extraidos") or {})
     ids_revisao = revisao.get("documento_ids") or [documento.id]
     encontrados = (await db.scalars(
         select(DocumentoFrete).where(DocumentoFrete.id.in_(ids_revisao))
@@ -593,10 +597,13 @@ async def confirmar_importacao(
             status_code=422,
             detail="O documento foi lido, mas precisa de mapeamento tarifário antes da confirmação.",
         )
-    if dados.dados_extraidos.get("formato") == "tabela_frete_universal_v1" and (
-        not dados.dados_extraidos.get("faixas_tarifarias") or not dados.dados_extraidos.get("pracas")
-    ):
-        raise HTTPException(status_code=422, detail="Complete ao menos uma faixa tarifária e uma praça/CEP")
+    if dados.dados_extraidos.get("formato") == "tabela_frete_universal_v1":
+        pracas = dados.dados_extraidos.get("pracas") or dados.dados_extraidos.get("destinations") or []
+        possui_tarifa = bool(dados.dados_extraidos.get("faixas_tarifarias")) or any(
+            item.get("weight_rates") or item.get("tariff_rule") for item in pracas
+        )
+        if not pracas or not possui_tarifa:
+            raise HTTPException(status_code=422, detail="Complete ao menos uma faixa tarifária e uma praça/CEP")
     try:
         await persistir_revisao(db, tabela, dados.dados_extraidos)
     except AnaliseDocumentoError as exc:

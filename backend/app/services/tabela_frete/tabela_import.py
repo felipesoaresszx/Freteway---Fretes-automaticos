@@ -40,17 +40,31 @@ def normalizar_preview(dados: dict) -> dict:
             "fonte": {"parser": "canonical_freight_v1"},
         }
     if dados.get("formato") == "tabela_frete_universal_v1":
+        pracas = dados.get("pracas") or dados.get("destinations") or []
+        faixas = dados.get("faixas_tarifarias") or [
+            {"destination_code": item.get("destination_code"), "region_code": item.get("region_code"), **rule}
+            for item in pracas if (rule := item.get("tariff_rule"))
+        ]
+        regras = dados.get("regras") or {
+            "tipo_tarifario": "BASE_PLUS_EXCESS" if faixas else "WEIGHT_BANDS",
+            "niveis_atendimento": dados.get("region_level_aliases", {}),
+            "legenda_destinos": dados.get("destination_legend", {}),
+        }
+        zonas = dados.get("zonas_especiais") or {
+            level: [item.get("destination_code") for item in pracas if item.get("service_level") == level]
+            for level in sorted({item.get("service_level") for item in pracas if item.get("service_level")})
+        }
         return {
             "formato": dados["formato"],
             "fator_cubagem": dados.get("fator_cubagem", 300),
             "peso_limite_kg": dados.get("peso_limite_kg"),
-            "faixas_tarifarias": dados.get("faixas_tarifarias", []),
-            "pracas": dados.get("pracas", []),
+            "faixas_tarifarias": faixas,
+            "pracas": pracas,
             "shape": dados.get("shape"),
             "destination_legend": dados.get("destination_legend", {}),
             "region_level_aliases": dados.get("region_level_aliases", {}),
-            "regras": dados.get("regras", {}),
-            "zonas_especiais": dados.get("zonas_especiais", {}),
+            "regras": regras,
+            "zonas_especiais": zonas,
             "estatisticas": dados.get("estatisticas", {}),
             "requer_mapeamento_tarifario": False,
             "fonte": {"parser": "table_engine_universal"},

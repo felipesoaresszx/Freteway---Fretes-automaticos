@@ -6,6 +6,7 @@ import pytest
 from app.services.tabela_frete.analise import adicionar_diagnostico_confianca, analisar_documento_local
 from app.services.tabela_frete.calculo_universal import calcular_universal
 from app.services.tabela_frete.tariff_shapes import PlaceCodeLegendParser
+from app.services.tabela_frete.tabela_import import normalizar_preview
 
 
 ROOT = Path(__file__).parents[2]
@@ -26,6 +27,11 @@ def test_maex_reconhece_codigo_legenda_e_base_mais_excedente():
     assert result["diagnostico_confianca"]["aceito_para_cadastro"] is True
     assert len(data["destinations"]) == 12
     assert data["destination_legend"]["GYN"]["scope"] == "TABLE"
+    preview = normalizar_preview(data)
+    assert len(preview["pracas"]) == 12
+    assert len(preview["faixas_tarifarias"]) == 12
+    assert len(preview["regras"]) == 3
+    assert set(preview["zonas_especiais"]) == {"INTERIOR", "POLE"}
     quote = calcular_universal(data, {"destino_cidade": "GOIANIA", "destino_uf": "GO", "peso": 150})
     assert quote["valor_total"] == pytest.approx(69 + 50 * .667)
 
