@@ -1,6 +1,32 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# No deploy pelo GitHub Actions, a chave chega exclusivamente via stdin. Esta
+# etapa roda depois da atualização do repositório, inclusive no primeiro deploy
+# que introduz este mecanismo.
+if [[ ! -t 0 ]] && IFS= read -r SANKHYA_API_KEY; then
+  [[ ${#SANKHYA_API_KEY} -ge 32 ]] || { echo "SANKHYA_API_KEY ausente ou muito curta." >&2; exit 1; }
+  backend_env="backend/.env.production"
+  [[ -f "$backend_env" ]] || { echo "Arquivo $backend_env ausente." >&2; exit 1; }
+  temp_env="$(mktemp "backend/.env.production.XXXXXX")"
+  trap 'rm -f "$temp_env"' EXIT
+  chmod 600 "$temp_env"
+  found_sankhya_key=false
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == SANKHYA_API_KEY=* ]]; then
+      printf 'SANKHYA_API_KEY=%s\n' "$SANKHYA_API_KEY" >> "$temp_env"
+      found_sankhya_key=true
+    else
+      printf '%s\n' "$line" >> "$temp_env"
+    fi
+  done < "$backend_env"
+  if [[ "$found_sankhya_key" == false ]]; then
+    printf 'SANKHYA_API_KEY=%s\n' "$SANKHYA_API_KEY" >> "$temp_env"
+  fi
+  mv "$temp_env" "$backend_env"
+  chmod 600 "$backend_env"
+fi
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 ENV_FILE="${ENV_FILE:-.env.production}"

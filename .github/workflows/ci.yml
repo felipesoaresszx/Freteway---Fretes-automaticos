@@ -106,8 +106,27 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy tested revision
-        run: >-
-          ssh -i ~/.ssh/freteway_deploy
-          -o BatchMode=yes
-          -o IdentitiesOnly=yes
-          ubuntu@64.181.183.229 deploy
+        shell: bash
+        env:
+          SANKHYA_API_KEY: ${{ secrets.SANKHYA_API_KEY }}
+        run: |
+          if [[ ${#SANKHYA_API_KEY} -lt 32 ]]; then
+            echo "GitHub Actions Secret SANKHYA_API_KEY ausente ou muito curto." >&2
+            exit 1
+          fi
+          printf '%s\n' "$SANKHYA_API_KEY" | ssh -i ~/.ssh/freteway_deploy \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            ubuntu@64.181.183.229 deploy
+
+          smoke_status="$(curl --silent --show-error --max-time 30 \
+            --output /dev/null --write-out '%{http_code}' \
+            --request POST https://modial-fretes.com.br/api/v1/integrations/sankhya/cotacao \
+            --header 'Content-Type: application/json' \
+            --header "X-API-Key: $SANKHYA_API_KEY" \
+            --data '{"NUNOTA":"DEPLOY-SMOKE","CODEMP":"DEPLOY-SMOKE-INEXISTENTE","CepOrigem":"01001000","CepDestino":"30110000","VlrNota":1,"Volumes":[{"Quantidade":1,"Peso":1,"Altura":1,"Largura":1,"Comprimento":1}]}'
+          )"
+          if [[ "$smoke_status" != 422 ]]; then
+            echo "Smoke test Sankhya falhou (HTTP $smoke_status; esperado 422 para CODEMP de teste)." >&2
+            exit 1
+          fi
