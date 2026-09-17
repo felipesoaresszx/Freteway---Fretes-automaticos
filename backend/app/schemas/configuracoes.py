@@ -109,7 +109,6 @@ class NotificacaoSettings(BaseModel):
 
 class SegurancaSettings(BaseModel):
     expiracao_token_minutos: int = Field(default=60, ge=5, le=1440)
-    two_factor_obrigatorio: bool = False
 
 
 class RoleOut(BaseModel):

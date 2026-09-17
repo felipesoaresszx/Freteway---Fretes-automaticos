@@ -5,10 +5,10 @@ export type EmpresaSankhyaInput = Omit<EmpresaSankhya, "id" | "created_at">;
 export interface CotacaoSettings { margem_padrao_percentual: number; regra_arredondamento: "duas_casas" | "cima" | "baixo" | "inteiro"; validade_padrao_dias: number; unidade_peso: "kg"; unidade_volume: "m3"; casas_decimais: number }
 export interface CanalNotificacao { email: boolean; webhook: boolean }
 export interface NotificacaoSettings { cotacao_criada: CanalNotificacao; cotacao_expirada: CanalNotificacao; falha_integracao: CanalNotificacao; destinatarios: string[]; webhook_url: string }
-export interface SegurancaSettings { expiracao_token_minutos: number; two_factor_obrigatorio: boolean }
+export interface SegurancaSettings { expiracao_token_minutos: number }
 export interface Role { id: string; nome: string; descricao: string | null; permissions: string[] }
 export interface Usuario { id: string; nome: string; email: string; ativa: boolean; two_factor_enabled: boolean; last_login_at: string | null; created_at: string; roles: Role[] }
-export interface UsuarioInput { nome: string; email: string; password?: string; role_ids: string[]; two_factor_enabled?: boolean }
+export interface UsuarioInput { nome: string; email: string; password?: string; role_ids: string[] }
 export interface CurrentUser extends Usuario { permissions: string[] }
 export interface IntegracaoGlobal { id: string; codigo: string; nome: string; tipo: string; configuracao: Record<string, unknown>; status: "conectado" | "erro" | "pendente" | "desativado"; ultimo_erro: string | null; ultima_verificacao_at: string | null; ativa: boolean; credencial_configurada: boolean; updated_at: string }
 export interface IntegracaoGlobalInput { configuracao: Record<string, unknown>; credenciais?: Record<string, string> | null; ativa: boolean }

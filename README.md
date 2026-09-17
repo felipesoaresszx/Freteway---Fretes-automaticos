@@ -17,7 +17,7 @@ O FreteWay opera como uma instalação dedicada a uma única organização.
 
 ## Recursos principais
 
-- Autenticação por cookie HTTP-only/JWT, permissões e 2FA configurável.
+- Autenticação por cookie HTTP-only/JWT e permissões.
 - Banco PostgreSQL único, com dados operacionais no schema `public`.
 - Dashboard e histórico pesquisável de cotações.
 - Cotação paralela, retentativas, timeout e circuit breaker por provider.
@@ -132,7 +132,7 @@ npm run dev
 
 1. O usuário informa o código da empresa.
 3. O frontend aplica o tema da empresa.
-4. O usuário autentica com e-mail, senha e, se habilitado, 2FA.
+4. O usuário autentica com e-mail e senha.
 4. Consultas posteriores usam o banco único da instalação.
 
 ### Cotação
