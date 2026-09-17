@@ -38,12 +38,15 @@ class ApiGenericaAdapter(TransportadoraAdapter):
             return ResultadoCotacao(status="error", erro_codigo="API_URL_INSEGURA", erro_mensagem=str(exc))
 
         headers = {"Accept": "application/json"}
+        request_payload = dict(cotacao_payload)
         auth = None
         credencial = descriptografar(self.configuracao.credencial_criptografada)
         if self.configuracao.tipo_autenticacao == "bearer" and credencial:
             headers["Authorization"] = f"Bearer {credencial}"
         elif self.configuracao.tipo_autenticacao == "api_key" and credencial:
             headers[self.configuracao.nome_header or "X-API-Key"] = credencial
+        elif self.configuracao.tipo_autenticacao == "query_param" and credencial:
+            request_payload[self.configuracao.nome_header or "api_key"] = credencial
         elif self.configuracao.tipo_autenticacao == "basic" and credencial:
             usuario, separador, senha = credencial.partition(":")
             if not separador:
@@ -53,9 +56,9 @@ class ApiGenericaAdapter(TransportadoraAdapter):
         try:
             async with httpx.AsyncClient(timeout=15, follow_redirects=False) as cliente:
                 if self.configuracao.metodo_http == "GET":
-                    resposta = await cliente.get(url, params=cotacao_payload, headers=headers, auth=auth)
+                    resposta = await cliente.get(url, params=request_payload, headers=headers, auth=auth)
                 else:
-                    resposta = await cliente.post(url, json=cotacao_payload, headers=headers, auth=auth)
+                    resposta = await cliente.post(url, json=request_payload, headers=headers, auth=auth)
                 resposta.raise_for_status()
                 dados = resposta.json()
             return ResultadoCotacao(

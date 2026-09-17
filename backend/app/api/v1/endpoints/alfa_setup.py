@@ -45,7 +45,7 @@ async def configure_alfa_transportes(
     curl -X POST "http://localhost:8000/api/v1/alfa-setup/configure" \
       -H "Authorization: Bearer YOUR_TOKEN" \
       -H "Content-Type: application/json" \
-      -d '{"api_key": "f1f7809da0e17b5de647848f94b7b6dc"}'
+      -d '{"api_key": "SUA_CHAVE_ALFA"}'
     ```
     """
     # 1. Criar/obter transportadora

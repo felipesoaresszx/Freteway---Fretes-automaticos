@@ -56,7 +56,7 @@ export interface ConfiguracaoApi {
   base_url: string;
   endpoint_cotacao: string;
   metodo_http: "GET" | "POST";
-  tipo_autenticacao: "bearer" | "api_key" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic";
+  tipo_autenticacao: "bearer" | "api_key" | "query_param" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic";
   nome_header: string | null;
   usuario_integracao?: string | null;
   auth_url?: string | null;
@@ -74,7 +74,7 @@ export interface ConfiguracaoApiInput {
   base_url: string;
   endpoint_cotacao: string;
   metodo_http: "GET" | "POST";
-  tipo_autenticacao: "bearer" | "api_key" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic";
+  tipo_autenticacao: "bearer" | "api_key" | "query_param" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic";
   nome_header?: string | null;
   credencial?: string | null;
   usuario_integracao?: string | null;

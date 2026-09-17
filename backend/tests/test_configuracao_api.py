@@ -31,3 +31,17 @@ def test_configuracao_api_aceita_login_jamef():
 
     assert dados.tipo_autenticacao == "jamef_login"
     assert dados.tipo_transporte == "1"
+
+
+def test_configuracao_api_aceita_chave_em_parametro_da_url():
+    dados = ConfiguracaoApiUpdate(
+        base_url="https://api.alfatransportes.com.br",
+        endpoint_cotacao="/cotacao/",
+        metodo_http="GET",
+        tipo_autenticacao="QUERY_PARAM",
+        nome_header="idr",
+        credencial="chave-teste",
+    )
+
+    assert dados.tipo_autenticacao == "query_param"
+    assert dados.nome_header == "idr"

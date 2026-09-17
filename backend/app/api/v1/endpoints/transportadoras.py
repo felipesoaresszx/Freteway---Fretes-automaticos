@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_permission
 from app.db.session import get_db
-from app.models.models import Transportadora, TransportadoraConfiguracaoApi, TransportadoraImportacao
+from app.models.models import CarrierIntegration, Transportadora, TransportadoraConfiguracaoApi, TransportadoraImportacao
 from app.schemas.transportadora import (
     ConsultaCnpjOut,
     TransportadoraCreate,
@@ -33,6 +33,7 @@ from app.schemas.transportadora import (
 from app.schemas.transportadora import documento_valido, somente_digitos
 from app.services.consulta_cnpj import consultar_cnpj
 from app.services.credenciais import criptografar, descriptografar
+from app.services.carrier_management import CarrierIntegrationManager
 from app.services.transportadora_exclusao import (
     excluir_transportadora_definitivamente,
     remover_arquivos_transportadora,
@@ -397,6 +398,17 @@ async def salvar_configuracao_api(
     transportadora = await _obter_ou_404(db, transportadora_id)
     if transportadora.tipo_integracao != "api":
         raise HTTPException(status_code=400, detail="A transportadora precisa usar integração do tipo API")
+    is_alfa = transportadora.nome.strip().casefold().startswith("alfa")
+    if is_alfa:
+        dados = dados.model_copy(update={
+            "base_url": "https://api.alfatransportes.com.br",
+            "endpoint_cotacao": "/cotacao/",
+            "metodo_http": "GET",
+            "tipo_autenticacao": "query_param",
+            "nome_header": "idr",
+            "campo_valor": "cotacao.emissao.valoresCotacao.valorTotal",
+            "campo_prazo": "cotacao.emissao.diasEntrega",
+        })
     configuracao = await db.scalar(select(TransportadoraConfiguracaoApi).where(
         TransportadoraConfiguracaoApi.transportadora_id == transportadora_id
     ))
@@ -419,6 +431,35 @@ async def salvar_configuracao_api(
             raise HTTPException(status_code=422, detail="Informe usuario, senha e CNPJ remetente da Braspress")
     if dados.ativa and dados.tipo_autenticacao != "nenhuma" and not configuracao.credencial_criptografada:
         raise HTTPException(status_code=422, detail="Informe a chave/token antes de ativar a API")
+    if is_alfa:
+        integration = await db.scalar(select(CarrierIntegration).where(
+            CarrierIntegration.carrier_id == transportadora.id,
+            CarrierIntegration.adapter_code == "alfa",
+        ))
+        if integration is None:
+            integration = CarrierIntegration(
+                carrier_id=transportadora.id,
+                integration_type="API",
+                adapter_code="alfa",
+                active=dados.ativa,
+                priority=100,
+                configuration={},
+                status="not_configured",
+            )
+            db.add(integration)
+            await db.flush()
+        integration.active = dados.ativa
+        integration.configuration = {
+            "base_url": str(dados.base_url).rstrip("/"),
+            "endpoint": dados.endpoint_cotacao,
+        }
+        if configuracao.credencial_criptografada:
+            alfa_key = descriptografar(configuracao.credencial_criptografada)
+            await CarrierIntegrationManager(db).save_credentials(integration, {
+                "api_key": alfa_key,
+                "base_url": str(dados.base_url).rstrip("/"),
+                "endpoint": dados.endpoint_cotacao,
+            })
     transportadora.status_integracao = "ativo" if configuracao.ativa else "pendente_credencial"
     transportadora.api_ambiente = transportadora.api_ambiente or "producao"
     await db.commit()

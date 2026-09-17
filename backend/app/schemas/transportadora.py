@@ -219,7 +219,7 @@ class ConfiguracaoApiUpdate(BaseModel):
     @classmethod
     def validar_autenticacao(cls, valor: str) -> str:
         normalizado = valor.lower()
-        if normalizado not in {"bearer", "api_key", "basic", "nenhuma", "jamef_login", "braspress_basic"}:
+        if normalizado not in {"bearer", "api_key", "query_param", "basic", "nenhuma", "jamef_login", "braspress_basic"}:
             raise ValueError("Tipo de autenticação inválido")
         return normalizado
 

@@ -11,7 +11,7 @@ curl -X POST "http://localhost:8000/api/v1/alfa-setup/configure" \
   -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
   -H "Content-Type: application/json" \
   -d '{
-    "api_key": "f1f7809da0e17b5de647848f94b7b6dc"
+    "api_key": "SUA_CHAVE_ALFA"
   }'
 ```
 
@@ -85,7 +85,7 @@ O script:
    - Clique em: **Integrações**
    - Clique em: **[ Editar Credenciais ]** ou **[ Salvar Credenciais ]**
    - Preencha:
-     - **API Key:** `f1f7809da0e17b5de647848f94b7b6dc`
+     - **API Key:** a chave IDR fornecida pela Alfa
      - **Base URL:** `https://api.alfatransportes.com.br`
      - **Endpoint:** `/cotacao/`
    - Clique em: **Salvar**
