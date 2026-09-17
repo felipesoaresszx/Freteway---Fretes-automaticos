@@ -114,8 +114,11 @@ def to_alfa_request(request: FreightQuoteRequest, credentials: dict[str, str]) -
     cep_origem = _sanitize_cep(request.origin_zipcode)
     cep_destino = _sanitize_cep(request.destination_zipcode)
     
-    # Obter documento do destinatário
-    doc_destinatario = _get_destination_document(request)
+    # A API aplica a negociação comercial pelo CNPJ vinculado à chave IDR.
+    # O documento da cotação é usado apenas como fallback para cadastros antigos.
+    doc_destinatario = _sanitize_document(credentials.get("customer_document"))
+    if not doc_destinatario:
+        doc_destinatario = _get_destination_document(request)
     if not doc_destinatario:
         # Se não tem documento, usa CNPJ padrão para PJ
         doc_destinatario = ""
@@ -179,10 +182,9 @@ def to_freteway_result(
     # Extrair dias de entrega
     delivery_days = None
     if "diasEntrega" in emissao:
-        try:
-            delivery_days = int(emissao["diasEntrega"])
-        except (TypeError, ValueError):
-            pass
+        match = re.search(r"\d+", str(emissao["diasEntrega"]))
+        if match:
+            delivery_days = int(match.group())
     
     # Extrair valores de cotação
     valores_cotacao = emissao.get("valoresCotacao")

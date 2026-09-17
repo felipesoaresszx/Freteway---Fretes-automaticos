@@ -431,6 +431,8 @@ async def salvar_configuracao_api(
             raise HTTPException(status_code=422, detail="Informe usuario, senha e CNPJ remetente da Braspress")
     if dados.ativa and dados.tipo_autenticacao != "nenhuma" and not configuracao.credencial_criptografada:
         raise HTTPException(status_code=422, detail="Informe a chave/token antes de ativar a API")
+    if is_alfa and dados.ativa and not dados.documento_devedor:
+        raise HTTPException(status_code=422, detail="Informe o CNPJ vinculado à credencial da Alfa")
     if is_alfa:
         integration = await db.scalar(select(CarrierIntegration).where(
             CarrierIntegration.carrier_id == transportadora.id,
@@ -457,6 +459,7 @@ async def salvar_configuracao_api(
             alfa_key = descriptografar(configuracao.credencial_criptografada)
             await CarrierIntegrationManager(db).save_credentials(integration, {
                 "api_key": alfa_key,
+                "customer_document": dados.documento_devedor,
                 "base_url": str(dados.base_url).rstrip("/"),
                 "endpoint": dados.endpoint_cotacao,
             })

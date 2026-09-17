@@ -4,6 +4,7 @@ Informações baseadas em implementação pública descoberta.
 A Alfa confirma possessão de API de cotação, mas acesso depende de liberação regional/comercial.
 """
 
+import json
 from enum import Enum
 from typing import Literal
 
@@ -26,6 +27,7 @@ class AlfaCredentials(BaseModel):
     base_url: str = "https://api.alfatransportes.com.br"
     endpoint: str = "/cotacao/"
     api_key: str = Field(min_length=1, max_length=255, description="API Key / IDR da Alfa Transportes")
+    customer_document: str | None = Field(default=None, description="CNPJ vinculado à credencial Alfa")
     login: str | None = Field(default=None, max_length=80, description="Login (opcional, para outros recursos)")
     password: str | None = Field(default=None, max_length=255, description="Senha (opcional, para outros recursos)")
     modo_json: Literal["1"] = "1"
@@ -49,6 +51,16 @@ class AlfaCredentials(BaseModel):
     @classmethod
     def strip_value(cls, value: str | None) -> str | None:
         return value.strip() if value else None
+
+    @field_validator("customer_document")
+    @classmethod
+    def normalize_customer_document(cls, value: str | None) -> str | None:
+        if not value:
+            return None
+        digits = "".join(char for char in value if char.isdigit())
+        if len(digits) != 14:
+            raise ValueError("CNPJ vinculado à Alfa deve conter 14 dígitos")
+        return digits
 
 
 class AlfaCustomerType(str, Enum):
@@ -111,6 +123,19 @@ class AlfaQuoteResponse(BaseModel):
     """
     model_config = ConfigDict(extra="ignore")
     cotacao: dict | None = Field(default=None, description="Objeto cotacao")
+
+    @field_validator("cotacao", mode="before")
+    @classmethod
+    def normalize_cotacao(cls, value: object) -> object:
+        if value in (None, ""):
+            return None
+        if isinstance(value, str):
+            try:
+                decoded = json.loads(value)
+            except json.JSONDecodeError:
+                return None
+            return decoded if isinstance(decoded, dict) else None
+        return value
 
 
 class AlfaQuoteResult(BaseModel):

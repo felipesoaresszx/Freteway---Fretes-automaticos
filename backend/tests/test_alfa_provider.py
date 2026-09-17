@@ -107,6 +107,13 @@ class TestAlfaCredentials:
         assert creds.login == "user"
         assert creds.password == "pass"
 
+    def test_credentials_normalizam_cnpj_vinculado(self):
+        creds = AlfaCredentials.model_validate({
+            "api_key": "test",
+            "customer_document": "04.917.818/0001-24",
+        })
+        assert creds.customer_document == "04917818000124"
+
 
 # Testes de Sanitização
 
@@ -261,6 +268,12 @@ class TestMapper:
         result = to_alfa_request(request, creds)
         assert result.idr == "my_api_key_123"
 
+    def test_to_alfa_request_prioriza_cnpj_vinculado_a_credencial(self):
+        creds = {**credentials(), "customer_document": "04.917.818/0001-24"}
+        result = to_alfa_request(basic_request(), creds)
+        assert result.cliCnpj == "04917818000124"
+        assert result.cliTip == AlfaCustomerType.JURIDICA
+
 
 class TestFreightWayResultMapper:
     """Testes para conversão de resposta Alfa para FreteWay."""
@@ -277,6 +290,22 @@ class TestFreightWayResultMapper:
         })
         result = to_freteway_result(response)
         assert result.delivery_days == 6
+
+    def test_to_freteway_result_extrai_prazo_textual_da_api_real(self):
+        response = AlfaQuoteResponse.model_validate({
+            "cotacao": {
+                "emissao": {
+                    "diasEntrega": "8 DIAS UTEIS",
+                    "valoresCotacao": {"valorTotal": 113.11},
+                }
+            }
+        })
+        result = to_freteway_result(response)
+        assert result.delivery_days == 8
+
+    def test_response_normaliza_cotacao_vazia(self):
+        response = AlfaQuoteResponse.model_validate({"cotacao": ""})
+        assert response.cotacao is None
 
     def test_to_freteway_result_extrai_valor_total(self):
         """valorTotal deve ser extraído corretamente."""
