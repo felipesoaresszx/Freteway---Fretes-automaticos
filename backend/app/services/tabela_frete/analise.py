@@ -55,6 +55,13 @@ MOTIVOS_DUVIDA = {
         "como_resolver": "Mapeie as faixas tarifárias e as praças/CEPs ou use um modelo de importação já reconhecido.",
         "impeditivo": True,
     },
+    "destination_code_legend": {
+        "titulo": "Códigos de destino sem legenda associada",
+        "explicacao": "A coluna Destino contém códigos que não puderam ser ligados a uma legenda no arquivo.",
+        "impacto": "Sem cidade/UF, o sistema não consegue determinar a praça atendida com segurança.",
+        "como_resolver": "Anexe a legenda ou mapeie manualmente cada código para cidade/UF; o mapa ficará escopado à transportadora/tabela.",
+        "impeditivo": True,
+    },
     "prazo_dias": {
         "titulo": "Prazo ausente em uma ou mais linhas",
         "explicacao": "Há tarifas válidas sem o respectivo prazo de entrega.",
@@ -209,7 +216,25 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
     caminho = (storage_dir.resolve() / documento.caminho_storage).resolve()
     if storage_dir.resolve() not in caminho.parents or not caminho.is_file():
         raise AnaliseDocumentoError("Documento não encontrado no armazenamento")
-    if documento.tipo_arquivo in {"xlsx", "xlsm"}:
+    if documento.tipo_arquivo in {"xlsx", "xlsm", "xls"}:
+        from app.services.tabela_frete.tariff_shapes import parse_best_shape
+        shape = parse_best_shape(caminho, carrier=tabela.transportadora_id)
+        if shape and shape.confidence >= .70:
+            return {
+                "dados_extraidos": shape.data, "confianca_extracao": shape.confidence,
+                "erros_validacao": [],
+                "avisos": [f"Formato tarifário reconhecido: {shape.parser}. Revisão humana permanece obrigatória."],
+                "campos_com_duvida": list(shape.issues), "resumo": shape.data["estatisticas"],
+            }
+        if documento.tipo_arquivo == "xls":
+            from app.services.tabela_frete.extracao_generica import extrair_documento_generico
+            dados = extrair_documento_generico(caminho, documento.tipo_arquivo)
+            return {
+                "dados_extraidos": dados, "confianca_extracao": 0.65, "erros_validacao": [],
+                "avisos": ["Documento extraído. Revise e mapeie as tarifas antes de aprovar."],
+                "campos_com_duvida": ["mapeamento_tarifario"],
+                "resumo": {"valores": len(dados["valores_detectados"]), "ceps": len(dados["ceps_detectados"]), "prazos": len(dados["prazos_detectados"])},
+            }
         from app.services.tabela_frete.uf_zona_excel import extrair_uf_zona_excel
         try:
             dados = extrair_uf_zona_excel(caminho)

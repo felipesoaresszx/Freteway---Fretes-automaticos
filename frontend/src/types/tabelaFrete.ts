@@ -87,6 +87,9 @@ export interface RevisaoTabelaFrete {
     peso_limite_kg: number | null;
     faixas_tarifarias: unknown[];
     pracas: unknown[];
+    shape?: "cep_range" | "direct_city_state" | "place_code_region_legend" | string;
+    destination_legend?: Record<string, { label: string; scope: "TABLE" | "CARRIER" }>;
+    region_level_aliases?: Record<string, string>;
     regras: Record<string, unknown>;
     zonas_especiais: Record<string, unknown>;
     fonte: Record<string, unknown>;

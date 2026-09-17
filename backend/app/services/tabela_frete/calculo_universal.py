@@ -56,6 +56,10 @@ def _destination(data: dict, quote: dict) -> dict:
             matches.append(item)
     if cep and not has_cep_ranges and state:
         matches = [item for item in destinations if key(item.get("uf")) == key(state)]
+    if len(matches) > 1 and city:
+        exact = [item for item in matches if key(item.get("city")) == key(city)]
+        interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
+        matches = exact or interior
     if not matches:
         raise CalculoUniversalError("Destino sem correspondência na tabela da transportadora")
     if len(matches) > 1:
@@ -74,11 +78,20 @@ def calcular_universal(data: dict, quote: dict) -> dict:
     weight = max(real, cubed)
     bands = sorted(destination.get("weight_rates", []), key=lambda item: float(item.get("max_weight", 0)))
     band = next((item for item in bands if weight <= float(item.get("max_weight", 0))), None)
-    if band is None:
+    tariff_rule = destination.get("tariff_rule") or {}
+    if band is None and tariff_rule.get("type") != "BASE_PLUS_EXCESS":
         raise CalculoUniversalError("Não existe tarifa para o peso informado")
-    total = float(band.get("price") or 0)
+    if tariff_rule.get("type") == "BASE_PLUS_EXCESS":
+        limit = float(tariff_rule.get("base_weight_kg") or 0)
+        base = float(tariff_rule.get("base_price") or 0)
+        excess = float(tariff_rule.get("excess_rate_per_kg") or 0)
+        total = base + max(0.0, weight - limit) * excess
+        description = "Frete base mais peso excedente"
+    else:
+        total = float(band.get("price") or 0)
+        description = "Frete por faixa de peso"
     composition = [
-        {"codigo": "FRETE_PESO", "descricao": "Frete por faixa de peso", "base": "peso_considerado", "valor": round(total, 2)},
+        {"codigo": "FRETE_PESO", "descricao": description, "base": "peso_considerado", "valor": round(total, 2)},
     ]
     return {
         "status": "success",
