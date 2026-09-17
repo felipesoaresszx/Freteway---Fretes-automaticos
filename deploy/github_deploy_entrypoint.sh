@@ -11,11 +11,13 @@ if ! flock -n 9; then
 fi
 
 cd "$ROOT_DIR"
+# Permissoes de execucao ja sao versionadas. Ignore diferencas de modo locais
+# para que um chmod externo nunca bloqueie a atualizacao do codigo.
+git config core.fileMode false
 git fetch --prune origin main
 git checkout main
 git merge --ff-only origin/main
 
-chmod +x deploy/deploy.sh scripts/*.sh
 ENV_FILE=.env.production COMPOSE_FILE=docker-compose.production.yml ./deploy/deploy.sh
 
 curl --fail --silent --show-error --max-time 15 http://127.0.0.1/health >/dev/null
