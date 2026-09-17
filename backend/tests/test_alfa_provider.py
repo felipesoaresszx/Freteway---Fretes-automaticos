@@ -388,6 +388,37 @@ class TestAlfaClient:
     """Testes para o cliente HTTP."""
 
     @pytest.mark.asyncio
+    async def test_quote_serializa_cli_tip_como_valor_da_api(self, monkeypatch):
+        captured_params = None
+
+        class MockClient:
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                return None
+            async def get(self, *args, **kwargs):
+                nonlocal captured_params
+                captured_params = kwargs["params"]
+                return httpx.Response(200, json={
+                    "cotacao": {"emissao": {
+                        "diasEntrega": "8 DIAS UTEIS",
+                        "valoresCotacao": {"valorTotal": 113.11},
+                    }}
+                }, request=httpx.Request("GET", "https://api.alfatransportes.com.br/cotacao/"))
+
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: MockClient())
+        monkeypatch.setattr("app.integrations.alfa.client.validate_external_url", lambda url: url)
+        request = AlfaQuoteRequest(
+            idr="test", cliTip="1", cepRem="07042180", cliCep="19500000",
+            cliCnpj="04917818000124", merVlr=5668, merPeso=29, merM3=0.0832,
+        )
+
+        await AlfaClient({"api_key": "test"}).quote(request)
+
+        assert captured_params is not None
+        assert captured_params["cliTip"] == "1"
+
+    @pytest.mark.asyncio
     async def test_validate_credentials_com_api_key(self):
         """Credenciais com API Key devem ser válidas."""
         client = AlfaClient({"api_key": "test_key"})

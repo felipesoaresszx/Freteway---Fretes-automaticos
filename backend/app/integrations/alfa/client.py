@@ -121,7 +121,10 @@ class AlfaClient:
         url = self._get_full_url()
         validate_external_url(url)
         
-        params = payload.model_dump(exclude_none=True)
+        # mode="json" converte o Enum cliTip para o valor esperado pela Alfa
+        # ("1" ou "0"). No modo Python, o httpx serializa o nome do Enum e a
+        # API responde com cotacao vazia, mesmo para uma rota atendida.
+        params = payload.model_dump(mode="json", exclude_none=True)
         
         last_error: Exception | None = None
         
