@@ -33,7 +33,27 @@ def test_maex_reconhece_codigo_legenda_e_base_mais_excedente():
     assert len(preview["regras"]) == 3
     assert set(preview["zonas_especiais"]) == {"INTERIOR", "POLE"}
     quote = calcular_universal(data, {"destino_cidade": "GOIANIA", "destino_uf": "GO", "peso": 150})
-    assert quote["valor_total"] == pytest.approx(69 + 50 * .667)
+    assert quote["frete_base"] == pytest.approx(69 + 50 * .667, abs=.01)
+
+
+@pytest.mark.skipif(not MAEX.exists(), reason="fixture real Tabela maex.xls não disponível")
+def test_maex_reproduz_cotacao_com_despacho_gris_e_arredondamento_comercial():
+    match = PlaceCodeLegendParser().parse(MAEX, carrier="maex")
+    assert match is not None
+
+    quote = calcular_universal(match.data, {
+        "destino_cep": "87111700", "destino_cidade": "SARANDI", "destino_uf": "PR",
+        "peso": 45, "valor_nf": 1538,
+        "volume_total_m3": (74 * 32 * 32 + 57 * 57 * 34) / 1_000_000,
+    })
+
+    assert quote["peso_considerado_kg"] == pytest.approx(55.873, abs=.001)
+    assert quote["prazo_dias"] == 7
+    assert quote["frete_base"] == 97.75
+    assert quote["valor_total"] == 120.00
+    assert {item["codigo"] for item in quote["taxas_detalhadas"]} == {
+        "DISPATCH", "GRIS", "ARREDONDAMENTO_COMERCIAL",
+    }
 
 
 def test_codigo_sem_legenda_gera_impeditivo_especifico(tmp_path):

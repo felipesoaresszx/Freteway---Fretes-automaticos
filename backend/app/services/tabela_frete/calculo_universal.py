@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from decimal import Decimal, ROUND_HALF_UP
 
 from app.services.tabela_frete.contrato import key
 
@@ -93,12 +94,38 @@ def calcular_universal(data: dict, quote: dict) -> dict:
     composition = [
         {"codigo": "FRETE_PESO", "descricao": description, "base": "peso_considerado", "valor": round(total, 2)},
     ]
+    taxes = []
+    invoice_value = float(quote.get("valor_nf") or quote.get("invoice_value") or 0)
+    for surcharge in data.get("surcharges", []):
+        kind = surcharge.get("type")
+        if kind == "FIXED":
+            amount = float(surcharge.get("value") or 0)
+        elif kind == "PERCENTAGE" and surcharge.get("basis") == "INVOICE_VALUE":
+            amount = invoice_value * float(surcharge.get("value") or 0)
+        else:
+            continue
+        minimum = surcharge.get("minimum")
+        if minimum is not None:
+            amount = max(amount, float(minimum))
+        amount = round(amount, 2)
+        taxes.append({"codigo": surcharge.get("code"), "descricao": surcharge.get("name"), "base": surcharge.get("basis"), "valor": amount})
+    subtotal = total + sum(item["valor"] for item in taxes)
+    increment = float((data.get("pricing_rules") or {}).get("commercial_rounding_increment") or .01)
+    if increment > 0:
+        rounded_total = float((Decimal(str(subtotal)) / Decimal(str(increment))).quantize(Decimal("1"), rounding=ROUND_HALF_UP) * Decimal(str(increment)))
+    else:
+        rounded_total = subtotal
+    adjustment = round(rounded_total - subtotal, 2)
+    if adjustment:
+        taxes.append({"codigo":"ARREDONDAMENTO_COMERCIAL","descricao":"Arredondamento comercial","base":"TOTAL","valor":adjustment})
+    total_taxes = round(rounded_total - total, 2)
+    composition.extend(taxes)
     return {
         "status": "success",
-        "valor_total": round(total, 2),
+        "valor_total": round(rounded_total, 2),
         "frete_base": round(total, 2),
-        "total_taxas": 0.0,
-        "taxas_detalhadas": [],
+        "total_taxas": total_taxes,
+        "taxas_detalhadas": taxes,
         "composicao": composition,
         "prazo_dias": destination.get("delivery_days"),
         "peso_considerado_kg": round(weight, 3),

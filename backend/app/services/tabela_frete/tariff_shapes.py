@@ -60,11 +60,23 @@ class PlaceCodeLegendParser:
 
     def parse(self, path: Path, *, carrier: str | None = None) -> ShapeMatch | None:
         if path.suffix.lower() not in {".xls", ".xlsx", ".xlsm"}: return None
-        price_rows, legend = [], {}
+        price_rows, legend, surcharges = [], {}, []
+        cubage_factor = 0.0
         headers_matched = numeric_cells = numeric_valid = region_valid = 0
         for sheet_name, rows in _workbook_rows(path):
             for index, row in enumerate(rows):
                 keys = [_key(cell) for cell in row]
+                label = keys[0] if keys else ""
+                value = _number(row[2] if len(row) > 2 else None)
+                basis = keys[3] if len(keys) > 3 else ""
+                if label == "CUBAGEM" and len(row) > 2:
+                    factor_match = re.search(r"\d+(?:[.,]\d+)?", str(row[2]))
+                    if factor_match:
+                        cubage_factor = float(factor_match.group(0).replace(",", "."))
+                if label == "TAXA DE DESPACHO" and value is not None:
+                    surcharges.append({"code":"DISPATCH","name":"Taxa de despacho","type":"FIXED","value":value,"basis":"SHIPMENT","minimum":None,"conditions":{},"source":{"sheet":sheet_name,"row":index+1}})
+                elif label == "GRIS" and value is not None and "DANF" in basis:
+                    surcharges.append({"code":"GRIS","name":"Gerenciamento de risco","type":"PERCENTAGE","value":value,"basis":"INVOICE_VALUE","minimum":None,"conditions":{},"source":{"sheet":sheet_name,"row":index+1}})
                 dcol = next((i for i,c in enumerate(keys) if c in {"DESTINO","PRACA","CODIGO","SIGLA"}), None)
                 rcol = next((i for i,c in enumerate(keys) if c in {"REGIAO","NIVEL DE ATENDIMENTO"}), None)
                 ecol = next((i for i,c in enumerate(keys) if "EXCEDENTE" in c and ("KG" in c or c == "EXCEDENTE")), None)
@@ -97,7 +109,7 @@ class PlaceCodeLegendParser:
             destinations.append({"destination_code":row["code"],"legend_label":label,"uf":state,"city":city,"city_group":None,"cep_start":None,"cep_end":None,"region_code":row["region"],"service_level":row["service_level"],"delivery_days":row["delivery_days"],"weight_rates":[{"max_weight":row["base_weight_kg"],"price":row["base_price"],"raw":{}}] if row["base_price"] is not None else [],"tariff_rule":{"type":"BASE_PLUS_EXCESS","base_weight_kg":row["base_weight_kg"],"base_price":row["base_price"],"excess_rate_per_kg":row["excess_rate"]},"excess_weight_rate":row["excess_rate"],"fixed_surcharges":[],"percentage_surcharges":[],"cities":[city] if city else [],"source":row["source"]})
         confidence = .45 + .05*headers_matched + .15*(1-len(missing)/max(1,len(codes))) + .08*(region_valid/len(price_rows)) + .07*(numeric_valid/max(1,numeric_cells))
         resolved = sum(d["legend_label"] is not None and d["uf"] is not None for d in destinations)
-        data = {"formato":"tabela_frete_universal_v1","shape":self.code,"carrier":carrier,"currency":"BRL","weight_bands":[],"destinations":destinations,"pracas":destinations,"faixas_tarifarias":[d["tariff_rule"] for d in destinations],"surcharges":[],"delivery_rules":[],"collection_rules":[],"general_rules":[],"destination_legend":{c:{"label":l,"scope":"TABLE"} for c,l in legend.items()},"region_level_aliases":REGION_LEVEL_ALIASES,"source_document":path.name,"estatisticas":{"pracas":len(destinations),"codigos":len(codes),"codigos_resolvidos":resolved}}
+        data = {"formato":"tabela_frete_universal_v1","shape":self.code,"carrier":carrier,"currency":"BRL","fator_cubagem":cubage_factor or 300.0,"weight_bands":[],"destinations":destinations,"pracas":destinations,"faixas_tarifarias":[d["tariff_rule"] for d in destinations],"surcharges":surcharges,"pricing_rules":{"commercial_rounding_increment":1.0},"delivery_rules":[],"collection_rules":[],"general_rules":[],"destination_legend":{c:{"label":l,"scope":"TABLE"} for c,l in legend.items()},"region_level_aliases":REGION_LEVEL_ALIASES,"source_document":path.name,"estatisticas":{"pracas":len(destinations),"codigos":len(codes),"codigos_resolvidos":resolved,"taxas":len(surcharges)}}
         return ShapeMatch(self.code, min(confidence,.99), data, ("destination_code_legend",) if missing or not legend else ())
 
 
