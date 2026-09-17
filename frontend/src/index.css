@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #2563eb; --color-secondary: #111827; --color-accent: #3b82f6;
-  --color-background: #0f1115; --color-surface: #171a1f; --color-text: #f8fafc;
-  --color-muted-text: #94a3b8; --color-border: #303642; --color-button: #2563eb;
+  --color-primary: #e77732; --color-secondary: #202124; --color-accent: #e77732;
+  --color-background: #111214; --color-surface: #1b1d20; --color-text: #f7f7f8;
+  --color-muted-text: #a7a7a9; --color-border: #36383d; --color-button: #c85a18;
 }
 
 body {

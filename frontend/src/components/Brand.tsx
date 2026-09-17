@@ -1,5 +1,5 @@
-import { FretewayBrand } from "./FretewayBrand";
+import { ModialFretesBrand } from "./ModialFretesBrand";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
-  return <FretewayBrand compact={compact} />;
+  return <ModialFretesBrand compact={compact} />;
 }

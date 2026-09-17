@@ -52,7 +52,7 @@ export function SankhyaMapeamentos({ transportadoras }: { transportadoras: Trans
     <div className="mb-4"><h2 className="flex items-center gap-2 text-sm font-medium"><Link2 size={15} /> De-para Sankhya</h2><p className="mt-1 text-xs text-text-secondary">Associe cada transportadora ao Parceiro e, opcionalmente, ao serviço no ERP.</p></div>
     {consulta.isLoading ? <p className="text-sm text-text-secondary">Carregando mapeamentos...</p> : <div className="space-y-3">
       {transportadoras.map((transportadora) => { const linha = linhas[transportadora.id]; return <div key={transportadora.id} className="grid items-end gap-2 rounded border border-border p-3 md:grid-cols-[1.2fr_.6fr_1.2fr_.7fr_1fr_auto]">
-        <div><p className="text-xs text-text-secondary">Transportadora FRETEWAY</p><p className="mt-2 text-sm">{transportadora.nome}</p></div>
+        <div><p className="text-xs text-text-secondary">Transportadora Modial Fretes</p><p className="mt-2 text-sm">{transportadora.nome}</p></div>
         <Field label="Cód. parceiro"><Input type="number" min={1} value={linha?.codigo_parceiro || ""} onChange={(e) => alterar(transportadora.id, { codigo_parceiro: Number(e.target.value) })} /></Field>
         <Field label="Nome parceiro"><Input value={linha?.nome_parceiro ?? ""} onChange={(e) => alterar(transportadora.id, { nome_parceiro: e.target.value })} /></Field>
         <Field label="Cód. serviço"><Input value={linha?.codigo_servico ?? ""} onChange={(e) => alterar(transportadora.id, { codigo_servico: e.target.value || null })} /></Field>
