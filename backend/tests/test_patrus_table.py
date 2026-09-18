@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
+from app.services.tabela_frete.calculo_universal import _destination
 from app.services.tabela_frete.patrus_excel import extract_patrus_excel, is_patrus_workbook
 
 
@@ -75,3 +76,11 @@ def test_under_consultation_is_not_zero_price(table):
 def test_above_last_band_uses_explicit_regional_excess(table):
     result = calcular_universal(table, quote("85010000", "Guarapuava", "PR", weight=151))
     assert result["frete_base"] == pytest.approx(217.91 + 1.59)
+
+
+def test_exact_city_precedes_state_interior_fallback():
+    data = {"destinations": [
+        {"uf": "GO", "city": "GOIANIA", "service_level": "POLE"},
+        {"uf": "GO", "city": None, "service_level": "INTERIOR"},
+    ]}
+    assert _destination(data, {"destino_cidade": "GOIANIA", "destino_uf": "GO"})["service_level"] == "POLE"

@@ -58,9 +58,13 @@ def _destination(data: dict, quote: dict) -> dict:
         if ranged:
             matches = sorted(ranged, key=lambda item: int(item["cep_end"]) - int(item["cep_start"]))[:1]
         else:
-            interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
-            if len(interior) == 1:
-                matches = interior
+            exact = [item for item in matches if city and key(item.get("city")) == key(city)]
+            if exact:
+                matches = exact
+            else:
+                interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
+                if len(interior) == 1:
+                    matches = interior
     if len(matches) > 1 and city:
         exact = [item for item in matches if key(item.get("city")) == key(city)]
         interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
