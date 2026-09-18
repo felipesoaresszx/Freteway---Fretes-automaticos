@@ -217,6 +217,18 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
     if storage_dir.resolve() not in caminho.parents or not caminho.is_file():
         raise AnaliseDocumentoError("Documento não encontrado no armazenamento")
     if documento.tipo_arquivo in {"xlsx", "xlsm", "xls"}:
+        if documento.tipo_arquivo in {"xlsx", "xlsm"}:
+            from app.services.tabela_frete.patrus_excel import extract_patrus_excel, is_patrus_workbook
+            if is_patrus_workbook(caminho):
+                dados = extract_patrus_excel(caminho)
+                return {
+                    "dados_extraidos": dados,
+                    "confianca_extracao": 0.99,
+                    "erros_validacao": [],
+                    "avisos": ["Tabela Patrus normalizada pelo motor canônico com proveniência por aba e linha."],
+                    "campos_com_duvida": [item["code"] for item in dados.get("unresolved_rules", [])],
+                    "resumo": dados["estatisticas"],
+                }
         from app.services.tabela_frete.tariff_shapes import parse_best_shape
         shape = parse_best_shape(caminho, carrier=tabela.transportadora_id)
         if shape and shape.confidence >= .70:

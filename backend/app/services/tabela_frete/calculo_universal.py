@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -36,27 +37,30 @@ def _destination(data: dict, quote: dict) -> dict:
     state = quote.get("destino_uf")
     matches = []
     destinations = data.get("destinations", [])
-    has_cep_ranges = any(
-        _normalize_cep(item.get("cep_start")) and _normalize_cep(item.get("cep_end"))
-        for item in destinations
-    )
     for item in destinations:
         item_cep_start = _normalize_cep(item.get("cep_start"))
         item_cep_end = _normalize_cep(item.get("cep_end"))
         if cep and item_cep_start and item_cep_end and item_cep_start <= cep <= item_cep_end:
             matches.append(item)
         elif (
-            not cep
-            and city
+            city
             and state
             and key(item.get("city")) == key(city)
             and key(item.get("uf")) == key(state)
         ):
             matches.append(item)
-        elif not cep and state and not city and key(item.get("uf")) == key(state):
+        elif state and not item_cep_start and not item_cep_end and key(item.get("uf")) == key(state):
             matches.append(item)
-    if cep and not has_cep_ranges and state:
-        matches = [item for item in destinations if key(item.get("uf")) == key(state)]
+    if cep and state and not matches:
+        matches = [item for item in destinations if not item.get("cep_start") and key(item.get("uf")) == key(state)]
+    if len(matches) > 1:
+        ranged = [item for item in matches if item.get("cep_start") and item.get("cep_end")]
+        if ranged:
+            matches = sorted(ranged, key=lambda item: int(item["cep_end"]) - int(item["cep_start"]))[:1]
+        else:
+            interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
+            if len(interior) == 1:
+                matches = interior
     if len(matches) > 1 and city:
         exact = [item for item in matches if key(item.get("city")) == key(city)]
         interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
@@ -73,6 +77,8 @@ def calcular_universal(data: dict, quote: dict) -> dict:
     if real <= 0:
         raise CalculoUniversalError("Peso deve ser maior que zero")
     destination = _destination(data, quote)
+    if destination.get("status") in {"SOB_CONSULTA", "INDISPONIVEL_POR_TABELA"}:
+        raise CalculoUniversalError(destination["status"])
     volume = float(quote.get("volume_total_m3") or quote.get("volume_m3") or 0)
     factor = float(data.get("fator_cubagem") or 0)
     cubed = volume * factor if factor > 0 else 0.0
@@ -80,7 +86,8 @@ def calcular_universal(data: dict, quote: dict) -> dict:
     bands = sorted(destination.get("weight_rates", []), key=lambda item: float(item.get("max_weight", 0)))
     band = next((item for item in bands if weight <= float(item.get("max_weight", 0))), None)
     tariff_rule = destination.get("tariff_rule") or {}
-    if band is None and tariff_rule.get("type") != "BASE_PLUS_EXCESS":
+    explicit_excess = destination.get("excess_weight_rate")
+    if band is None and tariff_rule.get("type") != "BASE_PLUS_EXCESS" and explicit_excess is None:
         raise CalculoUniversalError("Não existe tarifa para o peso informado")
     if tariff_rule.get("type") == "BASE_PLUS_EXCESS":
         limit = float(tariff_rule.get("base_weight_kg") or 0)
@@ -88,20 +95,40 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         excess = float(tariff_rule.get("excess_rate_per_kg") or 0)
         total = base + max(0.0, weight - limit) * excess
         description = "Frete base mais peso excedente"
-    else:
+    elif band is not None:
         total = float(band.get("price") or 0)
         description = "Frete por faixa de peso"
+    else:
+        band = bands[-1]
+        total = float(band.get("price") or 0) + (weight - float(band["max_weight"])) * float(explicit_excess)
+        description = "Frete da última faixa mais peso excedente"
     composition = [
         {"codigo": "FRETE_PESO", "descricao": description, "base": "peso_considerado", "valor": round(total, 2)},
     ]
     taxes = []
     invoice_value = float(quote.get("valor_nf") or quote.get("invoice_value") or 0)
-    for surcharge in data.get("surcharges", []):
+    all_surcharges = list(data.get("surcharges", [])) + list(destination.get("regional_surcharges", []))
+    applied_codes = []
+    cep = _normalize_cep(quote.get("destino_cep"))
+    cnpj = re.sub(r"\D", "", str(quote.get("documento_destinatario") or ""))
+    for surcharge in all_surcharges:
+        if surcharge.get("status") in {"UNRESOLVED", "OPTIONAL", "OPERATIONAL"}:
+            continue
+        ranges = surcharge.get("cep_ranges") or []
+        if ranges and not any(cep and item["cep_start"] <= cep <= item["cep_end"] for item in ranges):
+            continue
+        roots = surcharge.get("cnpj_roots") or []
+        if roots and not any(cnpj.startswith(item["root"]) for item in roots):
+            continue
         kind = surcharge.get("type")
         if kind == "FIXED":
             amount = float(surcharge.get("value") or 0)
         elif kind == "PERCENTAGE" and surcharge.get("basis") == "INVOICE_VALUE":
             amount = invoice_value * float(surcharge.get("value") or 0)
+        elif kind == "PERCENTAGE" and surcharge.get("basis") == "ORIGINAL_FREIGHT":
+            amount = total * float(surcharge.get("value") or 0)
+        elif kind == "WEIGHT_FRACTION":
+            amount = math.ceil(weight / float(surcharge.get("fraction_kg") or 100)) * float(surcharge.get("value") or 0)
         else:
             continue
         minimum = surcharge.get("minimum")
@@ -109,6 +136,7 @@ def calcular_universal(data: dict, quote: dict) -> dict:
             amount = max(amount, float(minimum))
         amount = round(amount, 2)
         taxes.append({"codigo": surcharge.get("code"), "descricao": surcharge.get("name"), "base": surcharge.get("basis"), "valor": amount})
+        applied_codes.append(surcharge.get("code"))
     subtotal = total + sum(item["valor"] for item in taxes)
     increment = float((data.get("pricing_rules") or {}).get("commercial_rounding_increment") or .01)
     if increment > 0:
@@ -134,5 +162,15 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         "destino_tabela": {
             "uf": destination.get("uf"),
             "cidade": destination.get("city"),
+            "regiao": destination.get("region_code"),
+        },
+        "memoria_calculo": {
+            "cep_origem": quote.get("origem_cep"), "cep_destino": quote.get("destino_cep"),
+            "cidade": destination.get("city") or quote.get("destino_cidade"), "uf": destination.get("uf"),
+            "regiao": destination.get("region_code"), "peso_real": real, "volume_m3": volume,
+            "peso_cubado": round(cubed, 3), "peso_cobrado": round(weight, 3),
+            "faixa_peso": {"min": band.get("min_weight") if band else None, "max": band.get("max_weight") if band else None},
+            "tarifa_base": round(total, 2), "adicionais_aplicados": applied_codes,
+            "versao_tabela": data.get("table_version"), "origem_regra": destination.get("source"),
         },
     }
