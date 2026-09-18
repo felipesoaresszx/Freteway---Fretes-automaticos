@@ -8,12 +8,24 @@ from typing import Any
 class WeightBand:
     max_weight: float
     price: float
+    min_weight: float = 0.0
+    minimum_freight: float | None = None
+    freight_percentage: float | None = None
+    min_invoice_value: float | None = None
+    max_invoice_value: float | None = None
+    conditions: dict[str, Any] = field(default_factory=dict)
     raw: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "max_weight": self.max_weight,
+            "min_weight": self.min_weight,
             "price": self.price,
+            "minimum_freight": self.minimum_freight,
+            "freight_percentage": self.freight_percentage,
+            "min_invoice_value": self.min_invoice_value,
+            "max_invoice_value": self.max_invoice_value,
+            "conditions": self.conditions,
             "raw": self.raw or {},
         }
 
@@ -42,6 +54,10 @@ class Surcharge:
 
 @dataclass
 class DestinationRule:
+    origin_uf: str | None = None
+    origin_city: str | None = None
+    origin_cep_start: str | None = None
+    origin_cep_end: str | None = None
     uf: str | None = None
     city: str | None = None
     city_group: str | None = None
@@ -54,9 +70,20 @@ class DestinationRule:
     fixed_surcharges: list[Surcharge] = field(default_factory=list)
     percentage_surcharges: list[Surcharge] = field(default_factory=list)
     cities: list[str] = field(default_factory=list)
+    minimum_freight: float | None = None
+    freight_percentage: float | None = None
+    dispatch_fee: float | None = None
+    collection_fee: float | None = None
+    cubage_factor: float | None = None
+    special_rules: list[dict[str, Any]] = field(default_factory=list)
+    conditions: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "origin_uf": self.origin_uf,
+            "origin_city": self.origin_city,
+            "origin_cep_start": self.origin_cep_start,
+            "origin_cep_end": self.origin_cep_end,
             "uf": self.uf,
             "city": self.city,
             "city_group": self.city_group,
@@ -69,11 +96,20 @@ class DestinationRule:
             "fixed_surcharges": [tax.as_dict() for tax in self.fixed_surcharges],
             "percentage_surcharges": [tax.as_dict() for tax in self.percentage_surcharges],
             "cities": self.cities,
+            "minimum_freight": self.minimum_freight,
+            "freight_percentage": self.freight_percentage,
+            "dispatch_fee": self.dispatch_fee,
+            "collection_fee": self.collection_fee,
+            "cubage_factor": self.cubage_factor,
+            "special_rules": self.special_rules,
+            "conditions": self.conditions,
         }
 
 
 @dataclass
 class FreightTable:
+    table_code: str | None = None
+    version: str | None = None
     carrier: str | None = None
     origin: dict[str, str] | None = None
     validity: dict[str, Any] | None = None
@@ -84,9 +120,13 @@ class FreightTable:
     delivery_rules: list[dict[str, Any]] = field(default_factory=list)
     collection_rules: list[dict[str, Any]] = field(default_factory=list)
     general_rules: list[dict[str, Any]] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "canonical_schema": "canonical_tariff_v2",
+            "table_code": self.table_code,
+            "version": self.version,
             "carrier": self.carrier,
             "origin": self.origin,
             "validity": self.validity,
@@ -97,4 +137,5 @@ class FreightTable:
             "delivery_rules": self.delivery_rules,
             "collection_rules": self.collection_rules,
             "general_rules": self.general_rules,
+            "metadata": self.metadata,
         }

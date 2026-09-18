@@ -5,15 +5,6 @@ from pathlib import Path
 
 def extract_pdf(path: str | Path) -> str:
     p = Path(path)
-    try:
-        from pypdf import PdfReader
-    except ImportError:
-        return p.read_text(encoding="utf-8-sig", errors="ignore")
+    from app.services.document_intelligence.reader import read_pdf
 
-    reader = PdfReader(str(p))
-    pages: list[str] = []
-    for page in reader.pages:
-        text = page.extract_text() or ""
-        if text.strip():
-            pages.append(text)
-    return "\n".join(pages)
+    return "\n".join(page.text for page in read_pdf(p) if page.text.strip())

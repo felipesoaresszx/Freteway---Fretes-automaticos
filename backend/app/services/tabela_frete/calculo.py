@@ -35,10 +35,38 @@ class TabelaFreteCalculoService:
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
 
+    @staticmethod
+    def _com_memoria(resultado: dict, tabela: TabelaFrete, dados: dict) -> dict:
+        if resultado.get("status") != "success" or resultado.get("memoria_calculo"):
+            return resultado
+        taxas = resultado.get("taxas_detalhadas") or resultado.get("composicao") or []
+        por_codigo = {
+            str(item.get("tipo") or item.get("codigo") or "").upper(): item.get("valor", 0)
+            for item in taxas
+        }
+        resultado["memoria_calculo"] = {
+            "transportadora": tabela.transportadora_id, "tabela": tabela.nome,
+            "regra_aplicada": resultado.get("tarifa_usada") or resultado.get("faixa"),
+            "origem": {"cep": dados.get("origem_cep"), "cidade": dados.get("origem_cidade"), "uf": dados.get("origem_uf")},
+            "destino": {"cep": dados.get("destino_cep"), "cidade": dados.get("destino_cidade"), "uf": dados.get("destino_uf")},
+            "regiao": resultado.get("regiao_tarifaria") or resultado.get("destino_tabela"),
+            "peso_real": resultado.get("peso_real_kg", dados.get("peso")),
+            "peso_cubado": resultado.get("peso_cubado_kg"),
+            "peso_tarifavel": resultado.get("peso_considerado_kg"),
+            "valor_mercadoria": dados.get("valor_nf"), "frete_base": resultado.get("frete_base"),
+            "frete_minimo": resultado.get("frete_com_minimo") if resultado.get("frete_minimo_aplicado") else None,
+            "ad_valorem": por_codigo.get("AD_VALOREM", 0), "gris": por_codigo.get("GRIS", 0),
+            "pedagio": por_codigo.get("PEDAGIO", por_codigo.get("TOLL", 0)), "taxas": taxas,
+            "ajustes": [], "prazo": resultado.get("prazo_dias"), "valor_total": resultado.get("valor_total"),
+        }
+        return resultado
+
     async def calcular(
         self,
         tabela_frete_id: str,
         dados_cotacao: dict,
+        *,
+        tabela_carregada: TabelaFrete | None = None,
     ) -> dict:
         """Calcula frete usando a tabela especificada.
 
@@ -59,7 +87,7 @@ class TabelaFreteCalculoService:
         """
         try:
             # 1. Carrega tabela e suas regras
-            tabela = await self._carregar_tabela_com_regras(tabela_frete_id)
+            tabela = tabela_carregada or await self._carregar_tabela_com_regras(tabela_frete_id)
             if not tabela:
                 return {
                     "status": "error",
@@ -76,7 +104,7 @@ class TabelaFreteCalculoService:
                     dados_universal = dict(dados)
                     dados_universal["destinations"] = dados["coberturas"]
                     try:
-                        return calcular_universal(dados_universal, dados_cotacao)
+                        return self._com_memoria(calcular_universal(dados_universal, dados_cotacao), tabela, dados_cotacao)
                     except CalculoUniversalError as exc:
                         return {
                             "status": "error",
@@ -84,7 +112,7 @@ class TabelaFreteCalculoService:
                             "erro_mensagem": str(exc),
                         }
                 try:
-                    return calcular_rodonaves(dados, dados_cotacao)
+                    return self._com_memoria(calcular_rodonaves(dados, dados_cotacao), tabela, dados_cotacao)
                 except CalculoRodonavesError as exc:
                     return {
                         "status": "error",
@@ -94,25 +122,25 @@ class TabelaFreteCalculoService:
 
             if tabela.dados_importados and tabela.dados_importados.formato == "uf_zona_peso_v1":
                 try:
-                    return calcular_uf_zona(tabela.dados_importados.dados, dados_cotacao)
+                    return self._com_memoria(calcular_uf_zona(tabela.dados_importados.dados, dados_cotacao), tabela, dados_cotacao)
                 except CalculoUfZonaError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_UF_ZONA", "erro_mensagem": str(exc)}
 
             if tabela.dados_importados and tabela.dados_importados.formato == "transwells_pracas_peso_v1":
                 try:
-                    return calcular_transwells(tabela.dados_importados.dados, dados_cotacao)
+                    return self._com_memoria(calcular_transwells(tabela.dados_importados.dados, dados_cotacao), tabela, dados_cotacao)
                 except CalculoTranswellsError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_TRANSWELLS", "erro_mensagem": str(exc)}
 
             if tabela.dados_importados and tabela.dados_importados.formato == "canonical_freight_v1":
                 try:
-                    return calcular_contrato(tabela.dados_importados.dados, dados_cotacao)
+                    return self._com_memoria(calcular_contrato(tabela.dados_importados.dados, dados_cotacao), tabela, dados_cotacao)
                 except ContractError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_CANONICA", "erro_mensagem": str(exc)}
 
             if tabela.dados_importados and tabela.dados_importados.formato == "tabela_frete_universal_v1":
                 try:
-                    return calcular_universal(tabela.dados_importados.dados, dados_cotacao)
+                    return self._com_memoria(calcular_universal(tabela.dados_importados.dados, dados_cotacao), tabela, dados_cotacao)
                 except CalculoUniversalError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_UNIVERSAL", "erro_mensagem": str(exc)}
 
@@ -177,6 +205,9 @@ class TabelaFreteCalculoService:
             prazo_dias = await self._determinar_prazo(tabela, dados_cotacao)
 
             # Retorna resultado estruturado
+            taxas_por_tipo = {
+                item["tipo"].upper(): item["valor"] for item in taxas_detalhadas
+            }
             return {
                 "status": "success",
                 "frete_base": frete_base,
@@ -201,6 +232,35 @@ class TabelaFreteCalculoService:
                     "id": tarifa.id,
                     "tipo": tarifa.tipo_tarifa,
                     "valor": tarifa.valor,
+                },
+                "memoria_calculo": {
+                    "transportadora": tabela.transportadora_id,
+                    "tabela": tabela.nome,
+                    "regra_aplicada": tarifa.id,
+                    "origem": {
+                        "cep": dados_cotacao.get("origem_cep"),
+                        "cidade": dados_cotacao.get("origem_cidade"),
+                        "uf": dados_cotacao.get("origem_uf"),
+                    },
+                    "destino": {
+                        "cep": dados_cotacao.get("destino_cep"),
+                        "cidade": dados_cotacao.get("destino_cidade"),
+                        "uf": dados_cotacao.get("destino_uf"),
+                    },
+                    "regiao": abrangencia.regiao or abrangencia.cidade or abrangencia.uf,
+                    "peso_real": dados_cotacao.get("peso"),
+                    "peso_cubado": peso_cubado,
+                    "peso_tarifavel": peso_considerado,
+                    "valor_mercadoria": dados_cotacao.get("valor_nf"),
+                    "frete_base": frete_base,
+                    "frete_minimo": frete_com_minimo if frete_minimo_aplicado else None,
+                    "ad_valorem": taxas_por_tipo.get("AD_VALOREM", 0),
+                    "gris": taxas_por_tipo.get("GRIS", 0),
+                    "pedagio": taxas_por_tipo.get("PEDAGIO", 0),
+                    "taxas": taxas_detalhadas,
+                    "ajustes": {"excedente": frete_com_excedente - frete_base},
+                    "prazo": prazo_dias,
+                    "valor_total": valor_total,
                 },
             }
 

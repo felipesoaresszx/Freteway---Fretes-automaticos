@@ -145,7 +145,21 @@ def calculate(data, request, *, preview=False):
         amount = subtotal / (1 - rate) - subtotal if tax['calculation'] == 'gross_up' else subtotal * rate
         lines.append({"tipo": "ICMS", "valor": money(amount), "source": tax.get('source')})
     total = sum(number(l['valor']) for l in lines if l['valor'] is not None)
+    charge_values = {line["tipo"]: line["valor"] for line in lines if line.get("valor") is not None}
+    memory = {
+        "transportadora": data.get("carrier"), "tabela": data.get("table_code"),
+        "regra_aplicada": region["id"], "origem": origin,
+        "destino": {"cep": request.get("destino_cep"), "cidade": destination.get("city"), "uf": destination.get("state")},
+        "regiao": region["id"], "peso_real": float(real), "peso_cubado": float(cubed),
+        "peso_tarifavel": float(weight), "valor_mercadoria": float(nf),
+        "frete_base": money(base), "frete_minimo": None,
+        "ad_valorem": charge_values.get("AD_VALOREM", 0), "gris": charge_values.get("GRIS", 0),
+        "pedagio": charge_values.get("TOLL", 0), "taxas": lines,
+        "ajustes": {"excedente": money(excess)}, "prazo": destination["days"],
+        "valor_total": None if pending else money(total),
+    }
     return {"status": "needs_review" if pending else "success", "valor_total": None if pending else money(total), "subtotal_documentado": money(total), "pendencias": pending,
             "frete_base": money(base), "excedente": money(excess), "taxas_detalhadas": lines, "prazo_dias": destination['days'],
             "peso_real_kg": float(real), "peso_cubado_kg": float(cubed), "peso_considerado_kg": float(weight),
-            "faixa": bracket, "cobertura": destination, "origem": origin, "regiao_tarifaria": region['id']}
+            "faixa": bracket, "cobertura": destination, "origem": origin, "regiao_tarifaria": region['id'],
+            "memoria_calculo": memory}

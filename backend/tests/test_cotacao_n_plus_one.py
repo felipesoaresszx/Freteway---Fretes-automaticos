@@ -59,7 +59,7 @@ async def test_cotacao_carrega_configuracoes_em_lote_e_preserva_resultados():
     db = AsyncMock()
     db.execute.side_effect = [
         _result([table_carrier, provider_carrier, legacy_carrier]),
-        _result([table]), _result([integration]), _result([config]), _result([]),
+        _result([table]), _result([table]), _result([integration]), _result([config]), _result([]),
     ]
     db.scalar.side_effect = AssertionError("consulta SQL executada dentro do loop")
 
@@ -77,7 +77,7 @@ async def test_cotacao_carrega_configuracoes_em_lote_e_preserva_resultados():
     ):
         results = await executar_cotacao(_quote_request(), db)
 
-    assert db.execute.await_count == 5
+    assert db.execute.await_count == 6
     assert db.scalar.await_count == 0
     assert [(item.transportadora_id, item.status, item.valor_frete) for item in results] == [
         (table_carrier.id, "success", 10),

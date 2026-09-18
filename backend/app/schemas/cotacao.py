@@ -40,6 +40,7 @@ class CotacaoCreate(BaseModel):
 
 
 class ErroResultado(BaseModel):
+    tipo: str = "provider_error"
     codigo: str
     mensagem: str
 
@@ -54,6 +55,12 @@ class ResultadoTransportadora(BaseModel):
     erro: ErroResultado | None = None
     request_id: str
     detalhamento: dict | None = None
+    provider: str = "unknown"
+    memoria_calculo: dict | None = None
+
+    @property
+    def transportadora_nome(self) -> str:
+        return self.transportadora
 
 
 class CotacaoOut(BaseModel):

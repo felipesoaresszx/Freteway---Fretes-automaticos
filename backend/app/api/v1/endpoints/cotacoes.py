@@ -236,6 +236,8 @@ async def obter_cotacao(
             erro=ErroResultado(codigo=r.erro_codigo, mensagem=r.erro_mensagem) if r.erro_codigo else None,
             request_id=r.request_id,
             detalhamento=r.detalhamento,
+            provider=(r.detalhamento or {}).get("provider"),
+            memoria_calculo=(r.detalhamento or {}).get("memoria_calculo"),
         )
         for r in resultados_db
     ]

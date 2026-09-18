@@ -74,7 +74,8 @@ def contract(resolved=True):
              {"type": "ad_valorem", "status": status, "critical": True, "calculation": "percentage", "base": "invoice_value" if resolved else None},
              {"type": "toll", "status": "resolved", "calculation": "weight_fraction", "fraction_kg": 100},
              {"type": "tas", "status": "resolved", "calculation": "fixed"}]
-    result = {"formato": "canonical_freight_v1", "origin": {"city": "Guarulhos", "state": "SP"},
+    result = {"formato": "canonical_freight_v1", "carrier": "ouro_negro_anonymized",
+              "origin": {"city": "Guarulhos", "state": "SP"},
               "regions": regions, "localities": localities, "rules": rules,
               "weight_policy": "max_real_cubed", "excess_policy": "base_plus_exact_kg",
               "documents": [{"source_document": "tariff.pdf"}, {"source_document": "lead-times.xlsx"}]}
@@ -114,6 +115,13 @@ def test_cubage_breakdown_gris_adv_and_toll():
     assert charges == {"FRETE_PESO": 48.73, "EXCEDENTE": 0.0, "GRIS": 3.0,
                        "AD_VALOREM": 3.0, "TOLL": 6.29, "TAS": 5.6}
     assert result["valor_total"] == 66.62
+
+
+def test_ouro_negro_anonymized_homologated_value_is_unchanged():
+    result = quote(contract(), destination="86460000", weight=20, nf=1000)
+
+    assert result["valor_total"] == 55.99
+    assert result["memoria_calculo"]["transportadora"] == "ouro_negro_anonymized"
 
 
 def test_real_weight_wins_and_unknown_destination_fails():

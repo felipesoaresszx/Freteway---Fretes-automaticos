@@ -23,7 +23,13 @@ class TabelaFreteAdapter(TransportadoraAdapter):
 
     nome = "Tabela de Frete"
 
-    def __init__(self, db_session: AsyncSession, tabela_frete_id: str):
+    def __init__(
+        self,
+        db_session: AsyncSession,
+        tabela_frete_id: str,
+        *,
+        tabela_carregada: TabelaFrete | None = None,
+    ):
         """Inicializa o adapter.
 
         Args:
@@ -32,7 +38,7 @@ class TabelaFreteAdapter(TransportadoraAdapter):
         """
         self.db_session = db_session
         self.tabela_frete_id = tabela_frete_id
-        self._tabela_cache: TabelaFrete | None = None
+        self._tabela_cache: TabelaFrete | None = tabela_carregada
         self._calculo_service: TabelaFreteCalculoService | None = None
 
     async def _carregar_tabela(self) -> TabelaFrete | None:
@@ -101,6 +107,7 @@ class TabelaFreteAdapter(TransportadoraAdapter):
             resultado = await servico.calcular(
                 tabela_frete_id=self.tabela_frete_id,
                 dados_cotacao=cotacao_payload,
+                tabela_carregada=tabela,
             )
 
             # Transforma resultado para formato padrão

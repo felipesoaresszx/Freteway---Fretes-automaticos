@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Table, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Table, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -542,6 +542,9 @@ class TabelaFrete(Base):
     Suporta versionamento e múltiplos status (draft, processing, review, approved, active, expired, cancelled)."""
 
     __tablename__ = "tabelas_frete"
+    __table_args__ = (
+        Index("ix_tabela_frete_quote_lookup", "transportadora_id", "status", "data_inicio", "data_fim"),
+    )
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
     transportadora_id: Mapped[str] = mapped_column(ForeignKey("transportadoras.id"), index=True)
@@ -585,10 +588,16 @@ class TabelaFreteDadosImportados(Base):
     """Estrutura especializada extraída de planilhas comerciais complexas."""
 
     __tablename__ = "tabelas_frete_dados_importados"
+    __table_args__ = (
+        Index("ix_tabela_importada_canonical_status", "canonical_schema", "validation_status"),
+    )
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
     tabela_frete_id: Mapped[str] = mapped_column(ForeignKey("tabelas_frete.id"), unique=True, index=True)
     formato: Mapped[str] = mapped_column(String(80), index=True)
+    canonical_schema: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    schema_version: Mapped[int] = mapped_column(Integer, default=1)
+    validation_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
     dados: Mapped[dict] = mapped_column(JSONB)
     quantidade_coberturas: Mapped[int] = mapped_column(Integer, default=0)
     quantidade_tarifas: Mapped[int] = mapped_column(Integer, default=0)
@@ -630,6 +639,9 @@ class AbrangenciaFrete(Base):
     """Define a abrangência geográfica de uma tabela (UF, cidade, CEP, região, etc.)."""
 
     __tablename__ = "abrangencias_frete"
+    __table_args__ = (
+        Index("ix_abrangencia_tabela_cep", "tabela_frete_id", "cep_inicio", "cep_fim"),
+    )
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
     tabela_frete_id: Mapped[str] = mapped_column(ForeignKey("tabelas_frete.id"), index=True)
@@ -682,6 +694,9 @@ class RegraPeso(Base):
     """Define faixas de peso e suas tarifas correspondentes."""
 
     __tablename__ = "regras_peso"
+    __table_args__ = (
+        Index("ix_regra_peso_tabela_range", "tabela_frete_id", "peso_min", "peso_max"),
+    )
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
     tabela_frete_id: Mapped[str] = mapped_column(ForeignKey("tabelas_frete.id"), index=True)

@@ -13,14 +13,29 @@ def map_weight_bands(raw_entries: list[dict[str, object]]) -> list[WeightBand]:
         if (match := re.fullmatch(r"weight_rate_(\d+)", str(field))) and value is not None
     ]
     if rate_fields:
-        return [
-            WeightBand(max_weight=limit, price=float(normalize_number(value) or 0))
-            for limit, value in rate_fields
-        ]
+        bands: list[WeightBand] = []
+        previous = 0.0
+        for limit, value in sorted(rate_fields):
+            bands.append(WeightBand(
+                min_weight=previous,
+                max_weight=limit,
+                price=float(normalize_number(value) or 0),
+            ))
+            previous = limit
+        return bands
 
     bands: list[WeightBand] = []
     for entry in raw_entries:
         max_weight = float(entry.get("max_weight", entry.get("to_kg", 0)) or 0)
         price = float(entry.get("price", entry.get("rate", 0)) or 0)
-        bands.append(WeightBand(max_weight=max_weight, price=price, raw=entry))
+        bands.append(WeightBand(
+            min_weight=float(entry.get("min_weight", entry.get("from_kg", 0)) or 0),
+            max_weight=max_weight,
+            price=price,
+            minimum_freight=normalize_number(entry.get("minimum_freight")),
+            freight_percentage=normalize_number(entry.get("freight_percentage")),
+            min_invoice_value=normalize_number(entry.get("min_invoice_value")),
+            max_invoice_value=normalize_number(entry.get("max_invoice_value")),
+            raw=entry,
+        ))
     return bands

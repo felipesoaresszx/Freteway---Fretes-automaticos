@@ -7,6 +7,7 @@ from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.config import get_settings
 from app.core.observability import log_event
@@ -72,6 +73,8 @@ async def _cotar_uma(transportadora_id: str, nome: str, payload: dict) -> Result
             moeda=resultado.moeda,
             request_id=request_id,
             detalhamento=resultado.detalhamento,
+            provider="mock",
+            memoria_calculo=(resultado.detalhamento or {}).get("memoria_calculo"),
         )
 
     return ResultadoTransportadora(
@@ -89,7 +92,9 @@ async def _cotar_por_tabela(
     payload: dict,
     db_session: AsyncSession,
 ) -> ResultadoTransportadora:
-    resultado = await TabelaFreteAdapter(db_session, tabela.id).cotar(payload)
+    resultado = await TabelaFreteAdapter(
+        db_session, tabela.id, tabela_carregada=tabela
+    ).cotar(payload)
     request_id = str(uuid.uuid4())
     if resultado.status == "success":
         return ResultadoTransportadora(
@@ -101,6 +106,8 @@ async def _cotar_por_tabela(
             moeda=resultado.moeda,
             request_id=request_id,
             detalhamento=resultado.detalhamento,
+            provider="tabela_frete",
+            memoria_calculo=(resultado.detalhamento or {}).get("memoria_calculo"),
         )
     return ResultadoTransportadora(
         transportadora_id=transportadora.id,
@@ -153,6 +160,8 @@ async def _cotar_por_api(
             transportadora_id=transportadora.id, transportadora=transportadora.nome,
             status="success", valor_frete=resultado.valor_frete, prazo_dias=resultado.prazo_dias,
             moeda=resultado.moeda, request_id=request_id,
+            provider="api_legada",
+            memoria_calculo=(resultado.detalhamento or {}).get("memoria_calculo"),
         )
     return ResultadoTransportadora(
         transportadora_id=transportadora.id, transportadora=transportadora.nome,
@@ -214,6 +223,8 @@ async def _cotar_por_provider(
             prazo_dias=result.delivery_days,
             moeda="BRL",
             request_id=request_id,
+            provider=integration.adapter_code,
+            memoria_calculo=(result.metadata or {}).get("memoria_calculo"),
         )
     except TimeoutError:
         return ResultadoTransportadora(
@@ -323,8 +334,30 @@ async def executar_cotacao(
             TabelaFrete.data_inicio <= agora,
             TabelaFrete.data_fim >= agora,
         )
+        .options(joinedload(TabelaFrete.dados_importados))
         .order_by(TabelaFrete.transportadora_id, TabelaFrete.data_inicio.desc())
     )).scalars().all()) if transportadora_ids else []
+
+    # Canonical/imported tables need no other SQL. Only old relational tables
+    # receive the compatibility graph, in fixed select-in batches independent
+    # of the number of carriers.
+    legacy_table_ids = [table.id for table in tabelas if table.dados_importados is None]
+    if legacy_table_ids:
+        legacy_result = await db_session.execute(
+            select(TabelaFrete)
+            .where(TabelaFrete.id.in_(legacy_table_ids))
+            .options(
+                selectinload(TabelaFrete.abrangencias),
+                selectinload(TabelaFrete.tarifas),
+                selectinload(TabelaFrete.taxas),
+                selectinload(TabelaFrete.frete_minimos),
+                selectinload(TabelaFrete.excedentes),
+                selectinload(TabelaFrete.prazos),
+                selectinload(TabelaFrete.cubagens),
+                selectinload(TabelaFrete.pesos_considerados),
+            )
+        )
+        legacy_result.scalars().all()
     tabelas_por_transportadora: dict[str, TabelaFrete] = {}
     for tabela in tabelas:
         tabelas_por_transportadora.setdefault(tabela.transportadora_id, tabela)

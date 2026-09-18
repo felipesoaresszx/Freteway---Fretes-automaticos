@@ -29,6 +29,7 @@ class TableImportService:
         structure = detect_structure(raw_text)
         rows = self._extract_rows(raw_text)
         mapped = SemanticMapper().map(rows)
+        detected_rules = detect_rules(raw_text)
         table = FreightTable(
             carrier=carrier,
             origin=origin or {"city": "Guarulhos", "state": "SP"},
@@ -38,13 +39,25 @@ class TableImportService:
             surcharges=map_surcharges(mapped),
             delivery_rules=[{"source": file_path.name, "kind": "delivery"}],
             collection_rules=[{"source": file_path.name, "kind": "collection"}],
-            general_rules=[{"source": file_path.name, "kind": "generic", "rules": detect_rules(raw_text)}],
+            general_rules=[{"source": file_path.name, "kind": "generic", "rules": detected_rules}],
+            metadata={"source_document": file_path.name, "detected_format": format_name},
         )
         validation = validate_table(table)
         contract = to_canonical_contract(table)
         contract["format_detected"] = format_name
         contract["structure"] = structure
         contract["validation"] = validation
+        cubage = detected_rules.get("cubage", {})
+        if cubage.get("status") == "resolved":
+            contract["fator_cubagem"] = cubage["factor_kg_m3"]
+        contract["pipeline"] = [
+            {"stage": "format_detection", "status": "completed", "format": format_name},
+            {"stage": "extraction", "status": "completed"},
+            {"stage": "normalization", "status": "completed", "rows": len(rows)},
+            {"stage": "rule_mapping", "status": "completed"},
+            {"stage": "canonical_model", "status": "completed", "schema": "canonical_tariff_v2"},
+            {"stage": "validation", "status": validation["status"]},
+        ]
         return contract
 
     def _extract_rows(self, raw_text: str) -> list[dict[str, object]]:
@@ -57,7 +70,7 @@ class TableImportService:
         for index, line in enumerate(lines):
             parts = [part.strip() for part in line.split("|")]
             normalized = _header_key(line)
-            if "UF" in normalized and "DESTINO" in normalized and _weight_header_count(parts) >= 3:
+            if "UF" in normalized and "DESTINO" in normalized and _weight_header_count(parts) >= 1:
                 rows = _pipe_rows(lines[index:], parts)
                 if rows:
                     return rows
@@ -97,6 +110,10 @@ def _pipe_rows(lines: list[str], header: list[str]) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     state: str | None = None
     for line in lines[1:]:
+        # Each worksheet is emitted with a marker by the parser. A table must
+        # never consume rows from the next worksheet using the previous header.
+        if line.startswith("### "):
+            break
         parts = [part.strip() for part in line.split("|")]
         if _header_key(line).count("DESTINO") and _header_key(line).count("UF"):
             continue

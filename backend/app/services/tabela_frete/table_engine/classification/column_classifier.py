@@ -14,6 +14,13 @@ COLUMN_ALIASES = {
     "region": {"REGIAO", "REGIÃO", "GRUPO", "ZONA", "CLASSIFICACAO", "CLASSIFICAÇÃO"},
     "gris": {"GRIS", "GERENCIAMENTO DE RISCO"},
     "ad_valorem": {"AD VALOREM", "ADV", "ADVALOREM", "SEGURO"},
+    "minimum_freight": {"FRETE MINIMO", "FRETE MÍNIMO", "MINIMO", "MINIMUM FREIGHT"},
+    "freight_percentage": {"PERCENTUAL FRETE", "% FRETE", "FREIGHT PERCENTAGE"},
+    "dispatch_fee": {"DESPACHO", "TAXA DESPACHO", "DISPATCH"},
+    "collection_fee": {"COLETA", "TAXA COLETA", "COLLECTION"},
+    "cubage_factor": {"FATOR CUBAGEM", "FATOR DE CUBAGEM", "KG M3", "CUBAGE FACTOR"},
+    "min_invoice_value": {"VALOR NF MINIMO", "VALOR MERCADORIA MINIMO", "MIN INVOICE VALUE"},
+    "max_invoice_value": {"VALOR NF MAXIMO", "VALOR MERCADORIA MAXIMO", "MAX INVOICE VALUE"},
     "pedagio": {"PEDAGIO", "PEDÁGIO", "TOLL"},
 }
 
@@ -27,10 +34,12 @@ class ColumnClassifier:
                 continue
             best_match = None
             best_score = -1
+            exact_match = None
             for canonical, aliases in COLUMN_ALIASES.items():
                 alias_set = {normalize_header(alias) for alias in aliases}
                 if key in alias_set:
-                    return {header: canonical}
+                    exact_match = canonical
+                    break
                 score = 0
                 for alias in alias_set:
                     if key == alias:
@@ -42,7 +51,9 @@ class ColumnClassifier:
                 if score > best_score:
                     best_match = canonical
                     best_score = score
-            if best_match and best_score > 0:
+            if exact_match:
+                mapping[header] = exact_match
+            elif best_match and best_score > 0:
                 mapping[header] = best_match
         return mapping
 

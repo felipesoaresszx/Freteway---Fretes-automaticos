@@ -28,7 +28,12 @@ class SemanticMapper:
                     item[canonical] = city.get("normalized_value") if isinstance(city, dict) else city
                 elif canonical in {"cep_start", "cep_end"}:
                     item[canonical] = normalize_cep(raw_value)
-                elif canonical in {"weight_limit", "price", "excess_rate", "gris", "ad_valorem", "pedagio", "delivery_days"}:
+                elif canonical in {
+                    "weight_limit", "price", "excess_rate", "gris", "ad_valorem", "pedagio",
+                    "delivery_days", "minimum_freight", "freight_percentage", "dispatch_fee",
+                    "collection_fee", "cubage_factor",
+                    "min_invoice_value", "max_invoice_value",
+                }:
                     item[canonical] = normalize_number(raw_value)
                 else:
                     item[canonical] = raw_value

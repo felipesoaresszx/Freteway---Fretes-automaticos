@@ -540,6 +540,9 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
         db.add(TabelaFreteDadosImportados(
             tabela_frete_id=tabela.id,
             formato=dados["formato"],
+            canonical_schema="canonical_tariff_v2",
+            schema_version=2,
+            validation_status=validation.get("status"),
             dados=dados,
             quantidade_coberturas=int(statistics.get("cep_ranges", 0)),
             quantidade_tarifas=int(statistics.get("brackets", 0)),
@@ -603,6 +606,9 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
         db.add(TabelaFreteDadosImportados(
             tabela_frete_id=tabela.id,
             formato=dados["formato"],
+            canonical_schema=dados.get("canonical_schema", "canonical_tariff_v2"),
+            schema_version=int(dados.get("schema_version", 2)),
+            validation_status=(dados.get("validation") or {}).get("status", "TABLE_VALIDATED"),
             dados=dados,
             quantidade_coberturas=len(dados["destinations"]),
             quantidade_tarifas=sum(
