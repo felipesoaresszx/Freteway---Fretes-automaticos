@@ -220,6 +220,14 @@ def extract_patrus_excel(path: str | Path) -> dict:
             "origin": {"city": "São Paulo", "state": "SP"}, "currency": "BRL", "fator_cubagem": 300,
             "weight_policy": "max_real_cubed", "destinations": destinations, "pracas": destinations,
             "surcharges": rules, "faixas_tarifarias": [band for item in destinations[:len(by_region)] for band in item["weight_rates"]],
+            "tax_rules": [{
+                "code": "ICMS", "name": "ICMS sobre transporte", "type": "GROSS_UP",
+                "rates_by_destination": {
+                    "BA": .07, "CE": .07, "ES": .07, "MG": .12, "PE": .07,
+                    "PR": .12, "RJ": .12, "RS": .12, "SC": .12, "SE": .07, "SP": .12,
+                },
+                "source": _source(file_path, tariff_sheet.title, 67, "Impostos ICMS e/ou ISS oficiais, não inclusos"),
+            }],
             "special_lists": {"capitals": capital_rows, "third_band": third_rows, "emex": emex, "trt": trt,
                               "tda": tda, "tag": tag, "non_grouping": no_group},
             "operational_rules": {"pallet_weight_kg": 1000, "redelivery": {"percentage": .5, "minimum": 62.10}},

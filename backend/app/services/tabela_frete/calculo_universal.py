@@ -142,6 +142,20 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         taxes.append({"codigo": surcharge.get("code"), "descricao": surcharge.get("name"), "base": surcharge.get("basis"), "valor": amount})
         applied_codes.append(surcharge.get("code"))
     subtotal = total + sum(item["valor"] for item in taxes)
+    for tax_rule in data.get("tax_rules", []):
+        if tax_rule.get("type") != "GROSS_UP":
+            continue
+        rate = float((tax_rule.get("rates_by_destination") or {}).get(destination.get("uf"), 0))
+        if not 0 < rate < 1:
+            continue
+        amount = round(subtotal / (1 - rate) - subtotal, 2)
+        taxes.append({
+            "codigo": tax_rule.get("code", "ICMS"), "descricao": tax_rule.get("name", "ICMS"),
+            "base": "TOTAL_SEM_IMPOSTO", "percentual": rate, "valor": amount,
+            "source": tax_rule.get("source"),
+        })
+        applied_codes.append(tax_rule.get("code", "ICMS"))
+        subtotal += amount
     increment = float((data.get("pricing_rules") or {}).get("commercial_rounding_increment") or .01)
     if increment > 0:
         rounded_total = float((Decimal(str(subtotal)) / Decimal(str(increment))).quantize(Decimal("1"), rounding=ROUND_HALF_UP) * Decimal(str(increment)))

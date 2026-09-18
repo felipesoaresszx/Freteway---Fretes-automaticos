@@ -84,3 +84,15 @@ def test_exact_city_precedes_state_interior_fallback():
         {"uf": "GO", "city": None, "service_level": "INTERIOR"},
     ]}
     assert _destination(data, {"destino_cidade": "GOIANIA", "destino_uf": "GO"})["service_level"] == "POLE"
+
+
+def test_quote_matches_patrus_portal_with_icms_gross_up(table):
+    result = calcular_universal(
+        table,
+        quote("22281033", "Rio de Janeiro", "RJ", weight=10, invoice=890, volume=.185193),
+    )
+    values = {item["codigo"]: item["valor"] for item in result["taxas_detalhadas"]}
+    assert result["peso_considerado_kg"] == pytest.approx(55.558, abs=.001)
+    assert result["frete_base"] == pytest.approx(74.55)
+    assert values["ICMS"] == pytest.approx(23.12)
+    assert result["valor_total"] == pytest.approx(192.64)
