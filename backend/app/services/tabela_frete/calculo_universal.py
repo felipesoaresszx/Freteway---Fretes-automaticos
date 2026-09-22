@@ -87,17 +87,16 @@ def _destination(data: dict, quote: dict) -> dict:
             and key(item.get("uf")) == key(state)
         ]
     if len(matches) > 1:
+        exact = [item for item in matches if city and key(item.get("city")) == key(city)]
         ranged = [item for item in matches if item.get("cep_start") and item.get("cep_end")]
-        if ranged:
+        if exact:
+            matches = exact
+        elif ranged:
             matches = sorted(ranged, key=lambda item: int(item["cep_end"]) - int(item["cep_start"]))[:1]
         else:
-            exact = [item for item in matches if city and key(item.get("city")) == key(city)]
-            if exact:
-                matches = exact
-            else:
-                interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
-                if len(interior) == 1:
-                    matches = interior
+            interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
+            if len(interior) == 1:
+                matches = interior
     if len(matches) > 1 and city:
         exact = [item for item in matches if key(item.get("city")) == key(city)]
         interior = [item for item in matches if item.get("service_level") == "INTERIOR"]

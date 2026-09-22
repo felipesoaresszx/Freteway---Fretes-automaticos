@@ -159,6 +159,8 @@ def parse_cif_proposal_rows(
                     "uf": uf,
                     "city": None,
                     "cities": cities,
+                    "cep_start": region["cep_start"],
+                    "cep_end": region["cep_end"],
                     "region_code": region_code,
                     "service_level": "REGIAO_IMEDIATA",
                     "delivery_days": maximum_days,
@@ -174,12 +176,15 @@ def parse_cif_proposal_rows(
                         "table_row": position,
                         "coverage": "IBGE_REGIAO_GEOGRAFICA_IMEDIATA",
                         "ibge_region_id": region["id"],
+                        "commercial_cep_range": True,
                     },
                 })
                 mapped_regions.append({
                     **region_data,
                     "region_code": region_code,
                     "ibge_region_id": region["id"],
+                    "cep_start": region["cep_start"],
+                    "cep_end": region["cep_end"],
                     "cities": cities,
                     "status": "MAPPED",
                 })

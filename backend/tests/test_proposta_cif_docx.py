@@ -79,6 +79,35 @@ def test_barcarena_usa_automaticamente_a_regiao_de_belem():
     assert result["destino_tabela"]["regiao"] == "IBGE_IMEDIATA_150001"
 
 
+def test_sao_domingos_do_maranhao_usa_regiao_comercial_de_bacabal():
+    rows = [
+        ROWS[0],
+        ["Bacabal - MA", "R$ 1,25", "7%", "R$ 250,00", "10 dias úteis"],
+        ["Região", "R$ 1,25", "7%", "R$ 250,00", "10 – 15 dias úteis"],
+    ]
+    data = parse_cif_proposal_rows(rows, source_document="proposta.docx", full_text="Seguro 1%")
+
+    result = calcular_universal(data, {
+        "origem_cep": "07042180", "origem_cidade": "Guarulhos", "origem_uf": "SP",
+        "destino_cep": "65790000", "destino_cidade": "São Domingos do Maranhão",
+        "destino_uf": "MA", "peso": 10, "valor_nf": 5000,
+        "volume_total_m3": .57 * .57 * .34,
+    })
+
+    assert result["valor_total"] == 430.11
+    assert result["prazo_dias"] == 15
+    assert result["peso_considerado_kg"] == 33.14
+    assert result["destino_tabela"]["regiao"] == "IBGE_IMEDIATA_210010"
+
+    exact_city = calcular_universal(data, {
+        "origem_cidade": "Guarulhos", "origem_uf": "SP",
+        "destino_cep": "65700000", "destino_cidade": "Bacabal", "destino_uf": "MA",
+        "peso": 10, "valor_nf": 5000, "volume_total_m3": .57 * .57 * .34,
+    })
+    assert exact_city["prazo_dias"] == 10
+    assert exact_city["destino_tabela"]["cidade"] == "BACABAL"
+
+
 def test_docx_reconhecido_na_analise_em_vez_do_fallback_generico(tmp_path: Path):
     path = tmp_path / "proposta.docx"
     document = Document()
