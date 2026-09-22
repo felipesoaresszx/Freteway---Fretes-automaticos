@@ -60,11 +60,11 @@ class _FakeDb:
                 id="t1", codigo="CORREIOS", cnpj_cpf="12.345.678/0001-90",
             )])
         if self.execute_calls == 2:
-            return _Result([])
-        return _Result([SimpleNamespace(
-            transportadora_id="t1", codigo_parceiro=1234,
-            codigo_servico="04014", servico="SEDEX",
-        )])
+            return _Result([SimpleNamespace(
+                transportadora_id="t1", empresa_sankhya_id="7", ativo=True,
+                codigo_parceiro=1234, codigo_servico="04014", servico="SEDEX",
+            )])
+        return _Result([])
 
     def add(self, row):
         self.audit_rows.append(row)
@@ -280,6 +280,40 @@ def test_endpoint_retorna_array_vazio_quando_nao_ha_transportadora(monkeypatch):
     assert response.status_code == 200
     assert response.json() == {"ShippingSevicesArray": []}
     assert len(calls) == 1
+
+
+def test_endpoint_nao_envia_cotacoes_com_erro_sem_valor_ou_valor_zerado(monkeypatch):
+    resultados = [
+        ResultadoTransportadora(
+            transportadora_id="t1", transportadora="Correios", status="success",
+            valor_frete=89.9, prazo_dias=3, request_id="r1",
+        ),
+        ResultadoTransportadora(
+            transportadora_id="t2", transportadora="Jamef", status="error",
+            erro=ErroResultado(codigo="SEM_ROTA", mensagem="Rota indisponivel"), request_id="r2",
+        ),
+        ResultadoTransportadora(
+            transportadora_id="t3", transportadora="Transportadora Zero", status="success",
+            valor_frete=0, prazo_dias=2, request_id="r3",
+        ),
+        ResultadoTransportadora(
+            transportadora_id="t4", transportadora="Transportadora Sem Valor", status="success",
+            valor_frete=None, prazo_dias=2, request_id="r4",
+        ),
+    ]
+    client, _calls, fake_db = _http_client(monkeypatch, resultados)
+
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"}, json=PAYLOAD_SANKHYA,
+    )
+
+    assert response.status_code == 200
+    linhas = response.json()["ShippingSevicesArray"]
+    assert len(linhas) == 1
+    assert linhas[0]["Carrier"] == "Correios"
+    assert linhas[0]["ShippingPrice"] == "89.90"
+    assert fake_db.execute_calls == 2
 
 
 def test_endpoint_retorna_erro_controlado_quando_banco_falha(monkeypatch):

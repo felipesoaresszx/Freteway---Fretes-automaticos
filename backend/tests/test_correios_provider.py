@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+import asyncio
 
 import httpx
 import pytest
@@ -52,6 +53,38 @@ async def test_autentica_consulta_preco_prazo_e_normaliza(monkeypatch):
     assert price_call[2]["params"]["comprimento"] == "20"
     assert "vlDeclarado" not in price_call[2]["params"]
     assert price_call[2]["headers"] == {"Authorization": "Bearer jwt", "Accept": "application/json"}
+
+
+@pytest.mark.asyncio
+async def test_consulta_preco_e_prazo_em_paralelo(monkeypatch):
+    requisicoes_iniciadas = 0
+    ambas_iniciadas = asyncio.Event()
+
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+        async def post(self, url, **kwargs):
+            return httpx.Response(
+                201, json={"token": "jwt", "expiraEm": "2099-01-01T00:00:00Z"},
+                request=httpx.Request("POST", url),
+            )
+        async def get(self, url, **kwargs):
+            nonlocal requisicoes_iniciadas
+            requisicoes_iniciadas += 1
+            if requisicoes_iniciadas == 2:
+                ambas_iniciadas.set()
+            await asyncio.wait_for(ambas_iniciadas.wait(), timeout=0.2)
+            body = {"pcFinal": "19,92"} if "/preco/" in url else {"prazoEntrega": 3}
+            return httpx.Response(200, json=body, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr("app.integrations.correios.client.validate_external_url", lambda url: url)
+    CorreiosClient._tokens.clear()
+
+    result = (await CorreiosProvider().quote(request(), credentials()))[0]
+
+    assert result.price == Decimal("19.92")
+    assert requisicoes_iniciadas == 2
 
 
 @pytest.mark.asyncio

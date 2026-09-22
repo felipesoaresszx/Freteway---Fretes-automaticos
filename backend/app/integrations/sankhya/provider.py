@@ -13,6 +13,18 @@ _FORBIDDEN_TEXT = str.maketrans({character: "" for character in '\"[]{}'})
 class SankhyaQuoteProvider:
     """Adapta o motor ao contrato textual compativel com a Frenet."""
 
+    @classmethod
+    def is_available(cls, result: ResultadoTransportadora) -> bool:
+        """Retorna se o resultado pode ser enviado como uma cotacao valida."""
+        if result.status != "success" or result.valor_frete is None or result.prazo_dias is None:
+            return False
+        try:
+            shipping_price = Decimal(cls.price(result.valor_frete))
+            cls.delivery_days(result.prazo_dias)
+        except ValueError:
+            return False
+        return shipping_price > 0
+
     @staticmethod
     def sanitize(value: Any) -> str:
         text = "" if value is None else str(value)

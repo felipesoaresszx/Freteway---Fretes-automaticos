@@ -81,10 +81,14 @@ class CorreiosClient:
         async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
             token = await self._authenticate(client)
             headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
-            price = await client.get(price_url, params=request_data, headers=headers)
-            deadline = await client.get(deadline_url, params={
-                "cepOrigem": request_data["cepOrigem"], "cepDestino": request_data["cepDestino"],
-            }, headers=headers)
+            # Preco e prazo sao endpoints independentes. Executa-los em serie
+            # acrescentava uma latencia de rede inteira a cada cotacao.
+            price, deadline = await asyncio.gather(
+                client.get(price_url, params=request_data, headers=headers),
+                client.get(deadline_url, params={
+                    "cepOrigem": request_data["cepOrigem"], "cepDestino": request_data["cepDestino"],
+                }, headers=headers),
+            )
             if price.status_code == 401 or deadline.status_code == 401:
                 self._tokens.pop(self._cache_key(), None)
                 raise CorreiosAuthenticationError("Token dos Correios recusado")

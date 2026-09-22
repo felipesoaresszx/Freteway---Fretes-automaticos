@@ -43,6 +43,7 @@ async def _cotar(payload: CotacaoSankhyaIn, request: Request, db: AsyncSession) 
         raise HTTPException(status_code=422, detail={
             "codigo": "EMPRESA_NAO_VINCULADA", "mensagem": "Empresa nao vinculada a este cliente"
         })
+    empresa_ms = (time.perf_counter() - inicio) * 1000
 
     cotacao = CotacaoCreate(
         origem=payload.origem, destino=payload.destino, valor_nf=payload.valor_mercadoria,
@@ -50,6 +51,7 @@ async def _cotar(payload: CotacaoSankhyaIn, request: Request, db: AsyncSession) 
         volumes=[item.para_volume() for item in payload.itens],
         transportadoras_ids=payload.transportadoras_ids,
     )
+    cotacao_inicio = time.perf_counter()
     try:
         resultados = await executar_cotacao(cotacao, db)
     except Exception:
@@ -59,33 +61,37 @@ async def _cotar(payload: CotacaoSankhyaIn, request: Request, db: AsyncSession) 
             erro=ErroResultado(codigo="FRETEWAY_COTACAO_ERRO", mensagem="Falha ao processar a cotacao"),
             request_id=request_id,
         )]
+    cotacao_ms = (time.perf_counter() - cotacao_inicio) * 1000
 
-    ids = [item.transportadora_id for item in resultados if item.transportadora_id != "freteway"]
+    provider = SankhyaQuoteProvider()
+    resultados_enviaveis = [item for item in resultados if provider.is_available(item)]
+    ids = [item.transportadora_id for item in resultados_enviaveis if item.transportadora_id != "freteway"]
     transportadoras: dict[str, Transportadora] = {}
     mapeamentos: dict[str, SankhyaTransportadoraMapeamento] = {}
     if ids:
         transportadoras = {item.id: item for item in (await db.execute(
             select(Transportadora).where(Transportadora.id.in_(ids))
         )).scalars().all()}
-        mapeamentos = {item.transportadora_id: item for item in (await db.execute(
+        registros_mapeamento = (await db.execute(
             select(SankhyaTransportadoraMapeamento).where(
                 SankhyaTransportadoraMapeamento.transportadora_id.in_(ids),
                 SankhyaTransportadoraMapeamento.ativo.is_(True),
                 or_(SankhyaTransportadoraMapeamento.empresa_sankhya_id == payload.empresa_sankhya_id,
                     SankhyaTransportadoraMapeamento.empresa_sankhya_id.is_(None)),
             )
-        )).scalars().all()}
-        # Um de-para especifico da CODEMP sempre prevalece sobre o mapeamento geral.
-        for item in (await db.execute(select(SankhyaTransportadoraMapeamento).where(
-            SankhyaTransportadoraMapeamento.transportadora_id.in_(ids),
-            SankhyaTransportadoraMapeamento.empresa_sankhya_id == payload.empresa_sankhya_id,
-            SankhyaTransportadoraMapeamento.ativo.is_(True),
-        ))).scalars().all():
-            mapeamentos[item.transportadora_id] = item
+        )).scalars().all()
+        # Resolve o de-para geral e o especifico em memoria, sem repetir a
+        # consulta. O registro da CODEMP sempre prevalece, independentemente
+        # da ordem retornada pelo banco.
+        for item in registros_mapeamento:
+            atual = mapeamentos.get(item.transportadora_id)
+            if atual is None or item.empresa_sankhya_id == payload.empresa_sankhya_id:
+                mapeamentos[item.transportadora_id] = item
 
-    provider = SankhyaQuoteProvider()
+    metadados_ms = (time.perf_counter() - cotacao_inicio) * 1000 - cotacao_ms
+
     linhas = []
-    for resultado in resultados:
+    for resultado in resultados_enviaveis:
         transportadora = transportadoras.get(resultado.transportadora_id)
         mapeamento = mapeamentos.get(resultado.transportadora_id)
         linhas.append(provider.line(
@@ -106,7 +112,9 @@ async def _cotar(payload: CotacaoSankhyaIn, request: Request, db: AsyncSession) 
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent", "")[:500] or None,
     ))
+    commit_inicio = time.perf_counter()
     await db.commit()
+    commit_ms = (time.perf_counter() - commit_inicio) * 1000
     log_event(
         logger, "sankhya_quote_completed", request_id=request_id,
         nunota=payload.numero_pedido,
@@ -116,6 +124,10 @@ async def _cotar(payload: CotacaoSankhyaIn, request: Request, db: AsyncSession) 
         carriers_analyzed=len(resultados), carriers_returned=len(linhas),
         success_count=sucessos,
         status="success" if sucessos else "no_available_quotes",
+        company_lookup_ms=round(empresa_ms, 2),
+        carriers_duration_ms=round(cotacao_ms, 2),
+        metadata_duration_ms=round(metadados_ms, 2),
+        audit_commit_ms=round(commit_ms, 2),
         duration_ms=round((time.perf_counter() - inicio) * 1000, 2),
     )
     return Response(provider.serialize(linhas), media_type="application/json; charset=utf-8")
