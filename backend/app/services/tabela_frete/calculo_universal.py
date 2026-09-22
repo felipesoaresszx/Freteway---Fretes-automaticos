@@ -61,6 +61,7 @@ def _destination(data: dict, quote: dict) -> dict:
         eligible.append(item)
         item_cep_start = _normalize_cep(item.get("cep_start"))
         item_cep_end = _normalize_cep(item.get("cep_end"))
+        regional_cities = {key(value) for value in (item.get("cities") or [])}
         if cep and item_cep_start and item_cep_end and item_cep_start <= cep <= item_cep_end:
             matches.append(item)
         elif (
@@ -70,10 +71,21 @@ def _destination(data: dict, quote: dict) -> dict:
             and key(item.get("uf")) == key(state)
         ):
             matches.append(item)
-        elif state and not item_cep_start and not item_cep_end and key(item.get("uf")) == key(state):
+        elif city and state and key(city) in regional_cities and key(item.get("uf")) == key(state):
+            matches.append(item)
+        elif (
+            state and not item_cep_start and not item_cep_end
+            and not conditions.get("requires_city_match")
+            and key(item.get("uf")) == key(state)
+        ):
             matches.append(item)
     if cep and state and not matches:
-        matches = [item for item in eligible if not item.get("cep_start") and key(item.get("uf")) == key(state)]
+        matches = [
+            item for item in eligible
+            if not item.get("cep_start")
+            and not (item.get("conditions") or {}).get("requires_city_match")
+            and key(item.get("uf")) == key(state)
+        ]
     if len(matches) > 1:
         ranged = [item for item in matches if item.get("cep_start") and item.get("cep_end")]
         if ranged:
@@ -196,7 +208,10 @@ def calcular_universal(data: dict, quote: dict) -> dict:
     for tax_rule in data.get("tax_rules", []):
         if tax_rule.get("type") != "GROSS_UP":
             continue
-        rate = float((tax_rule.get("rates_by_destination") or {}).get(destination.get("uf"), 0))
+        rates = tax_rule.get("rates_by_destination") or {}
+        rate = float(
+            rates.get(destination.get("uf"), rates.get("*", tax_rule.get("default_rate", 0)))
+        )
         if not 0 < rate < 1:
             continue
         amount = round(subtotal / (1 - rate) - subtotal, 2)

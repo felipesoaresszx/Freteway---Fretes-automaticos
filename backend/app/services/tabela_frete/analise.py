@@ -376,6 +376,27 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 "avisos": ["Matriz tarifária PDF identificada por conteúdo e preservada com proveniência."],
                 "campos_com_duvida": [], "resumo": dados.get("statistics", {}),
             }
+    if documento.tipo_arquivo == "docx":
+        from app.services.tabela_frete.proposta_cif_docx import extract_cif_proposal_docx
+
+        dados = extract_cif_proposal_docx(caminho)
+        if dados:
+            campos_com_duvida = []
+            if dados.get("unresolved_regions"):
+                campos_com_duvida.append("mapeamento_zonas")
+            if any(rule.get("icms") == "UNRESOLVED" for rule in dados.get("general_rules", [])):
+                campos_com_duvida.append("icms")
+            return {
+                "dados_extraidos": dados,
+                "confianca_extracao": 0.92 if campos_com_duvida else 0.98,
+                "erros_validacao": [],
+                "avisos": [
+                    "Proposta CIF reconhecida: frete-peso, frete-valor, frete mínimo, cidades e prazos foram normalizados.",
+                    "Linhas identificadas apenas como Região permanecem pendentes até a inclusão da malha de cidades/CEPs.",
+                ],
+                "campos_com_duvida": campos_com_duvida,
+                "resumo": dados["estatisticas"],
+            }
     try:
         from app.services.tabela_frete.extracao_generica import extrair_documento_generico
         dados = extrair_documento_generico(caminho, documento.tipo_arquivo)
