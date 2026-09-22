@@ -107,6 +107,20 @@ def test_sao_domingos_do_maranhao_usa_regiao_comercial_de_bacabal():
     assert exact_city["prazo_dias"] == 10
     assert exact_city["destino_tabela"]["cidade"] == "BACABAL"
 
+    # Contratos analisados antes da inclusão das faixas continuam funcionando
+    # pelo código regional que já estava persistido.
+    for destination in data["destinations"]:
+        destination.pop("cep_start", None)
+        destination.pop("cep_end", None)
+    legacy_result = calcular_universal(data, {
+        "origem_cidade": "Guarulhos", "origem_uf": "SP",
+        "destino_cep": "65790000", "destino_cidade": "São Domingos do Maranhão",
+        "destino_uf": "MA", "peso": 10, "valor_nf": 5000,
+        "volume_total_m3": .57 * .57 * .34,
+    })
+    assert legacy_result["valor_total"] == 430.11
+    assert legacy_result["prazo_dias"] == 15
+
 
 def test_docx_reconhecido_na_analise_em_vez_do_fallback_generico(tmp_path: Path):
     path = tmp_path / "proposta.docx"

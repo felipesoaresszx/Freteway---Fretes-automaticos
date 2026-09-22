@@ -7,10 +7,17 @@ import re
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.services.tabela_frete.contrato import key
+from app.services.tabela_frete.regioes_imediatas_ibge import REGIOES_IMEDIATAS_IBGE
 
 
 class CalculoUniversalError(ValueError):
     pass
+
+
+REGIONAL_CEP_RANGES = {
+    f"IBGE_IMEDIATA_{region['id']}": (region["cep_start"], region["cep_end"])
+    for region in REGIOES_IMEDIATAS_IBGE.values()
+}
 
 
 def _normalize_cep(value: str | int | None) -> str | None:
@@ -59,8 +66,9 @@ def _destination(data: dict, quote: dict) -> dict:
         if conditions.get("max_invoice_value") is not None and invoice > float(conditions["max_invoice_value"]):
             continue
         eligible.append(item)
-        item_cep_start = _normalize_cep(item.get("cep_start"))
-        item_cep_end = _normalize_cep(item.get("cep_end"))
+        persisted_range = REGIONAL_CEP_RANGES.get(item.get("region_code"), (None, None))
+        item_cep_start = _normalize_cep(item.get("cep_start") or persisted_range[0])
+        item_cep_end = _normalize_cep(item.get("cep_end") or persisted_range[1])
         regional_cities = {key(value) for value in (item.get("cities") or [])}
         if cep and item_cep_start and item_cep_end and item_cep_start <= cep <= item_cep_end:
             matches.append(item)
