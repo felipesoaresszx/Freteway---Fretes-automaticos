@@ -119,6 +119,7 @@ def parse_combined_table_text(text: str, *, source_document: str, sha256: str = 
                 "excess_weight_rate": _number(excess.group(1)) / 1000,
                 "excess_calculation": "TOTAL_WEIGHT",
                 "dispatch_fee": _number(dispatch.group(1)),
+                "dispatch_fee_applies_above_kg": previous,
                 "regional_surcharges": [
                     {"code": "GRIS", "name": "GRIS", "type": "PERCENTAGE", "value": _number(gris.group(1)) / 100, "basis": "INVOICE_VALUE"},
                     {"code": "AD_VALOREM", "name": "Ad valorem", "type": "PERCENTAGE", "value": _number(ad_valorem.group(1)) / 100, "basis": "INVOICE_VALUE"},

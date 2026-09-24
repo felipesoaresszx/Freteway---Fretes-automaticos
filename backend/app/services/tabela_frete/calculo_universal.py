@@ -302,6 +302,18 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         ("COLETA", "Coleta", destination.get("collection_fee")),
     ):
         if value is not None:
+            minimum_weight = destination.get("dispatch_fee_applies_above_kg") if code == "DESPACHO" else None
+            if (
+                code == "DESPACHO"
+                and minimum_weight is None
+                and (data.get("metadata") or {}).get("parser") == "tabela_combinada_pdf_v1"
+            ):
+                # Compatibilidade com Tabelas Combinadas importadas antes de
+                # esta condição ter sido persistida: nas faixas fechadas o
+                # despacho já está absorvido; ele é separado no R$/ton.
+                minimum_weight = max((float(item.get("max_weight", 0)) for item in bands), default=None)
+            if minimum_weight is not None and weight <= float(minimum_weight):
+                continue
             amount = round(float(value), 2)
             taxes.append({"codigo": code, "descricao": name, "base": "FIXO", "valor": amount})
             applied_codes.append(code)

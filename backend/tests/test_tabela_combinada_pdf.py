@@ -132,8 +132,9 @@ def test_calculation_uses_band_dispatch_gris_and_ad_valorem():
     })
 
     assert quote["frete_base"] == 115
-    assert quote["total_taxas"] == pytest.approx(102.20)
-    assert quote["valor_total"] == pytest.approx(217.20)
+    assert quote["total_taxas"] == pytest.approx(17.26)
+    assert quote["valor_total"] == pytest.approx(132.26)
+    assert not any(item["codigo"] == "DESPACHO" for item in quote["taxas_detalhadas"])
     assert next(item for item in quote["taxas_detalhadas"] if item["codigo"] == "ICMS")["percentual"] == .07
 
 
@@ -148,6 +149,28 @@ def test_calculation_above_100kg_uses_rate_on_total_weight():
 
     assert quote["frete_base"] == pytest.approx(195.86)
     assert quote["valor_total"] == pytest.approx(295.55)
+    assert next(item for item in quote["taxas_detalhadas"] if item["codigo"] == "DESPACHO")["valor"] == 79
+
+
+def test_crateus_direct_quote_does_not_repeat_dispatch_inside_closed_band():
+    text = SAMPLE.replace(
+        "CE/FORTALEZA PRACA POLO (FORP)", "CE/FORTALEZA PRACA INTERIOR (FORI)",
+    ).replace("1305,72612", "2057,04114").replace("115,00000", "225,00000").replace(
+        "143,00000", "252,00000",
+    ).replace("188,00000", "296,00000").replace("224,00000", "357,00000")
+    result = parse_combined_table_text(text, source_document="combinada.pdf")
+    total_volume = (.34 * .57 * .57) + (.20 * .24 * .32)
+
+    quote = calcular_universal(result, {
+        "origem_cidade": "Guarulhos", "origem_uf": "SP",
+        "destino_cidade": "Crateús", "destino_uf": "CE", "destino_cep": "63700139",
+        "peso": 31, "volume_total_m3": total_volume, "valor_nf": 2575.40,
+    })
+
+    assert quote["peso_cubado_kg"] == pytest.approx(37.748, abs=.001)
+    assert quote["frete_base"] == 252
+    assert quote["valor_total"] == pytest.approx(293.12)
+    assert not any(item["codigo"] == "DESPACHO" for item in quote["taxas_detalhadas"])
 
 
 def test_reverse_route_uses_twelve_percent_icms():
