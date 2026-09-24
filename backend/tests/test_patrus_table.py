@@ -28,8 +28,26 @@ def test_imports_all_relevant_sheets_and_preserves_pending_rules(table):
     assert table["estatisticas"]["tda"] == 1132
     assert table["estatisticas"]["trt"] == 194
     assert table["estatisticas"]["tag"] == 839
-    assert {item["code"] for item in table["unresolved_rules"]} == {"TDE", "TDE2", "TDE3", "TAG"}
+    assert {item["code"] for item in table["unresolved_rules"]} == {"TDE", "TDE2", "TDE3"}
     assert table["source_sha256"] and table["table_version"] == "V 2.7.7"
+
+
+def test_tde_values_are_preserved_and_only_incidence_lists_remain_pending(table):
+    rules = {item["code"]: item for item in table["surcharges"]}
+    assert (rules["TDE"]["value"], rules["TDE"]["minimum"]) == pytest.approx((.1109, 182.36))
+    assert (rules["TDE2"]["value"], rules["TDE2"]["minimum"]) == pytest.approx((.3326, 580.17))
+    assert (rules["TDE3"]["value"], rules["TDE3"]["minimum"]) == pytest.approx((.4435, 1047.68))
+    assert all("Lista de incidência ausente" in rules[code]["reason"] for code in ("TDE", "TDE2", "TDE3"))
+
+
+def test_tag_is_an_operational_zero_cost_rule_with_recipient_list(table):
+    tag = next(item for item in table["surcharges"] if item["code"] == "TAG")
+    assert tag["status"] == "OPERATIONAL"
+    assert tag["value"] == 0
+    assert tag["minimum"] == 0
+    assert len(tag["cnpj_roots"]) == 839
+    assert tag["source"]["sheet"] == "Generalidades"
+    assert tag["source"]["row"] == 38
 
 
 @pytest.mark.parametrize(("cep", "city", "uf", "region", "base"), [
