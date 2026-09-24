@@ -15,6 +15,13 @@ from app.services.tabela_frete.table_engine.normalization.city_normalizer import
 
 FORMAT = "tabela_frete_universal_v1"
 
+# A proposta usa a filial seguida do nível de atendimento, não o município
+# literal como cobertura. A cotação operacional 013011 confirmou Quixadá na
+# praça FORI (Fortaleza Interior).
+INTERIOR_CITIES_BY_CODE = {
+    "FORI": ["QUIXADA"],
+}
+
 
 def _key(value: object) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
@@ -90,11 +97,16 @@ def parse_combined_table_text(text: str, *, source_document: str, sha256: str = 
         }
         routes.append(route)
         for destination in route_destinations:
+            covered_cities = [
+                destination["city"],
+                *INTERIOR_CITIES_BY_CODE.get(destination["destination_code"], []),
+            ]
             destinations.append({
                 **destination,
                 "origin_uf": origin["uf"], "origin_city": origin["city"],
                 "origin_service_level": origin["service_level"], "origin_code": origin["destination_code"],
-                "cities": [destination["city"]], "conditions": {"requires_city_match": True},
+                "cities": list(dict.fromkeys(covered_cities)),
+                "conditions": {"requires_city_match": True},
                 "weight_rates": weight_rates,
                 "excess_weight_rate": _number(excess.group(1)) / 1000,
                 "excess_calculation": "TOTAL_WEIGHT",

@@ -32,6 +32,9 @@ MAEX_INTERSTATE_RATES = {
     "RR": .07, "SE": .07, "TO": .07,
     "MG": .12, "PR": .12, "RJ": .12, "RS": .12, "SC": .12, "SP": .12,
 }
+COMBINED_TABLE_INTERIOR_CITIES = {
+    "FORI": {"QUIXADA"},
+}
 
 
 def _destination_state(item: dict) -> str | None:
@@ -132,6 +135,10 @@ def _destination(data: dict, quote: dict) -> dict:
         item_cep_start = _normalize_cep(item.get("cep_start") or persisted_range[0])
         item_cep_end = _normalize_cep(item.get("cep_end") or persisted_range[1])
         regional_cities = {key(value) for value in (item.get("cities") or [])}
+        if (data.get("metadata") or {}).get("parser") == "tabela_combinada_pdf_v1":
+            # Compatibilidade para tabelas importadas antes de a cobertura de
+            # praças interiores ser normalizada pelo parser.
+            regional_cities.update(COMBINED_TABLE_INTERIOR_CITIES.get(item.get("destination_code"), set()))
         if cep and item_cep_start and item_cep_end and item_cep_start <= cep <= item_cep_end:
             matches.append(item)
         elif (

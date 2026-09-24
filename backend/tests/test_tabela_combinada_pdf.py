@@ -56,6 +56,41 @@ def test_parser_recognizes_routes_bands_and_commercial_rules():
     assert result["tax_rules"][0]["rates_by_route"] == {"SP>CE": .07, "CE>SP": .12}
 
 
+def test_quixada_is_covered_by_fortaleza_interior():
+    text = SAMPLE.replace(
+        "CE/FORTALEZA PRACA POLO (FORP)", "CE/FORTALEZA PRACA INTERIOR (FORI)",
+    ).replace("1305,72612", "2057,04114")
+    result = parse_combined_table_text(text, source_document="combinada.pdf")
+
+    assert "QUIXADA" in result["destinations"][0]["cities"]
+
+    quote = calcular_universal(result, {
+        "origem_cidade": "Guarulhos", "origem_uf": "SP",
+        "destino_cidade": "Quixadá", "destino_uf": "CE",
+        "peso": 50, "volume_total_m3": .5175, "valor_nf": 1790,
+    })
+
+    assert quote["peso_considerado_kg"] == 155.25
+    assert quote["valor_total"] == pytest.approx(443.74)
+    assert quote["destino_tabela"]["regiao"] is None
+
+
+def test_quixada_compatibility_for_already_imported_table():
+    text = SAMPLE.replace(
+        "CE/FORTALEZA PRACA POLO (FORP)", "CE/FORTALEZA PRACA INTERIOR (FORI)",
+    ).replace("1305,72612", "2057,04114")
+    result = parse_combined_table_text(text, source_document="combinada.pdf")
+    result["destinations"][0]["cities"] = ["FORTALEZA"]
+
+    quote = calcular_universal(result, {
+        "origem_cidade": "Guarulhos", "origem_uf": "SP",
+        "destino_cidade": "Quixadá", "destino_uf": "CE",
+        "peso": 50, "volume_total_m3": .5175, "valor_nf": 1790,
+    })
+
+    assert quote["valor_total"] == pytest.approx(443.74)
+
+
 def test_calculation_uses_band_dispatch_gris_and_ad_valorem():
     result = parse_combined_table_text(SAMPLE, source_document="combinada.pdf")
 
