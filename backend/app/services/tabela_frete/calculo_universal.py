@@ -37,6 +37,20 @@ COMBINED_TABLE_INTERIOR_CITIES = {
 }
 COMBINED_TABLE_CE_EXCLUDED_CITIES = {"HIDROLANDIA", "PARAMBU"}
 
+# Os três primeiros dígitos do CEP determinam a UF. O contrato Sankhya legado
+# envia apenas CEP, sem cidade/UF; esta tabela evita depender de consulta HTTP
+# para resolver tabelas comerciais organizadas por estado.
+CEP_STATE_RANGES = (
+    (10, 199, "SP"), (200, 289, "RJ"), (290, 299, "ES"), (300, 399, "MG"),
+    (400, 489, "BA"), (490, 499, "SE"), (500, 569, "PE"), (570, 579, "AL"),
+    (580, 589, "PB"), (590, 599, "RN"), (600, 639, "CE"), (640, 649, "PI"),
+    (650, 659, "MA"), (660, 688, "PA"), (689, 689, "AP"), (690, 692, "AM"),
+    (693, 693, "RR"), (694, 698, "AM"), (699, 699, "AC"), (700, 727, "DF"),
+    (728, 729, "GO"), (730, 736, "DF"), (737, 767, "GO"), (770, 779, "TO"),
+    (780, 788, "MT"), (789, 789, "RO"), (790, 799, "MS"), (800, 879, "PR"),
+    (880, 899, "SC"), (900, 999, "RS"),
+)
+
 
 def _destination_state(item: dict) -> str | None:
     state = item.get("uf")
@@ -97,10 +111,19 @@ def _cep(value: str | int | None) -> str:
     return cep
 
 
+def _state_from_cep(cep: str | None) -> str | None:
+    if not cep:
+        return None
+    prefix = int(cep[:3])
+    return next((state for start, end, state in CEP_STATE_RANGES if start <= prefix <= end), None)
+
+
 def _destination(data: dict, quote: dict) -> dict:
     cep = _normalize_cep(quote.get("destino_cep")) if quote.get("destino_cep") is not None else None
     city = quote.get("destino_cidade")
     state = quote.get("destino_uf")
+    if not state or key(state) in {"", "--"}:
+        state = _state_from_cep(cep)
     matches = []
     destinations = data.get("destinations", [])
     eligible = []

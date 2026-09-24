@@ -106,6 +106,18 @@ def test_exact_city_precedes_state_interior_fallback():
     assert _destination(data, {"destino_cidade": "GOIANIA", "destino_uf": "GO"})["service_level"] == "POLE"
 
 
+def test_sankhya_quote_resolves_state_from_destination_zip(table):
+    result = calcular_universal(table, {
+        "origem_cep": "07042180", "destino_cep": "17830089",
+        "destino_cidade": "", "destino_uf": "--", "peso": 4,
+        "valor_nf": 519.40, "volume_total_m3": .27 * .32 * .46,
+    })
+    assert result["memoria_calculo"]["regiao"] == "SP - Interior"
+    assert result["peso_considerado_kg"] == pytest.approx(11.923, abs=.001)
+    assert result["valor_total"] == pytest.approx(92.61)
+    assert result["prazo_dias"] == 0
+
+
 def test_quote_matches_patrus_portal_with_icms_gross_up(table):
     result = calcular_universal(
         table,
