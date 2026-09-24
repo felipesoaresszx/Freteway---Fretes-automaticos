@@ -361,7 +361,7 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         "total_taxas": total_taxes,
         "taxas_detalhadas": taxes,
         "composicao": composition,
-        "prazo_dias": destination.get("delivery_days"),
+        "prazo_dias": destination.get("delivery_days", data.get("default_delivery_days")),
         "peso_considerado_kg": round(weight, 3),
         "peso_real_kg": real,
         "peso_cubado_kg": round(cubed, 3),
@@ -385,7 +385,8 @@ def calcular_universal(data: dict, quote: dict) -> dict:
             "gris": next((item["valor"] for item in taxes if item.get("codigo") == "GRIS"), 0),
             "pedagio": next((item["valor"] for item in taxes if item.get("codigo") == "PEDAGIO"), 0),
             "taxas": taxes, "ajustes": composition[1:],
-            "prazo": destination.get("delivery_days"), "valor_total": round(rounded_total, 2),
+            "prazo": destination.get("delivery_days", data.get("default_delivery_days")),
+            "valor_total": round(rounded_total, 2),
             "versao_tabela": data.get("table_version"), "origem_regra": destination.get("source"),
         },
     }

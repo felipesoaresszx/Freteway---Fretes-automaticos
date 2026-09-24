@@ -5,6 +5,8 @@ import pytest
 from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
 from app.services.tabela_frete.calculo_universal import _destination
 from app.services.tabela_frete.patrus_excel import extract_patrus_excel, is_patrus_workbook
+from app.integrations.sankhya.provider import SankhyaQuoteProvider
+from app.schemas.cotacao import ResultadoTransportadora
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -114,3 +116,8 @@ def test_quote_matches_patrus_portal_with_icms_gross_up(table):
     assert result["frete_base"] == pytest.approx(74.55)
     assert values["ICMS"] == pytest.approx(23.12)
     assert result["valor_total"] == pytest.approx(192.64)
+    assert result["prazo_dias"] == 0
+    assert SankhyaQuoteProvider.is_available(ResultadoTransportadora(
+        transportadora_id="patrus", transportadora="Patrus", status="success",
+        valor_frete=result["valor_total"], prazo_dias=result["prazo_dias"], request_id="test-patrus",
+    ))

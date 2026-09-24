@@ -221,6 +221,10 @@ def extract_patrus_excel(path: str | Path) -> dict:
         return {
             "formato": FORMAT, "carrier": "Patrus", "carrier_legal_name": "Patrus Transportes Ltda",
             "origin": {"city": "São Paulo", "state": "SP"}, "currency": "BRL", "fator_cubagem": 300,
+            # O contrato orienta solicitar o prazo à unidade responsável e não
+            # publica quantidade de dias. Zero mantém a cotação disponível no
+            # contrato Sankhya sem inventar um prazo comercial.
+            "default_delivery_days": 0,
             "weight_policy": "max_real_cubed", "destinations": destinations, "pracas": destinations,
             "surcharges": rules, "faixas_tarifarias": [band for item in destinations[:len(by_region)] for band in item["weight_rates"]],
             "tax_rules": [{
