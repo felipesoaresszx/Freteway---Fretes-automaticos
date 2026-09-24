@@ -17,6 +17,11 @@ SERVICE_NAMES = {
     "04669": "PAC contrato",
 }
 
+SERVICE_FALLBACKS = {
+    "03220": "04162",
+    "03298": "04669",
+}
+
 
 def _decimal_br(value: Any) -> Decimal:
     text = str(value).strip()
@@ -88,28 +93,43 @@ class CorreiosProvider(CarrierAdapter):
     async def quote(self, request: FreightQuoteRequest, credentials: dict[str, str]) -> list[FreightQuoteResult]:
         codes = self._service_codes(credentials)
         client = CorreiosClient(credentials)
+        package = _package(request)
         responses = await asyncio.gather(
-            *(client.quote_service(code, _package(request)) for code in codes),
+            *(client.quote_service(code, package) for code in codes),
             return_exceptions=True,
         )
         results = []
         failures = []
         pricing_mode = credentials.get("pricing_mode", "portal")
         for code, response in zip(codes, responses):
+            resolved_code = code
             if isinstance(response, BaseException):
-                failures.append(f"{code}: {type(response).__name__}")
-                continue
+                primary_error = str(response).strip() or type(response).__name__
+                fallback_code = SERVICE_FALLBACKS.get(code)
+                if fallback_code:
+                    try:
+                        response = await client.quote_service(fallback_code, package)
+                        resolved_code = fallback_code
+                    except BaseException as fallback_error:
+                        fallback_message = str(fallback_error).strip() or type(fallback_error).__name__
+                        failures.append(f"{code}: {primary_error}; alternativa {fallback_code}: {fallback_message}")
+                        continue
+                else:
+                    failures.append(f"{code}: {primary_error}")
+                    continue
             price, deadline = response
             if price.get("txErro") or deadline.get("txErro"):
                 raise ValueError(price.get("txErro") or deadline.get("txErro"))
             results.append(FreightQuoteResult(
-                carrier_id="", carrier_name="", service_id=code,
-                service_name=SERVICE_NAMES.get(code, f"Correios {code}"),
+                carrier_id="", carrier_name="", service_id=resolved_code,
+                service_name=SERVICE_NAMES.get(resolved_code, f"Correios {resolved_code}"),
                 price=_portal_price(price) if pricing_mode == "portal" else _decimal_br(price.get("pcFinal")),
                 delivery_days=int(deadline["prazoEntrega"]), source="API",
-                external_service_code=code,
+                external_service_code=resolved_code,
                 metadata={
                     "pricing_mode": pricing_mode,
+                    "requested_service_code": code,
+                    "resolved_service_code": resolved_code,
                     "contract_price": str(_decimal_br(price.get("pcFinal"))),
                     "reference_price": str(_decimal_br(price.get("pcReferencia"))) if price.get("pcReferencia") is not None else None,
                     "additional_services_price": str(_decimal_br(price.get("pcTotalServicosAdicionais"))) if price.get("pcTotalServicosAdicionais") is not None else None,

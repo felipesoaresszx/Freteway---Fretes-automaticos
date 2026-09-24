@@ -15,14 +15,24 @@ const initial = {
   pricing_mode: "portal",
 };
 
+function serviceCodesFor(transportadora: Transportadora) {
+  const cnpj = (transportadora.cnpj_cpf ?? "").replace(/\D/g, "");
+  if (cnpj === "34028316000103") return "03298";
+  if (cnpj === "59651729000170") return "03220";
+  return initial.service_codes;
+}
+
 export function ConfiguracaoCorreiosForm({ transportadora, onClose }: { transportadora: Transportadora; onClose: () => void }) {
   const [integration, setIntegration] = useState<CarrierIntegration | null>(null);
-  const [data, setData] = useState(initial);
+  const [data, setData] = useState(() => ({ ...initial, service_codes: serviceCodesFor(transportadora) }));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    setData({ ...initial, service_codes: serviceCodesFor(transportadora) });
+    setIntegration(null);
+    setLoading(true);
     void transportadoraService.listarIntegracoes(transportadora.id)
       .then((items) => setIntegration(items.find((item) => item.adapter_code === "correios") ?? null))
       .catch((error) => setMessage(getErrorMessage(error, "Não foi possível carregar a integração dos Correios.")))
@@ -56,7 +66,7 @@ export function ConfiguracaoCorreiosForm({ transportadora, onClose }: { transpor
       <Field label="Usuário Meu Correios"><Input required autoComplete="username" value={data.username} onChange={(e) => setData({ ...data, username: e.target.value.replace(/\s/g, "") })} /></Field>
       <Field label="Senha do componente"><Input required type="password" autoComplete="new-password" value={data.api_key} onChange={(e) => setData({ ...data, api_key: e.target.value })} placeholder={integration ? "Informe novamente para salvar" : "Senha gerada no Correios API"} /></Field>
       <Field label="Cartão de postagem"><Input required inputMode="numeric" value={data.postage_card} onChange={(e) => setData({ ...data, postage_card: e.target.value.replace(/\D/g, "") })} placeholder="8 a 12 dígitos" /></Field>
-      <Field label="Serviços"><Input required value={data.service_codes} onChange={(e) => setData({ ...data, service_codes: e.target.value.replace(/[^0-9,]/g, "") })} placeholder="03220,03298" /></Field>
+      <Field label="Serviço"><Input required readOnly value={data.service_codes} className="cursor-not-allowed bg-surface2" /></Field>
       <Field label="Preço exibido"><select className="h-9 w-full rounded border border-border bg-surface px-3 text-sm" value={data.pricing_mode} onChange={(e) => setData({ ...data, pricing_mode: e.target.value })}><option value="portal">Portal / balcão</option><option value="contract">Contrato</option></select></Field>
       <div className="sm:col-span-2 lg:col-span-6 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-text-secondary">{message || (integration ? `Status: ${integration.status}` : "Integração ainda não configurada.")}</p><div className="flex gap-2">{integration?.credential_keys.length ? <button type="button" onClick={validate} className="h-9 rounded border border-border px-3 text-sm">Testar credenciais</button> : null}<button disabled={saving} className="inline-flex h-9 items-center gap-2 rounded bg-state-info px-4 text-sm text-white disabled:opacity-50"><ShieldCheck size={14} /> {saving ? "Salvando..." : "Salvar Correios"}</button></div></div>
     </form>}

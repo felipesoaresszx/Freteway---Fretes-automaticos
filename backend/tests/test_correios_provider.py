@@ -79,6 +79,8 @@ async def test_preco_portal_usa_referencia_e_valor_declarado(monkeypatch):
     assert result.price == Decimal("49.70")
     assert result.metadata == {
         "pricing_mode": "portal",
+        "requested_service_code": "03220",
+        "resolved_service_code": "03220",
         "contract_price": "33.47",
         "reference_price": "42.70",
         "additional_services_price": "7.00",
@@ -103,6 +105,37 @@ async def test_preco_contrato_preserva_pc_final(monkeypatch):
     result = (await CorreiosProvider().quote(request(), {**credentials(), "pricing_mode": "contract"}))[0]
 
     assert result.price == Decimal("33.47")
+
+
+@pytest.mark.asyncio
+async def test_pac_tenta_codigo_contratual_alternativo_quando_03298_falha(monkeypatch):
+    calls = []
+
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+        async def post(self, url, **kwargs):
+            return httpx.Response(201, json={"token": "jwt", "expiraEm": "2099-01-01T00:00:00Z"}, request=httpx.Request("POST", url))
+        async def get(self, url, **kwargs):
+            calls.append(url)
+            if "/03298" in url:
+                return httpx.Response(400, json={"mensagem": "Produto indisponível"}, request=httpx.Request("GET", url))
+            body = {"pcFinal": "33,47", "pcReferencia": "42,70", "pcTotalServicosAdicionais": "7,00"} if "/preco/" in url else {"prazoEntrega": 6}
+            return httpx.Response(200, json=body, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr("app.integrations.correios.client.validate_external_url", lambda url: url)
+    CorreiosClient._tokens.clear()
+
+    result = (await CorreiosProvider().quote(request(), {**credentials(), "service_codes": "03298"}))[0]
+
+    assert result.price == Decimal("49.70")
+    assert result.service_id == "04669"
+    assert result.service_name == "PAC contrato"
+    assert result.metadata["requested_service_code"] == "03298"
+    assert result.metadata["resolved_service_code"] == "04669"
+    assert any("/preco/v1/nacional/03298" in url for url in calls)
+    assert any("/preco/v1/nacional/04669" in url for url in calls)
 
 
 @pytest.mark.asyncio
@@ -149,6 +182,32 @@ async def test_credenciais_invalidas_nao_expoem_segredo(monkeypatch):
     monkeypatch.setattr("app.integrations.correios.client.validate_external_url", lambda url: url)
     CorreiosClient._tokens.clear()
     assert await CorreiosProvider().validate_credentials(credentials()) is False
+
+
+@pytest.mark.asyncio
+async def test_erro_da_api_informa_operacao_status_e_mensagem(monkeypatch):
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+        async def post(self, url, **kwargs):
+            return httpx.Response(
+                201, json={"token": "jwt", "expiraEm": "2099-01-01T00:00:00Z"},
+                request=httpx.Request("POST", url),
+            )
+        async def get(self, url, **kwargs):
+            if "/preco/" in url:
+                return httpx.Response(
+                    400, json={"mensagem": "Serviço não vinculado ao cartão"},
+                    request=httpx.Request("GET", url),
+                )
+            return httpx.Response(200, json={"prazoEntrega": 6}, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr("app.integrations.correios.client.validate_external_url", lambda url: url)
+    CorreiosClient._tokens.clear()
+
+    with pytest.raises(ValueError, match=r"03220: Correios recusou a consulta de preço \(HTTP 400\): Serviço não vinculado ao cartão"):
+        await CorreiosProvider().quote(request(), credentials())
 
 
 def test_correios_esta_no_registry():

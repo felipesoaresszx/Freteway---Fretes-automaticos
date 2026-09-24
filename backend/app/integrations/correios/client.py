@@ -73,6 +73,29 @@ class CorreiosClient:
             await self._authenticate(client)
         return True
 
+    @staticmethod
+    def _response_error(response: httpx.Response, operation: str) -> CorreiosResponseError:
+        detail = ""
+        try:
+            body = response.json()
+            if isinstance(body, dict):
+                detail = str(
+                    body.get("txErro")
+                    or body.get("mensagem")
+                    or body.get("message")
+                    or body.get("msgs")
+                    or ""
+                ).strip()
+            elif isinstance(body, list):
+                detail = "; ".join(str(item) for item in body)
+        except (TypeError, ValueError):
+            detail = response.text.strip()
+        detail = detail[:500]
+        suffix = f": {detail}" if detail else ""
+        return CorreiosResponseError(
+            f"Correios recusou a consulta de {operation} (HTTP {response.status_code}){suffix}"
+        )
+
     async def quote_service(self, service_code: str, request_data: dict[str, str]) -> tuple[dict, dict]:
         price_url = f"{self.base_url}/preco/v1/nacional/{service_code}"
         deadline_url = f"{self.base_url}/prazo/v1/nacional/{service_code}"
@@ -92,8 +115,10 @@ class CorreiosClient:
             if price.status_code == 401 or deadline.status_code == 401:
                 self._tokens.pop(self._cache_key(), None)
                 raise CorreiosAuthenticationError("Token dos Correios recusado")
-            price.raise_for_status()
-            deadline.raise_for_status()
+            if price.is_error:
+                raise self._response_error(price, "preço")
+            if deadline.is_error:
+                raise self._response_error(deadline, "prazo")
             price_body, deadline_body = price.json(), deadline.json()
             if not isinstance(price_body, dict) or not isinstance(deadline_body, dict):
                 raise CorreiosResponseError("Resposta de preço ou prazo dos Correios inválida")
