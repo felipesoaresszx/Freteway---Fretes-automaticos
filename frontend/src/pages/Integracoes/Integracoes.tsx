@@ -96,11 +96,14 @@ function formatarEntradaDocumento(valor: string) {
 }
 
 const isRisso = (item: Transportadora) => item.codigo?.toLowerCase() === "risso" || item.nome.toLowerCase().includes("risso");
-const CNPJ_CORREIOS = "34028316000103";
+const CNPJS_COM_INTEGRACAO_CORREIOS = new Set([
+  "34028316000103",
+  "59651729000170",
+]);
 const isCorreios = (item: Transportadora) =>
   item.codigo?.toLowerCase() === "correios"
   || item.nome.trim().toLowerCase() === "correios"
-  || somenteDigitos(item.cnpj_cpf ?? "") === CNPJ_CORREIOS;
+  || CNPJS_COM_INTEGRACAO_CORREIOS.has(somenteDigitos(item.cnpj_cpf ?? ""));
 
 function Formulario({ editando, onClose, onConfigureRisso }: { editando: Transportadora | null; onClose: () => void; onConfigureRisso: (item: Transportadora) => void }) {
   const risso = Boolean(editando && isRisso(editando));
