@@ -51,8 +51,58 @@ async def test_autentica_consulta_preco_prazo_e_normaliza(monkeypatch):
     price_call = next(call for call in calls if call[0] == "GET" and "/preco/" in call[1])
     assert price_call[2]["params"]["psObjeto"] == "300"
     assert price_call[2]["params"]["comprimento"] == "20"
-    assert "vlDeclarado" not in price_call[2]["params"]
+    assert price_call[2]["params"]["servicosAdicionais"] == "019"
+    assert price_call[2]["params"]["vlDeclarado"] == "200.00"
     assert price_call[2]["headers"] == {"Authorization": "Bearer jwt", "Accept": "application/json"}
+
+
+@pytest.mark.asyncio
+async def test_preco_portal_usa_referencia_e_valor_declarado(monkeypatch):
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+        async def post(self, url, **kwargs):
+            return httpx.Response(201, json={"token": "jwt", "expiraEm": "2099-01-01T00:00:00Z"}, request=httpx.Request("POST", url))
+        async def get(self, url, **kwargs):
+            body = {
+                "pcFinal": "33,47", "pcReferencia": "42,70",
+                "pcTotalServicosAdicionais": "7,00",
+            } if "/preco/" in url else {"prazoEntrega": 6}
+            return httpx.Response(200, json=body, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr("app.integrations.correios.client.validate_external_url", lambda url: url)
+    CorreiosClient._tokens.clear()
+
+    result = (await CorreiosProvider().quote(request(), credentials()))[0]
+
+    assert result.price == Decimal("49.70")
+    assert result.metadata == {
+        "pricing_mode": "portal",
+        "contract_price": "33.47",
+        "reference_price": "42.70",
+        "additional_services_price": "7.00",
+    }
+
+
+@pytest.mark.asyncio
+async def test_preco_contrato_preserva_pc_final(monkeypatch):
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+        async def post(self, url, **kwargs):
+            return httpx.Response(201, json={"token": "jwt", "expiraEm": "2099-01-01T00:00:00Z"}, request=httpx.Request("POST", url))
+        async def get(self, url, **kwargs):
+            body = {"pcFinal": "33,47", "pcReferencia": "42,70", "pcTotalServicosAdicionais": "7,00"} if "/preco/" in url else {"prazoEntrega": 6}
+            return httpx.Response(200, json=body, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr("app.integrations.correios.client.validate_external_url", lambda url: url)
+    CorreiosClient._tokens.clear()
+
+    result = (await CorreiosProvider().quote(request(), {**credentials(), "pricing_mode": "contract"}))[0]
+
+    assert result.price == Decimal("33.47")
 
 
 @pytest.mark.asyncio

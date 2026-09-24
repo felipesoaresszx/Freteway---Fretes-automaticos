@@ -28,6 +28,24 @@ def _decimal_br(value: Any) -> Decimal:
         raise ValueError("Preço retornado pelos Correios é inválido") from exc
 
 
+def _portal_price(price: dict[str, Any]) -> Decimal:
+    """Recompõe o total de balcão exibido pelo portal dos Correios."""
+    reference = price.get("pcReferencia") or price.get("pcBaseGeral")
+    if reference is None:
+        return _decimal_br(price.get("pcFinal"))
+
+    additional = price.get("pcTotalServicosAdicionais")
+    if additional is None:
+        services = price.get("servicoAdicional") or []
+        additional_total = sum(
+            (_decimal_br(item.get("pcServicoAdicional") or 0) for item in services if isinstance(item, dict)),
+            Decimal("0"),
+        )
+    else:
+        additional_total = _decimal_br(additional)
+    return _decimal_br(reference) + additional_total
+
+
 def _context(request: FreightQuoteRequest) -> dict[str, Any]:
     return request.products[0] if request.products and isinstance(request.products[0], dict) else {}
 
@@ -35,7 +53,7 @@ def _context(request: FreightQuoteRequest) -> dict[str, Any]:
 def _package(request: FreightQuoteRequest) -> dict[str, str]:
     volumes = _context(request).get("volumes") or []
     volume = volumes[0] if volumes and isinstance(volumes[0], dict) else {}
-    return {
+    package = {
         "cepOrigem": "".join(filter(str.isdigit, request.origin_zipcode)),
         "cepDestino": "".join(filter(str.isdigit, request.destination_zipcode)),
         "psObjeto": str(max(1, round(float(request.weight_kg) * 1000))),
@@ -44,6 +62,10 @@ def _package(request: FreightQuoteRequest) -> dict[str, str]:
         "largura": str(max(11, round(float(volume.get("largura_cm") or 11)))),
         "altura": str(max(2, round(float(volume.get("altura_cm") or 2)))),
     }
+    if request.total_value > 0:
+        package["servicosAdicionais"] = "019"
+        package["vlDeclarado"] = format(request.total_value, ".2f")
+    return package
 
 
 class CorreiosProvider(CarrierAdapter):
@@ -72,6 +94,7 @@ class CorreiosProvider(CarrierAdapter):
         )
         results = []
         failures = []
+        pricing_mode = credentials.get("pricing_mode", "portal")
         for code, response in zip(codes, responses):
             if isinstance(response, BaseException):
                 failures.append(f"{code}: {type(response).__name__}")
@@ -82,9 +105,15 @@ class CorreiosProvider(CarrierAdapter):
             results.append(FreightQuoteResult(
                 carrier_id="", carrier_name="", service_id=code,
                 service_name=SERVICE_NAMES.get(code, f"Correios {code}"),
-                price=_decimal_br(price.get("pcFinal")),
+                price=_portal_price(price) if pricing_mode == "portal" else _decimal_br(price.get("pcFinal")),
                 delivery_days=int(deadline["prazoEntrega"]), source="API",
                 external_service_code=code,
+                metadata={
+                    "pricing_mode": pricing_mode,
+                    "contract_price": str(_decimal_br(price.get("pcFinal"))),
+                    "reference_price": str(_decimal_br(price.get("pcReferencia"))) if price.get("pcReferencia") is not None else None,
+                    "additional_services_price": str(_decimal_br(price.get("pcTotalServicosAdicionais"))) if price.get("pcTotalServicosAdicionais") is not None else None,
+                },
             ))
         if not results:
             raise ValueError(f"Nenhum serviço dos Correios disponível ({', '.join(failures)})")
