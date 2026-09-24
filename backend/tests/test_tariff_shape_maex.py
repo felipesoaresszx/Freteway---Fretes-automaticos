@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -50,10 +51,72 @@ def test_maex_reproduz_cotacao_com_despacho_gris_e_arredondamento_comercial():
     assert quote["peso_considerado_kg"] == pytest.approx(55.873, abs=.001)
     assert quote["prazo_dias"] == 7
     assert quote["frete_base"] == 97.75
-    assert quote["valor_total"] == 120.00
+    assert quote["valor_total"] == 148.36
     assert {item["codigo"] for item in quote["taxas_detalhadas"]} == {
-        "DISPATCH", "GRIS", "ARREDONDAMENTO_COMERCIAL",
+        "DISPATCH", "GRIS", "INSURANCE", "TOLL", "ICMS",
     }
+
+
+@pytest.mark.skipif(not MAEX.exists(), reason="fixture real Tabela maex.xls não disponível")
+def test_maex_resolve_goias_sem_indice_externo_na_imagem_de_producao(tmp_path):
+    isolated = tmp_path / MAEX.name
+    shutil.copyfile(MAEX, isolated)
+
+    match = PlaceCodeLegendParser().parse(isolated, carrier="maex")
+    assert match is not None
+    quote = calcular_universal(match.data, {
+        "destino_cep": "75828000", "destino_cidade": "CHAPADAO DO CEU", "destino_uf": "GO",
+        "peso": 11, "valor_nf": 1359, "volume_total_m3": .22893,
+    })
+
+    assert quote["status"] == "success"
+    assert quote["destino_tabela"] == {"uf": "GO", "cidade": None, "regiao": "INTERIOR"}
+    assert quote["valor_total"] == 183.76
+    assert {item["codigo"] for item in quote["taxas_detalhadas"]} == {
+        "DISPATCH", "GRIS", "INSURANCE", "TOLL", "TDA", "ICMS",
+    }
+    icms = next(item for item in quote["taxas_detalhadas"] if item["codigo"] == "ICMS")
+    assert icms["percentual"] == .07
+
+
+def test_maex_corrige_importacao_antiga_com_uf_ausente():
+    data = {
+        "fator_cubagem": 300,
+        "destinations": [{
+            "destination_code": "GYN", "legend_label": "GOIANIA", "uf": None, "city": None,
+            "region_code": "INTERIOR", "service_level": "INTERIOR", "delivery_days": 5,
+            "weight_rates": [{"max_weight": 100, "price": 126.5}],
+            "tariff_rule": {"type": "BASE_PLUS_EXCESS", "base_weight_kg": 100,
+                "base_price": 126.5, "excess_rate_per_kg": 1.093},
+        }],
+    }
+
+    quote = calcular_universal(data, {
+        "destino_cep": "75828000", "destino_cidade": "CHAPADAO DO CEU", "destino_uf": "GO",
+        "peso": 11, "valor_nf": 1359, "volume_total_m3": .22893,
+    })
+
+    assert quote["destino_tabela"]["uf"] == "GO"
+
+
+@pytest.mark.skipif(not MAEX.exists(), reason="fixture real Tabela maex.xls não disponível")
+def test_maex_atualiza_regras_de_preco_persistidas_por_versao_antiga():
+    match = PlaceCodeLegendParser().parse(MAEX, carrier="maex")
+    assert match is not None
+    old_data = {
+        **match.data,
+        "surcharges": [item for item in match.data["surcharges"] if item["code"] in {"DISPATCH", "GRIS"}],
+        "tax_rules": [],
+        "pricing_rules": {"commercial_rounding_increment": 1},
+        "destinations": [{**item, "regional_surcharges": []} for item in match.data["destinations"]],
+    }
+
+    quote = calcular_universal(old_data, {
+        "destino_cep": "75828000", "destino_cidade": "CHAPADAO DO CEU", "destino_uf": "GO",
+        "peso": 11, "valor_nf": 1359, "volume_total_m3": .22893,
+    })
+
+    assert quote["valor_total"] == 183.76
 
 
 def test_codigo_sem_legenda_gera_impeditivo_especifico(tmp_path):

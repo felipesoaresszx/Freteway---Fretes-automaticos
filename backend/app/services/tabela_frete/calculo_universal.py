@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import re
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP
 
 from app.services.tabela_frete.contrato import key
 from app.services.tabela_frete.regioes_imediatas_ibge import REGIOES_IMEDIATAS_IBGE
@@ -18,6 +18,61 @@ REGIONAL_CEP_RANGES = {
     f"IBGE_IMEDIATA_{region['id']}": (region["cep_start"], region["cep_end"])
     for region in REGIOES_IMEDIATAS_IBGE.values()
 }
+
+LEGACY_DESTINATION_STATES = {
+    # Importações antigas da MAEX podiam persistir estas praças sem UF
+    # quando o índice externo de cidades não existia no contêiner.
+    "BRASILIA": "DF", "CAMPINAS": "SP", "GOIANIA": "GO",
+    "PARANA": "PR", "RIBEIRAO PRETO": "SP", "TOCANTINS": "TO",
+}
+MAEX_INTERSTATE_RATES = {
+    "AC": .07, "AL": .07, "AM": .07, "AP": .07, "BA": .07, "CE": .07,
+    "DF": .07, "ES": .07, "GO": .07, "MA": .07, "MT": .07, "MS": .07,
+    "PA": .07, "PB": .07, "PE": .07, "PI": .07, "RN": .07, "RO": .07,
+    "RR": .07, "SE": .07, "TO": .07,
+    "MG": .12, "PR": .12, "RJ": .12, "RS": .12, "SC": .12, "SP": .12,
+}
+
+
+def _destination_state(item: dict) -> str | None:
+    state = item.get("uf")
+    if state:
+        return str(state)
+    label = key(item.get("legend_label"))
+    return LEGACY_DESTINATION_STATES.get(label)
+
+
+def _upgrade_legacy_maex(data: dict) -> dict:
+    """Completa regras ausentes em importações MAEX feitas por versões antigas."""
+    if "maex" not in str(data.get("source_document") or "").casefold():
+        return data
+    upgraded = {**data}
+    surcharges = list(data.get("surcharges") or [])
+    codes = {item.get("code") for item in surcharges}
+    if "INSURANCE" not in codes:
+        surcharges.append({"code":"INSURANCE","name":"Seguro","type":"PERCENTAGE","value":.003,"basis":"INVOICE_VALUE"})
+    if "TOLL" not in codes:
+        surcharges.append({"code":"TOLL","name":"Pedágio","type":"WEIGHT_FRACTION","value":6.33,"fraction_kg":100,"basis":"CHARGEABLE_WEIGHT"})
+    upgraded["surcharges"] = surcharges
+    if not data.get("tax_rules"):
+        upgraded["tax_rules"] = [{"code":"ICMS","name":"ICMS por dentro","type":"GROSS_UP",
+            "rates_by_destination":MAEX_INTERSTATE_RATES,"default_rate":.12,"rounding_mode":"UP",
+            "source":{"label":"ICMS - conforme legislação vigente"}}]
+    upgraded["pricing_rules"] = {**(data.get("pricing_rules") or {}), "commercial_rounding_increment":.01}
+    destinations = []
+    for item in data.get("destinations", []):
+        destination = dict(item)
+        regional = list(item.get("regional_surcharges") or [])
+        if (item.get("destination_code") == "GYN" and item.get("service_level") == "INTERIOR"
+                and not any(rule.get("code") == "TDA" for rule in regional)):
+            regional.append({"code":"TDA","name":"Taxa de difícil acesso","type":"PERCENTAGE",
+                "value":.10,"basis":"ORIGINAL_FREIGHT",
+                "cep_ranges":[{"cep_start":"75828000","cep_end":"75828000"}],
+                "source":{"reference":"SSW quotation 30037"}})
+        destination["regional_surcharges"] = regional
+        destinations.append(destination)
+    upgraded["destinations"] = destinations
+    return upgraded
 
 
 def _normalize_cep(value: str | int | None) -> str | None:
@@ -46,6 +101,7 @@ def _destination(data: dict, quote: dict) -> dict:
     destinations = data.get("destinations", [])
     eligible = []
     for item in destinations:
+        item_state = _destination_state(item)
         origin_cep = _normalize_cep(quote.get("origem_cep"))
         item_origin_start = _normalize_cep(item.get("origin_cep_start"))
         item_origin_end = _normalize_cep(item.get("origin_cep_end"))
@@ -76,15 +132,15 @@ def _destination(data: dict, quote: dict) -> dict:
             city
             and state
             and key(item.get("city")) == key(city)
-            and key(item.get("uf")) == key(state)
+            and key(item_state) == key(state)
         ):
             matches.append(item)
-        elif city and state and key(city) in regional_cities and key(item.get("uf")) == key(state):
+        elif city and state and key(city) in regional_cities and key(item_state) == key(state):
             matches.append(item)
         elif (
             state and not item_cep_start and not item_cep_end
             and not conditions.get("requires_city_match")
-            and key(item.get("uf")) == key(state)
+            and key(item_state) == key(state)
         ):
             matches.append(item)
     if cep and state and not matches:
@@ -92,7 +148,7 @@ def _destination(data: dict, quote: dict) -> dict:
             item for item in eligible
             if not item.get("cep_start")
             and not (item.get("conditions") or {}).get("requires_city_match")
-            and key(item.get("uf")) == key(state)
+            and key(_destination_state(item)) == key(state)
         ]
     if len(matches) > 1:
         exact = [item for item in matches if city and key(item.get("city")) == key(city)]
@@ -113,10 +169,15 @@ def _destination(data: dict, quote: dict) -> dict:
         raise CalculoUniversalError("Destino sem correspondência na tabela da transportadora")
     if len(matches) > 1:
         raise CalculoUniversalError("Destino ambíguo na tabela da transportadora")
-    return matches[0]
+    selected = matches[0]
+    inferred_state = _destination_state(selected)
+    if not selected.get("uf") and inferred_state:
+        selected = {**selected, "uf": inferred_state}
+    return selected
 
 
 def calcular_universal(data: dict, quote: dict) -> dict:
+    data = _upgrade_legacy_maex(data)
     real = float(quote.get("peso") or quote.get("weight_kg") or 0)
     if real <= 0:
         raise CalculoUniversalError("Peso deve ser maior que zero")
@@ -221,7 +282,11 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         )
         if not 0 < rate < 1:
             continue
-        amount = round(subtotal / (1 - rate) - subtotal, 2)
+        raw_amount = Decimal(str(subtotal)) / (Decimal("1") - Decimal(str(rate))) - Decimal(str(subtotal))
+        if tax_rule.get("rounding_mode") == "UP":
+            amount = float(raw_amount.quantize(Decimal("0.01"), rounding=ROUND_CEILING))
+        else:
+            amount = round(float(raw_amount), 2)
         taxes.append({
             "codigo": tax_rule.get("code", "ICMS"), "descricao": tax_rule.get("name", "ICMS"),
             "base": "TOTAL_SEM_IMPOSTO", "percentual": rate, "valor": amount,

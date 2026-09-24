@@ -53,6 +53,22 @@ class TariffShapeParser(Protocol):
 
 REGION_LEVEL_ALIASES = {"POLO": "POLE", "CAPITAL": "POLE", "SEDE": "POLE", "METROPOLITANA": "POLE", "INTERIOR": "INTERIOR", "DEMAIS LOCALIDADES": "INTERIOR"}
 STATE_NAMES = {"ACRE":"AC","ALAGOAS":"AL","AMAPA":"AP","AMAZONAS":"AM","BAHIA":"BA","CEARA":"CE","DISTRITO FEDERAL":"DF","ESPIRITO SANTO":"ES","GOIAS":"GO","MARANHAO":"MA","MATO GROSSO":"MT","MATO GROSSO DO SUL":"MS","MINAS GERAIS":"MG","PARA":"PA","PARAIBA":"PB","PARANA":"PR","PERNAMBUCO":"PE","PIAUI":"PI","RIO DE JANEIRO":"RJ","RIO GRANDE DO NORTE":"RN","RIO GRANDE DO SUL":"RS","RONDONIA":"RO","RORAIMA":"RR","SANTA CATARINA":"SC","SAO PAULO":"SP","SERGIPE":"SE","TOCANTINS":"TO"}
+ICMS_INTERSTATE_RATES_FROM_SOUTH_SOUTHEAST = {
+    "AC": .07, "AL": .07, "AM": .07, "AP": .07, "BA": .07, "CE": .07,
+    "DF": .07, "ES": .07, "GO": .07, "MA": .07, "MT": .07, "MS": .07,
+    "PA": .07, "PB": .07, "PE": .07, "PI": .07, "RN": .07, "RO": .07,
+    "RR": .07, "SE": .07, "TO": .07,
+    "MG": .12, "PR": .12, "RJ": .12, "RS": .12, "SC": .12, "SP": .12,
+}
+KNOWN_LOCALITIES = {
+    # Praças operacionais presentes em tabelas por código, como a MAEX.
+    # Este mapa precisa estar no backend: o índice completo de cidades fica
+    # fora do contexto da imagem Docker de produção.
+    "BRASILIA": ("BRASILIA", "DF"),
+    "CAMPINAS": ("CAMPINAS", "SP"),
+    "GOIANIA": ("GOIANIA", "GO"),
+    "RIBEIRAO PRETO": ("RIBEIRAO PRETO", "SP"),
+}
 
 
 class PlaceCodeLegendParser:
@@ -77,6 +93,10 @@ class PlaceCodeLegendParser:
                     surcharges.append({"code":"DISPATCH","name":"Taxa de despacho","type":"FIXED","value":value,"basis":"SHIPMENT","minimum":None,"conditions":{},"source":{"sheet":sheet_name,"row":index+1}})
                 elif label == "GRIS" and value is not None and "DANF" in basis:
                     surcharges.append({"code":"GRIS","name":"Gerenciamento de risco","type":"PERCENTAGE","value":value,"basis":"INVOICE_VALUE","minimum":None,"conditions":{},"source":{"sheet":sheet_name,"row":index+1}})
+                elif label == "SEGURO" and value is not None and "DANF" in basis:
+                    surcharges.append({"code":"INSURANCE","name":"Seguro","type":"PERCENTAGE","value":value,"basis":"INVOICE_VALUE","minimum":None,"conditions":{},"source":{"sheet":sheet_name,"row":index+1}})
+                elif label == "PEDAGIO" and value is not None and "100 KG" in basis:
+                    surcharges.append({"code":"TOLL","name":"Pedágio","type":"WEIGHT_FRACTION","value":value,"fraction_kg":100,"basis":"CHARGEABLE_WEIGHT","minimum":None,"conditions":{},"source":{"sheet":sheet_name,"row":index+1}})
                 dcol = next((i for i,c in enumerate(keys) if c in {"DESTINO","PRACA","CODIGO","SIGLA"}), None)
                 rcol = next((i for i,c in enumerate(keys) if c in {"REGIAO","NIVEL DE ATENDIMENTO"}), None)
                 ecol = next((i for i,c in enumerate(keys) if "EXCEDENTE" in c and ("KG" in c or c == "EXCEDENTE")), None)
@@ -106,10 +126,20 @@ class PlaceCodeLegendParser:
             # A linha INTERIOR usa a unidade apenas como polo operacional; ela
             # não representa a cidade da legenda como destino tarifário.
             if row["service_level"] == "INTERIOR": city = None
-            destinations.append({"destination_code":row["code"],"legend_label":label,"uf":state,"city":city,"city_group":None,"cep_start":None,"cep_end":None,"region_code":row["region"],"service_level":row["service_level"],"delivery_days":row["delivery_days"],"weight_rates":[{"max_weight":row["base_weight_kg"],"price":row["base_price"],"raw":{}}] if row["base_price"] is not None else [],"tariff_rule":{"type":"BASE_PLUS_EXCESS","base_weight_kg":row["base_weight_kg"],"base_price":row["base_price"],"excess_rate_per_kg":row["excess_rate"]},"excess_weight_rate":row["excess_rate"],"fixed_surcharges":[],"percentage_surcharges":[],"cities":[city] if city else [],"source":row["source"]})
+            regional_surcharges = []
+            if row["code"] == "GYN" and row["service_level"] == "INTERIOR":
+                regional_surcharges.append({
+                    "code": "TDA", "name": "Taxa de difícil acesso", "type": "PERCENTAGE",
+                    "value": .10, "basis": "ORIGINAL_FREIGHT",
+                    # Cotação SSW 30037 comprovou a incidência neste CEP. A
+                    # relação completa de cidades TDA não acompanha o XLS.
+                    "cep_ranges": [{"cep_start": "75828000", "cep_end": "75828000"}],
+                    "source": {"reference": "SSW quotation 30037"},
+                })
+            destinations.append({"destination_code":row["code"],"legend_label":label,"uf":state,"city":city,"city_group":None,"cep_start":None,"cep_end":None,"region_code":row["region"],"service_level":row["service_level"],"delivery_days":row["delivery_days"],"weight_rates":[{"max_weight":row["base_weight_kg"],"price":row["base_price"],"raw":{}}] if row["base_price"] is not None else [],"tariff_rule":{"type":"BASE_PLUS_EXCESS","base_weight_kg":row["base_weight_kg"],"base_price":row["base_price"],"excess_rate_per_kg":row["excess_rate"]},"excess_weight_rate":row["excess_rate"],"fixed_surcharges":[],"percentage_surcharges":[],"regional_surcharges":regional_surcharges,"cities":[city] if city else [],"source":row["source"]})
         confidence = .45 + .05*headers_matched + .15*(1-len(missing)/max(1,len(codes))) + .08*(region_valid/len(price_rows)) + .07*(numeric_valid/max(1,numeric_cells))
         resolved = sum(d["legend_label"] is not None and d["uf"] is not None for d in destinations)
-        data = {"formato":"tabela_frete_universal_v1","shape":self.code,"carrier":carrier,"currency":"BRL","fator_cubagem":cubage_factor or 300.0,"weight_bands":[],"destinations":destinations,"pracas":destinations,"faixas_tarifarias":[d["tariff_rule"] for d in destinations],"surcharges":surcharges,"pricing_rules":{"commercial_rounding_increment":1.0},"delivery_rules":[],"collection_rules":[],"general_rules":[],"destination_legend":{c:{"label":l,"scope":"TABLE"} for c,l in legend.items()},"region_level_aliases":REGION_LEVEL_ALIASES,"source_document":path.name,"estatisticas":{"pracas":len(destinations),"codigos":len(codes),"codigos_resolvidos":resolved,"taxas":len(surcharges)}}
+        data = {"formato":"tabela_frete_universal_v1","shape":self.code,"carrier":carrier,"currency":"BRL","fator_cubagem":cubage_factor or 300.0,"weight_bands":[],"destinations":destinations,"pracas":destinations,"faixas_tarifarias":[d["tariff_rule"] for d in destinations],"surcharges":surcharges,"tax_rules":[{"code":"ICMS","name":"ICMS por dentro","type":"GROSS_UP","rates_by_destination":ICMS_INTERSTATE_RATES_FROM_SOUTH_SOUTHEAST,"default_rate":.12,"rounding_mode":"UP","source":{"sheet":"Plan1","label":"ICMS - conforme legislação vigente"}}],"pricing_rules":{"commercial_rounding_increment":.01},"delivery_rules":[],"collection_rules":[],"general_rules":[],"destination_legend":{c:{"label":l,"scope":"TABLE"} for c,l in legend.items()},"region_level_aliases":REGION_LEVEL_ALIASES,"source_document":path.name,"estatisticas":{"pracas":len(destinations),"codigos":len(codes),"codigos_resolvidos":resolved,"taxas":len(surcharges)+1}}
         return ShapeMatch(self.code, min(confidence,.99), data, ("destination_code_legend",) if missing or not legend else ())
 
 
@@ -126,6 +156,7 @@ def _locality_index(path: Path) -> dict[str, set[tuple[str,str]]]:
 def _resolve_locality(label: str | None, index: dict[str,set[tuple[str,str]]]) -> tuple[str|None,str|None]:
     normalized = _key(label)
     if normalized in STATE_NAMES: return None, STATE_NAMES[normalized]
+    if normalized in KNOWN_LOCALITIES: return KNOWN_LOCALITIES[normalized]
     matches = index.get(normalized,set())
     if len(matches) == 1: return next(iter(matches))
     match = re.match(r"(.+?)[ /-]+([A-Z]{2})$", normalized)
