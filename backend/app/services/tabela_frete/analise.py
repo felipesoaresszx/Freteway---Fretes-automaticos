@@ -309,6 +309,21 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
     if documento.tipo_arquivo == "csv":
         return analisar_csv(caminho, tabela)
     if documento.tipo_arquivo == "pdf":
+        from app.services.tabela_frete.tabela_combinada_pdf import extract_combined_table_pdf
+
+        dados_combinados = extract_combined_table_pdf(caminho)
+        if dados_combinados:
+            return {
+                "dados_extraidos": dados_combinados,
+                "confianca_extracao": 1.0,
+                "erros_validacao": [],
+                "avisos": [
+                    "Tabela Combinada reconhecida: rotas, praças, faixas de peso e adicionais foram normalizados.",
+                    "ICMS por dentro aplicado por sentido da rota: 7% de SP para CE e 12% de CE para SP.",
+                ],
+                "campos_com_duvida": [],
+                "resumo": dados_combinados["estatisticas"],
+            }
         try:
             from app.services.tabela_frete.pdf_tarifario import extract_pdf_tariff
             dados = extract_pdf_tariff(caminho)

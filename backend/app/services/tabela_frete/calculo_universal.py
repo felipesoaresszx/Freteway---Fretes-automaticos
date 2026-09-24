@@ -102,6 +102,12 @@ def _destination(data: dict, quote: dict) -> dict:
     eligible = []
     for item in destinations:
         item_state = _destination_state(item)
+        requested_code = quote.get("destino_codigo") or quote.get("destination_code")
+        requested_level = quote.get("nivel_atendimento") or quote.get("service_level")
+        if requested_code and key(item.get("destination_code")) != key(requested_code):
+            continue
+        if requested_level and key(item.get("service_level")) != key(requested_level):
+            continue
         origin_cep = _normalize_cep(quote.get("origem_cep"))
         item_origin_start = _normalize_cep(item.get("origin_cep_start"))
         item_origin_end = _normalize_cep(item.get("origin_cep_end"))
@@ -161,6 +167,12 @@ def _destination(data: dict, quote: dict) -> dict:
             interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
             if len(interior) == 1:
                 matches = interior
+    if len(matches) > 1 and not (quote.get("destino_codigo") or quote.get("destination_code") or quote.get("nivel_atendimento") or quote.get("service_level")):
+        # Em propostas por praça, a cidade nomeada representa a praça polo. A
+        # tarifa de interior só é inequívoca quando o código/nível é informado.
+        polo = [item for item in matches if item.get("destination_code") and item.get("service_level") == "POLO"]
+        if len(polo) == 1:
+            matches = polo
     if len(matches) > 1 and city:
         exact = [item for item in matches if key(item.get("city")) == key(city)]
         interior = [item for item in matches if item.get("service_level") == "INTERIOR"]
@@ -211,8 +223,12 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         description = "Frete por faixa de peso"
     else:
         band = bands[-1]
-        total = float(band.get("price") or 0) + (weight - float(band["max_weight"])) * float(explicit_excess)
-        description = "Frete da última faixa mais peso excedente"
+        if destination.get("excess_calculation") == "TOTAL_WEIGHT":
+            total = weight * float(explicit_excess)
+            description = "Frete por tonelada sobre o peso total"
+        else:
+            total = float(band.get("price") or 0) + (weight - float(band["max_weight"])) * float(explicit_excess)
+            description = "Frete da última faixa mais peso excedente"
     calculated_base = total
     minimum_freight = destination.get("minimum_freight")
     if band and band.get("minimum_freight") is not None:
@@ -277,8 +293,13 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         if tax_rule.get("type") != "GROSS_UP":
             continue
         rates = tax_rule.get("rates_by_destination") or {}
+        route_rates = tax_rule.get("rates_by_route") or {}
+        route_key = f"{key(quote.get('origem_uf'))}>{key(destination.get('uf'))}"
         rate = float(
-            rates.get(destination.get("uf"), rates.get("*", tax_rule.get("default_rate", 0)))
+            route_rates.get(
+                route_key,
+                rates.get(destination.get("uf"), rates.get("*", tax_rule.get("default_rate", 0))),
+            )
         )
         if not 0 < rate < 1:
             continue
