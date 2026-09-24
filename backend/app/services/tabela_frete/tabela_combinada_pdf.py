@@ -21,6 +21,7 @@ FORMAT = "tabela_frete_universal_v1"
 INTERIOR_CITIES_BY_CODE = {
     "FORI": ["QUIXADA"],
 }
+CE_EXCLUDED_CITIES = ["HIDROLANDIA", "PARAMBU"]
 
 
 def _key(value: object) -> str:
@@ -101,12 +102,19 @@ def parse_combined_table_text(text: str, *, source_document: str, sha256: str = 
                 destination["city"],
                 *INTERIOR_CITIES_BY_CODE.get(destination["destination_code"], []),
             ]
+            conditions = {"requires_city_match": True}
+            if destination["destination_code"] == "FORI":
+                conditions = {
+                    "requires_city_match": False,
+                    "coverage_uf": "CE",
+                    "excluded_cities": CE_EXCLUDED_CITIES,
+                }
             destinations.append({
                 **destination,
                 "origin_uf": origin["uf"], "origin_city": origin["city"],
                 "origin_service_level": origin["service_level"], "origin_code": origin["destination_code"],
                 "cities": list(dict.fromkeys(covered_cities)),
-                "conditions": {"requires_city_match": True},
+                "conditions": conditions,
                 "weight_rates": weight_rates,
                 "excess_weight_rate": _number(excess.group(1)) / 1000,
                 "excess_calculation": "TOTAL_WEIGHT",

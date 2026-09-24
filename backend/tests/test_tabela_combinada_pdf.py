@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.tabela_frete.calculo_universal import calcular_universal
+from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
 from app.services.tabela_frete.tabela_combinada_pdf import (
     extract_combined_table_pdf,
     parse_combined_table_text,
@@ -89,6 +89,37 @@ def test_quixada_compatibility_for_already_imported_table():
     })
 
     assert quote["valor_total"] == pytest.approx(443.74)
+
+
+@pytest.mark.parametrize("city", ["QUIXERAMOBIM", "JUAZEIRO DO NORTE", "CRATEUS"])
+def test_fortaleza_interior_covers_other_ceara_cities(city: str):
+    text = SAMPLE.replace(
+        "CE/FORTALEZA PRACA POLO (FORP)", "CE/FORTALEZA PRACA INTERIOR (FORI)",
+    ).replace("1305,72612", "2057,04114")
+    result = parse_combined_table_text(text, source_document="combinada.pdf")
+
+    quote = calcular_universal(result, {
+        "origem_cidade": "Guarulhos", "origem_uf": "SP",
+        "destino_cidade": city, "destino_uf": "CE",
+        "peso": 50, "volume_total_m3": .5175, "valor_nf": 1790,
+    })
+
+    assert quote["status"] == "success"
+    assert quote["valor_total"] == pytest.approx(443.74)
+
+
+@pytest.mark.parametrize("city", ["HIDROLANDIA", "HIDROLÂNDIA", "PARAMBU"])
+def test_combined_table_rejects_ceara_exceptions(city: str):
+    text = SAMPLE.replace(
+        "CE/FORTALEZA PRACA POLO (FORP)", "CE/FORTALEZA PRACA INTERIOR (FORI)",
+    )
+    result = parse_combined_table_text(text, source_document="combinada.pdf")
+
+    with pytest.raises(CalculoUniversalError, match="Destino sem correspondência"):
+        calcular_universal(result, {
+            "origem_cidade": "Guarulhos", "origem_uf": "SP",
+            "destino_cidade": city, "destino_uf": "CE", "peso": 50,
+        })
 
 
 def test_calculation_uses_band_dispatch_gris_and_ad_valorem():

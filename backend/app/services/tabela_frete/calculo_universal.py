@@ -35,6 +35,7 @@ MAEX_INTERSTATE_RATES = {
 COMBINED_TABLE_INTERIOR_CITIES = {
     "FORI": {"QUIXADA"},
 }
+COMBINED_TABLE_CE_EXCLUDED_CITIES = {"HIDROLANDIA", "PARAMBU"}
 
 
 def _destination_state(item: dict) -> str | None:
@@ -130,6 +131,15 @@ def _destination(data: dict, quote: dict) -> dict:
             continue
         if conditions.get("max_invoice_value") is not None and invoice > float(conditions["max_invoice_value"]):
             continue
+        combined_ce_interior = (
+            (data.get("metadata") or {}).get("parser") == "tabela_combinada_pdf_v1"
+            and item.get("destination_code") == "FORI"
+        )
+        excluded_cities = {key(value) for value in conditions.get("excluded_cities", [])}
+        if combined_ce_interior:
+            excluded_cities.update(COMBINED_TABLE_CE_EXCLUDED_CITIES)
+        if city and key(city) in excluded_cities:
+            continue
         eligible.append(item)
         persisted_range = REGIONAL_CEP_RANGES.get(item.get("region_code"), (None, None))
         item_cep_start = _normalize_cep(item.get("cep_start") or persisted_range[0])
@@ -152,7 +162,7 @@ def _destination(data: dict, quote: dict) -> dict:
             matches.append(item)
         elif (
             state and not item_cep_start and not item_cep_end
-            and not conditions.get("requires_city_match")
+            and (not conditions.get("requires_city_match") or combined_ce_interior)
             and key(item_state) == key(state)
         ):
             matches.append(item)
