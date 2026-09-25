@@ -15,7 +15,7 @@ from sqlalchemy.orm import joinedload
 
 from app.core.deps import get_db, require_permission
 from app.core.config import get_settings
-from app.models.models import AuditoriaTabela, DocumentoFrete, ProcessamentoJob, TabelaFrete, Transportadora, User
+from app.models.models import AnaliseTabelaEvento, AuditoriaTabela, DocumentoFrete, ProcessamentoJob, TabelaFrete, Transportadora, User
 from app.schemas.tabela_frete import (
     TabelaFreteCreate,
     TabelaFreteDetalhada,
@@ -24,6 +24,7 @@ from app.schemas.tabela_frete import (
     TabelaFreteResponse,
     TabelaFreteUpdate,
     TabelaFreteAprovar,
+    TabelaFreteAprovarPublicar,
     TabelaFreteStatus,
     TabelaFreteRevisaoAtualizar,
     ConfirmarImportacaoRequest,
@@ -344,6 +345,17 @@ async def upload_documento(
             detail="Documentos só podem ser enviados para tabelas em rascunho",
         )
 
+    document_count = await db.scalar(
+        select(func.count()).select_from(DocumentoFrete).where(
+            DocumentoFrete.tabela_frete_id == tabela_id
+        )
+    )
+    if (document_count or 0) >= 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Cada análise aceita no máximo dois documentos",
+        )
+
     settings = get_settings()
     try:
         armazenado = await armazenar_documento(
@@ -415,6 +427,12 @@ async def analisar_documento(
         payload={"documento_id": ids[0], "documento_ids": ids, "usuario_id": usuario.id},
     )
     db.add(job)
+    await db.flush()
+    db.add(AnaliseTabelaEvento(
+        job_id=job.id, tabela_frete_id=tabela.id, etapa="UPLOADED",
+        status="completed", progresso=5,
+        detalhes={"documents": len(ids), "document_ids": ids},
+    ))
     db.add(registrar_evento_status(
         tabela, usuario, status_anterior, "processing", acao="analise_enfileirada"
     ))
@@ -431,8 +449,19 @@ async def obter_status_job(
     job = await db.get(ProcessamentoJob, job_id)
     if not job or job.tipo != "tabela_analise":
         raise HTTPException(status_code=404, detail="Processamento não encontrado")
+    eventos = list(await db.scalars(
+        select(AnaliseTabelaEvento)
+        .where(AnaliseTabelaEvento.job_id == job.id)
+        .order_by(AnaliseTabelaEvento.created_at)
+    ))
     return {
         "id": job.id, "status": job.status, "tentativas": job.tentativas,
+        "progress": job.progress, "current_step": job.current_step,
+        "result": job.resultado,
+        "history": [{
+            "stage": item.etapa, "status": item.status, "progress": item.progresso,
+            "details": item.detalhes, "created_at": item.created_at,
+        } for item in eventos],
         "ultimo_erro": job.ultimo_erro if job.status == "failed" else None,
     }
 
@@ -521,6 +550,34 @@ async def atualizar_dados_revisao(
         atual["avisos"] = validation["warnings"]
         atual["campos_com_duvida"] = validation["errors"]
         atual["confianca_extracao"] = 0.99 if not validation["errors"] else 0.8
+        atual["preview_estruturado"] = normalizar_preview(revisao.dados_extraidos)
+    elif revisao.dados_extraidos.get("formato") == "tabela_frete_universal_v1" and revisao.dados_extraidos.get("ai_analysis"):
+        from app.services.tabela_frete.ai_analysis.schemas import AIAnalysisResult
+        from app.services.tabela_frete.ai_analysis.testing import TableTestService
+        from app.services.tabela_frete.ai_analysis.validation import validate_ai_contract
+
+        analysis = AIAnalysisResult.model_validate(revisao.dados_extraidos["ai_analysis"])
+        validation = validate_ai_contract(
+            revisao.dados_extraidos, analysis,
+            minimum_confidence=get_settings().AI_MIN_CONFIDENCE,
+            expected_carrier_id=tabela.transportadora_id,
+        )
+        revisao.dados_extraidos["validation"] = validation
+        tests = TableTestService().run(revisao.dados_extraidos)
+        atual["automatic_tests"] = tests
+        atual["erros_validacao"] = validation["issues"]
+        atual["avisos"] = validation["warnings"]
+        atual["campos_com_duvida"] = [
+            item.field for item in [*analysis.unknowns, *analysis.conflicts]
+        ]
+        atual["confianca_extracao"] = analysis.confidence
+        atual["approval_gate"] = {
+            "ready": validation["status"] == "TABLE_VALIDATED" and tests["status"] == "PASSED",
+            "minimum_confidence": get_settings().AI_MIN_CONFIDENCE,
+            "blocking_reasons": validation["issues"] + (
+                ["Testes automáticos do motor canônico falharam"] if tests["status"] == "FAILED" else []
+            ),
+        }
         atual["preview_estruturado"] = normalizar_preview(revisao.dados_extraidos)
     else:
         atual["campos_com_duvida"] = []
@@ -619,6 +676,142 @@ async def confirmar_importacao(
     await db.commit()
     await db.refresh(tabela)
     return tabela
+
+
+@router.post("/{tabela_id}/aprovar-publicar", response_model=TabelaFreteResponse)
+async def aprovar_e_publicar_tabela(
+    tabela_id: str,
+    dados: TabelaFreteAprovarPublicar,
+    db: AsyncSession = Depends(get_db),
+    usuario: User = Depends(require_permission("transportadoras.manage")),
+):
+    """Persiste a revisão e publica a versão em uma única transação."""
+    tabela = await db.scalar(
+        select(TabelaFrete).where(TabelaFrete.id == tabela_id).with_for_update()
+    )
+    if not tabela:
+        raise HTTPException(status_code=404, detail="Tabela não encontrada")
+    if tabela.status != "review":
+        raise HTTPException(status_code=409, detail="A tabela precisa estar aguardando revisão")
+
+    dados_revisados = dados.dados_extraidos
+    tests = None
+    validation = dados_revisados.get("validation") or {}
+    if dados_revisados.get("formato") == "tabela_frete_universal_v1" and dados_revisados.get("ai_analysis"):
+        from app.services.tabela_frete.ai_analysis.schemas import AIAnalysisResult
+        from app.services.tabela_frete.ai_analysis.testing import TableTestService
+        from app.services.tabela_frete.ai_analysis.validation import validate_ai_contract
+
+        analysis = AIAnalysisResult.model_validate(dados_revisados["ai_analysis"])
+        validation = validate_ai_contract(
+            dados_revisados, analysis,
+            minimum_confidence=get_settings().AI_MIN_CONFIDENCE,
+            expected_carrier_id=tabela.transportadora_id,
+        )
+        tests = TableTestService().run(dados_revisados)
+        dados_revisados["validation"] = validation
+        if tests["status"] != "PASSED":
+            raise HTTPException(status_code=422, detail="Os testes automáticos da tabela não foram aprovados")
+        if validation["issues"] and not dados.confirmar_pendencias:
+            raise HTTPException(
+                status_code=409,
+                detail="Existem ambiguidades críticas. Revise-as ou confirme-as explicitamente.",
+            )
+
+    validar_vigencia_para_ativacao(tabela)
+    await persistir_revisao(db, tabela, dados_revisados)
+    await db.scalar(
+        select(Transportadora.id)
+        .where(Transportadora.id == tabela.transportadora_id)
+        .with_for_update()
+    )
+    anteriores = list(await db.scalars(
+        select(TabelaFrete).where(
+            TabelaFrete.transportadora_id == tabela.transportadora_id,
+            TabelaFrete.status == "active",
+            TabelaFrete.id != tabela.id,
+        ).with_for_update()
+    ))
+    for anterior in anteriores:
+        anterior.status = "expired"
+        db.add(registrar_evento_status(
+            anterior, usuario, "active", "expired",
+            motivo=f"Substituída pela tabela {tabela.id}", acao="expirada",
+        ))
+
+    tabela.status = "active"
+    tabela.approved_by_id = usuario.id
+    tabela.approved_at = datetime.utcnow()
+    tabela.observacoes = f"Aprovação e publicação: {dados.motivo}\n{dados.observacoes or tabela.observacoes or ''}"
+    db.add(AuditoriaTabela(
+        tabela_frete_id=tabela.id, usuario_id=usuario.id, acao="aprovada",
+        descricao="Tabela aprovada após validação e testes",
+        alteracoes='{"status":{"anterior":"review","novo":"approved"}}',
+    ))
+    db.add(AuditoriaTabela(
+        tabela_frete_id=tabela.id, usuario_id=usuario.id, acao="publicada",
+        descricao="Versão publicada para o motor canônico",
+        alteracoes='{"status":{"anterior":"approved","novo":"active"}}',
+    ))
+    latest_job = await db.scalar(select(ProcessamentoJob).where(
+        ProcessamentoJob.tipo == "tabela_analise", ProcessamentoJob.recurso_id == tabela.id,
+    ).order_by(ProcessamentoJob.created_at.desc()))
+    if latest_job:
+        latest_job.current_step = "PUBLISHED"
+        latest_job.progress = 100
+        latest_job.resultado = {
+            **(latest_job.resultado or {}),
+            "approval_ready": True,
+            "publication_status": "PUBLISHED",
+            "published_at": datetime.utcnow().isoformat(),
+        }
+        db.add(AnaliseTabelaEvento(
+            job_id=latest_job.id, tabela_frete_id=tabela.id, etapa="APPROVED",
+            status="completed", progresso=98,
+            detalhes={"approved_by": usuario.id, "manual_override": bool(validation.get("issues"))},
+        ))
+        db.add(AnaliseTabelaEvento(
+            job_id=latest_job.id, tabela_frete_id=tabela.id, etapa="PUBLISHED",
+            status="completed", progresso=100,
+            detalhes={"replaced_versions": len(anteriores), "tests": tests or {}},
+        ))
+    await db.commit()
+    await db.refresh(tabela)
+    return tabela
+
+
+@router.post("/{tabela_id}/rollback", response_model=TabelaFreteResponse)
+async def rollback_tabela_frete(
+    tabela_id: str,
+    motivo: str = Query(..., min_length=3, max_length=500),
+    db: AsyncSession = Depends(get_db),
+    usuario: User = Depends(require_permission("transportadoras.manage")),
+):
+    """Desativa a versão atual e reativa a versão anterior ainda vigente."""
+    atual = await db.scalar(
+        select(TabelaFrete).where(TabelaFrete.id == tabela_id).with_for_update()
+    )
+    if not atual:
+        raise HTTPException(status_code=404, detail="Tabela não encontrada")
+    if atual.status != "active":
+        raise HTTPException(status_code=409, detail="Rollback exige uma tabela ativa")
+    anterior = await db.scalar(
+        select(TabelaFrete).where(
+            TabelaFrete.transportadora_id == atual.transportadora_id,
+            TabelaFrete.status == "expired",
+            TabelaFrete.id != atual.id,
+        ).order_by(TabelaFrete.approved_at.desc().nullslast(), TabelaFrete.created_at.desc()).with_for_update()
+    )
+    if not anterior:
+        raise HTTPException(status_code=404, detail="Nenhuma versão anterior disponível para rollback")
+    validar_vigencia_para_ativacao(anterior)
+    atual.status = "expired"
+    anterior.status = "active"
+    db.add(registrar_evento_status(atual, usuario, "active", "expired", motivo=motivo, acao="rollback_origem"))
+    db.add(registrar_evento_status(anterior, usuario, "expired", "active", motivo=motivo, acao="rollback_destino"))
+    await db.commit()
+    await db.refresh(anterior)
+    return anterior
 
 
 @router.post("/{tabela_id}/ativar", response_model=TabelaFreteResponse)

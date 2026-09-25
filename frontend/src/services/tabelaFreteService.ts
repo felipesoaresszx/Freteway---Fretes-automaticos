@@ -1,6 +1,7 @@
 import { apiClient } from "../api/client";
 import type {
   DocumentoUploadResponse,
+  AnaliseJobStatus,
   TabelaFreteCreate,
   TabelaFreteListaResponse,
   TabelaFreteListItem,
@@ -30,15 +31,17 @@ export const tabelaFreteService = {
     return response.data;
   },
 
-  async analisar(tabelaId: string, documentoIds: string[]) {
+  async analisar(tabelaId: string, documentoIds: string[], onProgress?: (job: AnaliseJobStatus) => void) {
     const response = await apiClient.post(`/tabelas-frete/${tabelaId}/analisar`, undefined, {
       params: { documento_ids: documentoIds },
       paramsSerializer: { indexes: null },
     });
     const jobId = response.data.job_id as string;
+    onProgress?.({ id: jobId, status: "pending", progress: 5, current_step: "UPLOADED", history: [] });
     for (let tentativa = 0; tentativa < 120; tentativa += 1) {
       await new Promise((resolve) => window.setTimeout(resolve, 1000));
-      const job = (await apiClient.get<{ status: string; ultimo_erro?: string }>(`/tabelas-frete/jobs/${jobId}`)).data;
+      const job = (await apiClient.get<AnaliseJobStatus>(`/tabelas-frete/jobs/${jobId}`)).data;
+      onProgress?.(job);
       if (job.status === "completed") return job;
       if (job.status === "failed") throw new Error(job.ultimo_erro || "Não foi possível analisar o documento.");
     }
@@ -68,6 +71,25 @@ export const tabelaFreteService = {
 
   async ativar(tabelaId: string) {
     const response = await apiClient.post(`/tabelas-frete/${tabelaId}/ativar`);
+    return response.data;
+  },
+
+  async aprovarPublicar(tabelaId: string, dadosExtraidos: Record<string, unknown>, motivo: string, confirmarPendencias = false) {
+    const response = await apiClient.post(`/tabelas-frete/${tabelaId}/aprovar-publicar`, {
+      dados_extraidos: dadosExtraidos,
+      motivo,
+      confirmar_pendencias: confirmarPendencias,
+    });
+    return response.data;
+  },
+
+  async rollback(tabelaId: string, motivo: string) {
+    const response = await apiClient.post(`/tabelas-frete/${tabelaId}/rollback`, undefined, { params: { motivo } });
+    return response.data;
+  },
+
+  async cancelar(tabelaId: string, motivo: string) {
+    const response = await apiClient.post(`/tabelas-frete/${tabelaId}/cancelar`, undefined, { params: { motivo } });
     return response.data;
   },
 

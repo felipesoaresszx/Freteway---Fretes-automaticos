@@ -11,6 +11,10 @@ SAFE_FIELDS = {
     "method", "path", "job_type",
     "nunota", "codemp", "origin_zip", "destination_zip", "volume_count",
     "carriers_analyzed", "carriers_returned", "success_count",
+    "table_id", "document_count", "rule_count", "rejected_rule_count",
+    "inconsistency_count", "test_count", "test_result", "model",
+    "input_tokens", "output_tokens",
+    "page_count", "line_count",
 }
 
 

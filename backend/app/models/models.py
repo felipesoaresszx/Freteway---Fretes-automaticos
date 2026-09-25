@@ -505,10 +505,30 @@ class ProcessamentoJob(Base):
     ultimo_erro: Mapped[str | None] = mapped_column(Text, nullable=True)
     progress: Mapped[int] = mapped_column(Integer, default=0)
     current_step: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    resultado: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AnaliseTabelaEvento(Base):
+    """HistÃ³rico imutÃ¡vel das etapas de um job de anÃ¡lise de tabela."""
+
+    __tablename__ = "analise_tabela_eventos"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    job_id: Mapped[str] = mapped_column(
+        ForeignKey("processamento_jobs.id", ondelete="CASCADE"), index=True
+    )
+    tabela_frete_id: Mapped[str] = mapped_column(
+        ForeignKey("tabelas_frete.id", ondelete="CASCADE"), index=True
+    )
+    etapa: Mapped[str] = mapped_column(String(80), index=True)
+    status: Mapped[str] = mapped_column(String(30))
+    progresso: Mapped[int] = mapped_column(Integer)
+    detalhes: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
 # ============================================================================

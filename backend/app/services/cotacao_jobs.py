@@ -8,16 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.models import Cotacao, CotacaoResultado, ProcessamentoJob
 from app.schemas.cotacao import CotacaoCreate
 from app.services.cotacao_service import determinar_melhor_opcao, determinar_status_geral, executar_cotacao
-from app.core.config import get_settings
 from app.models.models import AuditoriaTabela, DocumentoFrete, TabelaFrete
-from app.services.tabela_frete.analise import (
-    adicionar_diagnostico_confianca,
-    analisar_documento_local,
-    combinar_resultados_documentos,
-    metadados_revisao,
-)
-from app.services.tabela_frete.tabela_import import normalizar_preview
-from pathlib import Path
+from app.services.tabela_frete.analise import metadados_revisao
 
 
 async def executar_job_cotacao(db: AsyncSession, job: ProcessamentoJob) -> None:
@@ -64,13 +56,10 @@ async def executar_job_analise_tabela(db: AsyncSession, job: ProcessamentoJob) -
     documentos = [await db.get(DocumentoFrete, documento_id) for documento_id in documento_ids]
     if not tabela or any(not documento or documento.tabela_frete_id != tabela.id for documento in documentos):
         raise ValueError("Tabela ou documento da análise não encontrado")
-    resultado = combinar_resultados_documentos([
-        analisar_documento_local(documento, tabela, Path(get_settings().TABELA_FRETE_STORAGE_DIR))
-        for documento in documentos
-    ])
+    from app.services.tabela_frete.analysis_pipeline import TableAnalysisService
+
+    resultado = await TableAnalysisService(db).run(job, tabela, documentos)
     resultado["documento_ids"] = documento_ids
-    resultado["preview_estruturado"] = normalizar_preview(resultado["dados_extraidos"])
-    resultado = adicionar_diagnostico_confianca(resultado)
     for documento in documentos:
         documento.metadata_json = metadados_revisao(resultado)
     tabela.status = "review"

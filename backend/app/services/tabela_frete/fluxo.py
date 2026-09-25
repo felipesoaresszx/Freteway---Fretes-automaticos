@@ -11,7 +11,7 @@ from app.models.models import AuditoriaTabela, TabelaFrete, User
 TRANSICOES_PERMITIDAS: dict[str, frozenset[str]] = {
     "draft": frozenset({"processing", "review", "cancelled"}),
     "processing": frozenset({"draft", "review", "cancelled"}),
-    "review": frozenset({"draft", "approved", "cancelled"}),
+    "review": frozenset({"draft", "processing", "approved", "cancelled"}),
     "approved": frozenset({"active", "cancelled"}),
     "active": frozenset({"expired", "cancelled"}),
     "expired": frozenset({"cancelled"}),

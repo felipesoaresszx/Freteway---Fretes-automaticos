@@ -45,6 +45,36 @@ export interface DocumentoUploadResponse {
   mensagem: string;
 }
 
+export interface AnaliseJobStatus {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  progress: number;
+  current_step: string | null;
+  ultimo_erro?: string | null;
+  result?: AnaliseResumo | null;
+  history: Array<{
+    stage: string;
+    status: string;
+    progress: number;
+    details: Record<string, unknown>;
+    created_at: string;
+  }>;
+}
+
+export interface AnaliseResumo {
+  table_type: string;
+  documents: number;
+  rules: number;
+  coverage_ranges: number;
+  surcharges: number;
+  confidence: number;
+  review_items: number;
+  tests: { status: string; total: number; passed: number; failed: number };
+  approval_ready: boolean;
+  ai?: { provider?: string; model?: string | null; prompt_version?: string | null };
+  duration_ms: number;
+}
+
 export interface DocumentoFrete {
   id: string;
   nome_arquivo: string;
@@ -63,6 +93,19 @@ export interface RevisaoTabelaFrete {
   erros_validacao: string[];
   avisos: string[];
   campos_com_duvida: string[];
+  analysis_summary?: AnaliseResumo;
+  automatic_tests?: {
+    status: string;
+    total: number;
+    passed: number;
+    failed: number;
+    cases: Array<Record<string, unknown>>;
+  };
+  approval_gate?: {
+    ready: boolean;
+    minimum_confidence: number;
+    blocking_reasons: string[];
+  };
   diagnostico_confianca?: {
     nivel: "pronto" | "revisao" | "bloqueado";
     arquivo_recebido: boolean;

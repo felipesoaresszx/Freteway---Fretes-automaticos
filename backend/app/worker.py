@@ -10,7 +10,7 @@ from sqlalchemy import or_, select
 from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal
 from app.core.observability import log_event
-from app.models.models import AuditoriaTabela, Cotacao, ProcessamentoJob, TabelaFrete, Transportadora
+from app.models.models import AnaliseTabelaEvento, AuditoriaTabela, Cotacao, ProcessamentoJob, TabelaFrete, Transportadora
 from app.services.cotacao_jobs import executar_job_analise_tabela, executar_job_cotacao, reagendar_job
 from app.services.enrichment import CarrierEnrichmentService
 from app.services.enrichment.search_provider import DuckDuckGoSearchProvider
@@ -76,7 +76,8 @@ async def processar_job() -> bool:
             job.status = "completed"
             job.bloqueado_em = None
             job.progress = 100
-            job.current_step = "completed"
+            if job_type != "tabela_analise":
+                job.current_step = "completed"
             job.finished_at = datetime.utcnow()
             await db.commit()
             log_event(
@@ -107,6 +108,12 @@ async def processar_job() -> bool:
                 tabela = await db.get(TabelaFrete, resource_id)
                 if tabela and tabela.status == "processing":
                     tabela.status = "draft"
+                db.add(AnaliseTabelaEvento(
+                    job_id=job.id, tabela_frete_id=resource_id,
+                    etapa=job.current_step or "ANALYZING", status="failed",
+                    progresso=job.progress or 0,
+                    detalhes={"error_type": type(exc).__name__, "message": str(exc)[:1000]},
+                ))
             elif job.status == "failed" and job_type == "carrier_enrichment":
                 carrier = await db.get(Transportadora, resource_id)
                 if carrier:

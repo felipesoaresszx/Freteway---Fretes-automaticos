@@ -219,4 +219,5 @@ O ambiente de produção utiliza imagens imutáveis, frontend Nginx, proxy Caddy
 - [Guia de implantação](DEPLOYMENT.md)
 - [White-label e multiempresa](backend/docs/white-label.md)
 - [Estado do núcleo de cotação](backend/docs/cotacao-core-status.md)
+- [Agente de análise de tabelas de frete](backend/docs/agente-tabelas-frete.md)
 - [Auditoria local](AUDIT_LOCALHOST.md)

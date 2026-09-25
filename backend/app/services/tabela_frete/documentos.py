@@ -22,6 +22,7 @@ EXTENSOES_PERMITIDAS = {
     ".png": {"image/png"},
     ".xls": {"application/vnd.ms-excel"},
     ".xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+    ".xlsm": {"application/vnd.ms-excel.sheet.macroenabled.12"},
 }
 
 
@@ -66,11 +67,11 @@ def _validar_conteudo(caminho: Path, extensao: str) -> None:
         ".jpg": (b"\xff\xd8\xff",), ".jpeg": (b"\xff\xd8\xff",),
         ".doc": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
         ".xls": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
-        ".docx": (b"PK\x03\x04",), ".xlsx": (b"PK\x03\x04",),
+        ".docx": (b"PK\x03\x04",), ".xlsx": (b"PK\x03\x04",), ".xlsm": (b"PK\x03\x04",),
     }
     if extensao in assinaturas and not any(inicio.startswith(item) for item in assinaturas[extensao]):
         raise DocumentoInvalidoError("O conteúdo real do arquivo não corresponde à extensão")
-    if extensao in {".docx", ".xlsx"}:
+    if extensao in {".docx", ".xlsx", ".xlsm"}:
         try:
             with zipfile.ZipFile(caminho) as pacote:
                 itens = pacote.infolist()

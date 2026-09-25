@@ -53,6 +53,15 @@ class Settings(BaseSettings):
     # Documentos originais das tabelas de frete.
     TABELA_FRETE_STORAGE_DIR: str = "storage/tabelas_frete"
     TABELA_FRETE_UPLOAD_MAX_BYTES: int = 25 * 1024 * 1024
+    # Provider de IA para interpretaÃ§Ã£o documental. "disabled" mantÃ©m somente
+    # os parsers determinÃ­sticos existentes; nenhuma credencial possui default.
+    AI_PROVIDER: str = "disabled"
+    AI_API_KEY: str | None = None
+    AI_MODEL: str = "gpt-5-mini"
+    AI_BASE_URL: str = "https://api.openai.com/v1"
+    AI_TIMEOUT_SECONDS: float = 120
+    AI_MAX_DOCUMENT_CHARS: int = 120_000
+    AI_MIN_CONFIDENCE: float = 0.90
     EMPRESA_LOGO_STORAGE_DIR: str = "storage/configuracoes/logos"
     DOCUMENT_STORAGE_DIR: str = "storage/documentos"
     EMPRESA_LOGO_MAX_BYTES: int = 2 * 1024 * 1024
@@ -90,6 +99,7 @@ def validate_runtime_settings(settings: Settings) -> None:
     if settings.ENVIRONMENT != "production":
         return
     public_url = settings.PUBLIC_BASE_URL.lower()
+    ai_provider = settings.AI_PROVIDER.strip().lower()
     invalid = (
         len(settings.JWT_SECRET) < 32
         or not settings.CREDENTIAL_ENCRYPTION_KEY
@@ -103,6 +113,8 @@ def validate_runtime_settings(settings: Settings) -> None:
         or "127.0.0.1" in public_url
         or (not public_url.startswith("https://") and not settings.ALLOW_INSECURE_HTTP)
         or (settings.ALLOW_INSECURE_HTTP and not public_url.startswith("http://"))
+        or ai_provider not in {"disabled", "none", "openai"}
+        or (ai_provider == "openai" and not settings.AI_API_KEY)
     )
     if invalid:
         raise RuntimeError(

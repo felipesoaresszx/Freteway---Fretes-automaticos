@@ -28,8 +28,8 @@ export function useUploadTabelaFrete() {
 export function useAnalisarTabelaFrete(transportadoraId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ tabelaId, documentoIds }: { tabelaId: string; documentoIds: string[] }) =>
-      tabelaFreteService.analisar(tabelaId, documentoIds),
+    mutationFn: ({ tabelaId, documentoIds, onProgress }: { tabelaId: string; documentoIds: string[]; onProgress?: Parameters<typeof tabelaFreteService.analisar>[2] }) =>
+      tabelaFreteService.analisar(tabelaId, documentoIds, onProgress),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["tabelas-frete", transportadoraId] }),
   });
 }
@@ -71,6 +71,15 @@ export function useConfirmarImportacao(transportadoraId: string) {
   return useMutation({
     mutationFn: ({ tabelaId, dados, motivo }: { tabelaId: string; dados: Record<string, unknown>; motivo: string }) =>
       tabelaFreteService.confirmarImportacao(tabelaId, dados, motivo),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tabelas-frete", transportadoraId] }),
+  });
+}
+
+export function useAprovarPublicarTabelaFrete(transportadoraId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tabelaId, dados, motivo, confirmarPendencias }: { tabelaId: string; dados: Record<string, unknown>; motivo: string; confirmarPendencias?: boolean }) =>
+      tabelaFreteService.aprovarPublicar(tabelaId, dados, motivo, confirmarPendencias),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tabelas-frete", transportadoraId] }),
   });
 }

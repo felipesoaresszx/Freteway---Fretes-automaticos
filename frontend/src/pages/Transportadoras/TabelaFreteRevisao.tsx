@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, FileCheck2 } from "lucide-react";
 
 import { DocumentoViewer } from "../../components/DocumentoViewer";
 import { Card } from "../../components/ui";
-import { useAnalisarTabelaFrete, useConfirmarImportacao, useRevisaoTabelaFrete, useSalvarRevisaoTabelaFrete } from "../../hooks/useTabelaFrete";
+import { useAnalisarTabelaFrete, useAprovarPublicarTabelaFrete, useRevisaoTabelaFrete, useSalvarRevisaoTabelaFrete } from "../../hooks/useTabelaFrete";
 import { tabelaFreteService } from "../../services/tabelaFreteService";
 
 interface Props {
@@ -15,13 +15,15 @@ interface Props {
 export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Props) {
   const revisao = useRevisaoTabelaFrete(tabelaId);
   const salvar = useSalvarRevisaoTabelaFrete(tabelaId, transportadoraId);
-  const confirmar = useConfirmarImportacao(transportadoraId);
+  const publicar = useAprovarPublicarTabelaFrete(transportadoraId);
   const reanalisar = useAnalisarTabelaFrete(transportadoraId);
   const [json, setJson] = useState("");
   const [erro, setErro] = useState("");
   const [simulacao, setSimulacao] = useState({ origem_cep: "", destino_cep: "", valor_nf: "", peso: "", quantidade_volumes: "1", comprimento_cm: "", largura_cm: "", altura_cm: "" });
   const [resultadoSimulacao, setResultadoSimulacao] = useState<Record<string, any> | null>(null);
   const [simulando, setSimulando] = useState(false);
+  const [confirmarPendencias, setConfirmarPendencias] = useState(false);
+  const [rejeitando, setRejeitando] = useState(false);
 
   useEffect(() => {
     if (revisao.data) setJson(JSON.stringify(
@@ -53,14 +55,35 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
   async function handleAprovar() {
     const dados = await dadosValidos();
     if (!dados) return;
-    await confirmar.mutateAsync({ tabelaId, dados, motivo: "Dados extraídos revisados e confirmados pelo usuário" });
-    onClose();
+    if (revisao.data?.approval_gate && !revisao.data.approval_gate.ready && !confirmarPendencias) {
+      setErro("Confirme explicitamente as pendências revisadas antes de publicar.");
+      return;
+    }
+    try {
+      await publicar.mutateAsync({ tabelaId, dados, motivo: "Dados extraídos revisados e confirmados pelo usuário", confirmarPendencias });
+      onClose();
+    } catch (error: any) {
+      setErro(error?.response?.data?.detail ?? error?.message ?? "Não foi possível publicar a tabela.");
+    }
   }
 
   async function handleReanalisar() {
     if (!revisao.data) return;
     await reanalisar.mutateAsync({ tabelaId, documentoIds: revisao.data.documentos_originais?.map((item) => item.id) ?? [revisao.data.documento_original.id] });
     await revisao.refetch();
+  }
+
+  async function handleRejeitar() {
+    if (!window.confirm("Rejeitar esta versão da tabela? Os documentos e a auditoria serão preservados.")) return;
+    setRejeitando(true);
+    try {
+      await tabelaFreteService.cancelar(tabelaId, "Tabela rejeitada durante a revisão humana");
+      onClose();
+    } catch (error: any) {
+      setErro(error?.response?.data?.detail ?? error?.message ?? "Não foi possível rejeitar a tabela.");
+    } finally {
+      setRejeitando(false);
+    }
   }
 
   async function handleSimular() {
@@ -109,6 +132,23 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
         </div>
         <button onClick={onClose} className="text-xs text-text-secondary">Fechar</button>
       </div>
+      {revisao.data.analysis_summary && (
+        <div className={`rounded-lg border p-4 ${revisao.data.analysis_summary.approval_ready ? "border-state-success/30 bg-state-success/5" : "border-state-warning/40 bg-state-warning/5"}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div><h4 className="text-sm font-medium">{revisao.data.analysis_summary.approval_ready ? "Tabela validada" : "Revisão necessária"}</h4><p className="mt-1 text-xs text-text-secondary">Formato: {revisao.data.analysis_summary.table_type}</p></div>
+            <span className="text-sm font-medium tabular-nums">{(revisao.data.analysis_summary.confidence * 100).toFixed(0)}% de confiança</span>
+          </div>
+          <dl className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+            <div><dt className="text-text-secondary">Documentos</dt><dd className="mt-1 text-base font-medium">{revisao.data.analysis_summary.documents}</dd></div>
+            <div><dt className="text-text-secondary">Regras</dt><dd className="mt-1 text-base font-medium">{revisao.data.analysis_summary.rules}</dd></div>
+            <div><dt className="text-text-secondary">Coberturas</dt><dd className="mt-1 text-base font-medium">{revisao.data.analysis_summary.coverage_ranges}</dd></div>
+            <div><dt className="text-text-secondary">Adicionais</dt><dd className="mt-1 text-base font-medium">{revisao.data.analysis_summary.surcharges}</dd></div>
+            <div><dt className="text-text-secondary">Testes</dt><dd className="mt-1 font-medium">{revisao.data.analysis_summary.tests.passed}/{revisao.data.analysis_summary.tests.total} aprovados</dd></div>
+            <div><dt className="text-text-secondary">Para revisão</dt><dd className="mt-1 font-medium">{revisao.data.analysis_summary.review_items}</dd></div>
+            <div className="col-span-2"><dt className="text-text-secondary">Analisador</dt><dd className="mt-1 font-medium">{revisao.data.analysis_summary.ai?.provider === "disabled" ? "Parsers determinísticos" : `${revisao.data.analysis_summary.ai?.provider} / ${revisao.data.analysis_summary.ai?.model}`}</dd></div>
+          </dl>
+        </div>
+      )}
       {revisao.data.confianca_extracao < 1 && diagnostico && (
         <div className={`rounded-lg border p-4 ${diagnostico.aceito_para_cadastro ? "border-state-warning/40 bg-state-warning/5" : "border-state-error/40 bg-state-error/5"}`}>
           <div className="flex items-start gap-3">
@@ -220,10 +260,17 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
         </div>}
       </div>}
       {erro && <p className="text-xs text-state-error">{erro}</p>}
+      {revisao.data.approval_gate && !revisao.data.approval_gate.ready && (
+        <label className="flex items-start gap-2 rounded border border-state-warning/30 bg-state-warning/5 p-3 text-xs">
+          <input type="checkbox" checked={confirmarPendencias} onChange={(event) => setConfirmarPendencias(event.target.checked)} className="mt-0.5" />
+          <span>Revisei as inconsistências indicadas e confirmo conscientemente as regras ambíguas. Testes automáticos com falha continuam bloqueando a publicação.</span>
+        </label>
+      )}
       <div className="flex justify-end gap-2">
+        <button disabled={rejeitando || publicar.isPending} onClick={handleRejeitar} className="h-9 rounded border border-state-error/40 px-3 text-sm text-state-error disabled:opacity-40">{rejeitando ? "Rejeitando..." : "Rejeitar"}</button>
         <button disabled={reanalisar.isPending} onClick={handleReanalisar} className="h-9 rounded border border-state-info/40 px-3 text-sm text-state-info disabled:opacity-40">{reanalisar.isPending ? "Reanalisando..." : `Reanalisar ${(revisao.data.documentos_originais?.length ?? 1) > 1 ? "documentos juntos" : "documento"}`}</button>
         {!requerMapeamento && <button disabled={salvar.isPending} onClick={handleSalvar} className="h-9 rounded border border-border px-3 text-sm">Salvar revisão</button>}
-        <button disabled={!mapeamentoPreenchido || confirmar.isPending || salvar.isPending} onClick={handleAprovar} className="h-9 rounded bg-state-success px-3 text-sm text-white disabled:opacity-40">{mapeamentoPreenchido ? "Confirmar importação" : formatoUfZona ? "Aguardando regiões e prazos" : "Complete faixas e praças"}</button>
+        <button disabled={!mapeamentoPreenchido || publicar.isPending || salvar.isPending} onClick={handleAprovar} className="h-9 rounded bg-state-success px-3 text-sm text-white disabled:opacity-40">{mapeamentoPreenchido ? (publicar.isPending ? "Publicando..." : "Aprovar e publicar") : formatoUfZona ? "Aguardando regiões e prazos" : "Complete faixas e praças"}</button>
       </div>
     </Card>
   );

@@ -374,6 +374,15 @@ class TabelaFreteAprovar(BaseModel):
     observacoes: Optional[str] = None
 
 
+class TabelaFreteAprovarPublicar(BaseModel):
+    """Confirma a revisÃ£o humana e publica a versÃ£o de forma atÃ´mica."""
+
+    dados_extraidos: dict
+    motivo: str = Field(..., min_length=3, max_length=500)
+    confirmar_pendencias: bool = False
+    observacoes: Optional[str] = Field(None, max_length=2000)
+
+
 class TabelaFreteRevisaoAtualizar(BaseModel):
     """Dados extraídos após correção humana."""
 
