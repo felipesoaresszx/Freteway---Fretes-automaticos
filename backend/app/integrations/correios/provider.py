@@ -103,7 +103,9 @@ class CorreiosProvider(CarrierAdapter):
         )
         results = []
         failures = []
-        pricing_mode = credentials.get("pricing_mode", "portal")
+        # As cotações do FreteWay devem reproduzir o preço público do portal.
+        # Ignora credenciais antigas salvas como "contract".
+        pricing_mode = "portal"
         for code, response in zip(codes, responses):
             resolved_code = code
             if isinstance(response, BaseException):
@@ -126,7 +128,7 @@ class CorreiosProvider(CarrierAdapter):
             results.append(FreightQuoteResult(
                 carrier_id="", carrier_name="", service_id=resolved_code,
                 service_name=SERVICE_NAMES.get(resolved_code, f"Correios {resolved_code}"),
-                price=_portal_price(price) if pricing_mode == "portal" else _decimal_br(price.get("pcFinal")),
+                price=_portal_price(price),
                 delivery_days=int(deadline["prazoEntrega"]), source="API",
                 external_service_code=resolved_code,
                 metadata={

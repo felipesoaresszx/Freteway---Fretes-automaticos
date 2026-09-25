@@ -88,7 +88,7 @@ async def test_preco_portal_usa_referencia_e_valor_declarado(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_preco_contrato_preserva_pc_final(monkeypatch):
+async def test_configuracao_antiga_de_contrato_usa_preco_do_portal(monkeypatch):
     class Client:
         async def __aenter__(self): return self
         async def __aexit__(self, *args): return None
@@ -104,7 +104,8 @@ async def test_preco_contrato_preserva_pc_final(monkeypatch):
 
     result = (await CorreiosProvider().quote(request(), {**credentials(), "pricing_mode": "contract"}))[0]
 
-    assert result.price == Decimal("33.47")
+    assert result.price == Decimal("49.70")
+    assert result.metadata["pricing_mode"] == "portal"
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,3 @@
-from typing import Literal
-
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -11,7 +9,13 @@ class CorreiosCredentials(BaseModel):
     api_key: str = Field(min_length=1, max_length=255)
     postage_card: str = Field(pattern=r"^\d{8,12}$")
     service_codes: str = "03220,03298"
-    pricing_mode: Literal["portal", "contract"] = "portal"
+    pricing_mode: str = "portal"
+
+    @field_validator("pricing_mode")
+    @classmethod
+    def force_portal_pricing(cls, _value: str) -> str:
+        """Aceita cadastros antigos, mas sempre persiste o preço de balcão."""
+        return "portal"
 
     @field_validator("base_url")
     @classmethod
