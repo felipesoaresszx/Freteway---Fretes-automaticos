@@ -615,12 +615,21 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
         tabela.fator_cubagem = float(dados.get("fator_cubagem") or tabela.fator_cubagem)
         return
     if dados.get("formato") == "uf_zona_peso_v1":
+        from app.services.tabela_frete.calculo_uf_zona import (
+            CalculoUfZonaError,
+            validar_regras_calculo,
+        )
+
         if not dados.get("tarifas_por_zona"):
             raise AnaliseDocumentoError("Nenhuma tarifa por zona foi informada")
         if not dados.get("mapeamento_zonas"):
             raise AnaliseDocumentoError("Informe as cidades ou CEPs de cada zona antes de confirmar")
         if not dados.get("prazos_entrega"):
             raise AnaliseDocumentoError("Informe os prazos de entrega por zona antes de confirmar")
+        try:
+            validar_regras_calculo(dados)
+        except CalculoUfZonaError as exc:
+            raise AnaliseDocumentoError(str(exc)) from exc
         await db.execute(
             delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
         )

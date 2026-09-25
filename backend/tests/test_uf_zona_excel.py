@@ -1,8 +1,9 @@
 from pathlib import Path
 
 from openpyxl import Workbook
+import pytest
 
-from app.services.tabela_frete.calculo_uf_zona import calcular_uf_zona
+from app.services.tabela_frete.calculo_uf_zona import CalculoUfZonaError, calcular_uf_zona
 from app.services.tabela_frete.uf_zona_excel import (
     CABECALHO_CONSOLIDADO, CABECALHO_MALHA, CABECALHO_TARIFAS, extrair_uf_zona_excel,
 )
@@ -46,12 +47,18 @@ def test_calcula_tabela_uf_zona_importada(tmp_path):
     _arquivo_duas_abas(caminho)
     dados = extrair_uf_zona_excel(caminho)
 
+    with pytest.raises(CalculoUfZonaError, match="ICMS"):
+        calcular_uf_zona(dados, {"peso": 25, "valor_nf": 1000, "destino_uf": "PR", "destino_cep": "86460-000"})
+    dados["regras_gerais"]["icms"] = {
+        "calculo": "POR_DENTRO", "aliquotas_por_uf_destino": {"PR": .12},
+    }
     resultado = calcular_uf_zona(dados, {"peso": 25, "valor_nf": 1000, "destino_uf": "PR", "destino_cep": "86460-000"})
 
     assert resultado["status"] == "success"
     assert resultado["frete_base"] == 20
     assert resultado["prazo_dias"] == 5
-    assert resultado["valor_total"] == 44.89
+    assert resultado["subtotal_sem_imposto"] == 44.89
+    assert resultado["valor_total"] == 51.01
 
 
 def test_calcula_somente_regras_presentes_no_contrato_sem_calibracao_nominal():
@@ -105,8 +112,44 @@ def test_extrai_novo_layout_consolidado_e_calcula_acima_de_100kg(tmp_path):
     assert dados["estatisticas"]["tarifas_zona"] == 1
     assert dados["fator_cubagem"] == 300
     assert dados["regras_gerais"]["pedagio_valor_nao_informado"] is True
+    with pytest.raises(CalculoUfZonaError, match="valor do pedágio.*TAS.*ICMS"):
+        calcular_uf_zona(dados, {
+            "peso": 110, "valor_nf": 0, "destino_uf": "PR", "destino_cep": "86460-000",
+        })
+
+
+def test_calcula_icms_por_dentro_quando_regra_foi_confirmada():
+    dados = {
+        "exigir_regras_completas": True,
+        "fator_cubagem": 300,
+        "tarifas_por_zona": [{
+            "uf": "SC", "zona": "Interior", "faixas_peso": [{"ate_kg": 70, "valor": 88.18}],
+            "excedente_por_kg_acima_100": .7, "gris_percentual": 0,
+            "ad_valorem_percentual": 0, "pedagio_por_fracao_100kg": 6.97,
+            "tas_por_cte": 0, "trt": None,
+        }],
+        "mapeamento_zonas": {"SC|Interior": [{
+            "cidade": "POUSO REDONDO", "uf": "SC", "zona": "Interior", "prazo_dias": 3,
+            "cep_inicio": "89172000", "cep_fim": "89172999", "tda": 0, "trt": 0,
+            "bloqueio_entrega": False, "bloqueio_ambos": False,
+        }]},
+        "regras_gerais": {"icms": {
+            "calculo": "POR_DENTRO", "aliquotas_por_uf_destino": {"SC": .12},
+        }},
+    }
+
     resultado = calcular_uf_zona(dados, {
-        "peso": 110, "valor_nf": 0, "destino_uf": "PR", "destino_cep": "86460-000",
+        "peso": 52, "valor_nf": 780.90, "destino_uf": "SC", "destino_cep": "89172-000",
     })
-    assert resultado["frete_base"] == 71.06
-    assert resultado["prazo_dias"] == 5
+
+    assert resultado["subtotal_sem_imposto"] == 95.15
+    assert resultado["impostos"] == 12.97
+    assert resultado["valor_total"] == 108.12
+    assert next(item for item in resultado["taxas_detalhadas"] if item["tipo"] == "ICMS")["valor"] == 12.97
+
+
+def test_reproduz_70_07_quando_pedagio_tas_e_icms_sao_omitidos():
+    """Documenta a causa da divergência observada na cotação Ouro Negro."""
+    subtotal_incompleto = 67.7255 + (780.90 * .0015) + (780.90 * .0015)
+
+    assert round(subtotal_incompleto, 2) == 70.07

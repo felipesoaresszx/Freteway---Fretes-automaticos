@@ -159,6 +159,7 @@ def _extrair_layout_consolidado(aba) -> dict:
         raise AnaliseDocumentoError("Nenhuma tarifa UF/zona encontrada")
     return {
         "formato": FORMATO,
+        "exigir_regras_completas": True,
         "origem": {"descricao": origem or "", "cidade": "Guarulhos", "uf": "SP"},
         "tipo_calculo": "PESO_TOTAL_X_EXCEDENTE_ACIMA_100KG",
         "fator_cubagem": fator_cubagem,
@@ -275,6 +276,7 @@ def extrair_uf_zona_excel(caminho: Path) -> dict:
     fator = re.search(r"Fator cubagem a 1m³\s*=\s*(\d+)kg", generalidades, re.IGNORECASE)
     return {
         "formato": FORMATO,
+        "exigir_regras_completas": True,
         "origem": {"descricao": origem_texto.replace("Origem:", "").strip(), "cidade": "Guarulhos", "uf": "SP"},
         "tipo_calculo": "EXCEDENTE_ACIMA_100KG",
         "fator_cubagem": float(fator.group(1)) if fator else None,
@@ -295,7 +297,7 @@ def extrair_uf_zona_excel(caminho: Path) -> dict:
             "armazenagem_percentual_nf_15_dias": 0.002,
         },
         "pendencias": [
-            "Confirmar alíquota e cálculo do ICMS",
+            "Confirmar a alíquota do ICMS por UF e o cálculo por dentro antes de publicar",
             "Obter a relação externa de TDE/TDA/TEP/TRT quando aplicável",
         ] + ([f"{len(localidades_sem_cep)} localidades sem faixa de CEP; consulta disponível por cidade"] if localidades_sem_cep else []),
         "estatisticas": {
