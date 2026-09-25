@@ -238,6 +238,7 @@ def calcular_transpecas(data: dict, quote: dict) -> dict:
         "peso_cubado_kg": float(cubed_weight),
         "peso_considerado_kg": float(taxable_weight),
         "cubagem_aplicada": cubage_active,
+        "politica_peso_taxavel": "MAIOR_ENTRE_REAL_E_CUBADO" if cubage_active else "PESO_REAL",
         "quantidade_nfs_consolidadas": invoice_count,
         "rota_aplicada": route_label,
         "tipo_destino": route.get("tipo_destino"),
@@ -254,6 +255,7 @@ def calcular_transpecas(data: dict, quote: dict) -> dict:
             "peso_usado_kg": float(taxable_weight),
             "formula": "valor_fixo" if rate_type == "faixa_fixa" else "peso_total_x_frete_peso",
             "rota_match": "fallback_interior" if used_fallback else "faixa_cep_metropolitana",
+            "regra_operacional_observada": bool(table.get("regra_operacional_observada")),
         },
         "memoria_calculo": {
             "transportadora": table.get("transportadora"),

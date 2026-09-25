@@ -9,7 +9,13 @@
       "status": "NAO_INFORMADA_NO_DOCUMENTO"
     },
     "source_document": "TABELA DE FRETE TRANSPEÇAS.docx",
-    "calculo_confirmado_por_cotacao_real": true
+    "calculo_confirmado_por_cotacao_real": true,
+    "regra_operacional_observada": {
+      "descricao": "Cotacao real da Transpecas prevalece sobre a regra geral do PDF",
+      "peso_taxavel": "PESO_REAL",
+      "recife_cep_51180130": "TARIFA_INTERIOR_PE_BA",
+      "cotacao_referencia": {"peso_kg": 977, "valor_frete": 1367.80}
+    }
   },
   "freight_routes": [
     {

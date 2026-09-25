@@ -20,8 +20,19 @@ def table():
     return json.loads(TABLE_PATH.read_text(encoding="utf-8"))
 
 
-def quote(*, weight=977, destination="51180-130"):
-    return {
+VOLUMES_CASO_REAL = [
+    (160, 70, 60, 9, 10), (118, 82, 82, 17, 2), (84, 80, 54, 7, 1),
+    (160, 70, 60, 9, 10), (68, 37, 20, 33, 1), (70, 40, 15, 21, 2),
+    (57, 57, 34, 11, 5), (57, 57, 34, 25, 5), (60, 36, 42, 10, 1),
+    (46, 36, 15, 11, 5), (55, 36, 10, 14, 1), (80, 55, 15, 15, 10),
+    (50, 40, 30, 8, 3), (47, 29, 29, 10, 2), (56, 30, 25, 16, 1),
+    (57, 33, 30, 21, 1), (57, 33, 30, 19, 1), (57, 33, 30, 17, 1),
+    (73, 27, 27, 31, 5),
+]
+
+
+def quote(*, weight=977, destination="51180-130", with_dimensions=False):
+    result = {
         "origem_cep": "07042-180",
         "origem_uf": "SP",
         "origem_cidade": "Guarulhos",
@@ -30,17 +41,29 @@ def quote(*, weight=977, destination="51180-130"):
         # O nome Recife nao pode forcar a tarifa metropolitana.
         "destino_cidade": "Recife",
         "peso_total": weight,
-        "volume_total_m3": 10,
+        "volume_total_m3": 0,
     }
+    if with_dimensions:
+        result.pop("peso_total")
+        result.pop("volume_total_m3")
+        result["volumes"] = [
+            {"comprimento_cm": c, "largura_cm": l, "altura_cm": a,
+             "peso_kg": p, "quantidade": q}
+            for c, l, a, p, q in VOLUMES_CASO_REAL
+        ]
+    return result
 
 
-def test_caso_real_977kg_usa_fallback_interior_e_nao_cubagem(table):
-    result = calcular_transpecas(table, quote())
+def test_caso_real_67_volumes_reproduz_regra_operacional_da_transportadora(table):
+    result = calcular_transpecas(table, quote(with_dimensions=True))
 
     assert result["valor_total"] == 1367.80
+    assert result["peso_real_kg"] == 977
+    assert result["peso_cubado_kg"] == pytest.approx(5477.9619)
     assert result["peso_considerado_kg"] == 977
-    assert result["peso_cubado_kg"] == 3000
     assert result["cubagem_aplicada"] is False
+    assert result["politica_peso_taxavel"] == "PESO_REAL"
+    assert result["detalhe_calculo"]["regra_operacional_observada"] is True
     assert result["rota_aplicada"] == "INTERIOR PE / BA"
     assert result["fallback_interior"] is True
     assert result["tarifa_aplicada"] == {
