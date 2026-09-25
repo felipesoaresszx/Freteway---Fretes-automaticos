@@ -1,4 +1,5 @@
 import { Check, Circle, FileText, FileUp, LoaderCircle, X } from "lucide-react";
+import type { FormEvent } from "react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -67,24 +68,30 @@ export function TabelaFreteForm({ transportadoraId, transportadoraNome, salvando
     });
   }
 
+  function enviar(dados: TabelaFreteCreate) {
+    if (!arquivos.length) {
+      setErroArquivo("Selecione pelo menos um documento para iniciar a análise.");
+      arquivoRef.current?.focus();
+      return;
+    }
+    const base = arquivos[0].name.replace(/\.[^.]+$/, "");
+    void onSave({
+      ...dados,
+      nome: dados.nome.trim() || nomeTabelaPadrao(transportadoraNome, base),
+      codigo: dados.codigo.trim() || `IMP-${Date.now()}`,
+      versao: dados.versao.trim() || "1",
+      fator_cubagem: Number.isFinite(dados.fator_cubagem) ? dados.fator_cubagem : 300,
+      data_inicio: dados.data_inicio || new Date().toISOString().slice(0, 10),
+      data_fim: dados.data_fim || dataFutura(90),
+    }, arquivos);
+  }
+
+  function enviarFormulario(evento: FormEvent<HTMLFormElement>) {
+    void handleSubmit(enviar)(evento);
+  }
+
   return (
-    <form onSubmit={handleSubmit((dados) => {
-      if (!arquivos.length) {
-        setErroArquivo("Selecione pelo menos um documento para iniciar a análise.");
-        arquivoRef.current?.focus();
-        return;
-      }
-      const base = arquivos[0].name.replace(/\.[^.]+$/, "");
-      onSave({
-        ...dados,
-        nome: dados.nome.trim() || nomeTabelaPadrao(transportadoraNome, base),
-        codigo: dados.codigo.trim() || `IMP-${Date.now()}`,
-        versao: dados.versao.trim() || "1",
-        fator_cubagem: Number.isFinite(dados.fator_cubagem) ? dados.fator_cubagem : 300,
-        data_inicio: dados.data_inicio || new Date().toISOString().slice(0, 10),
-        data_fim: dados.data_fim || dataFutura(90),
-      }, arquivos);
-    })} className="grid gap-3 sm:grid-cols-2 rounded-lg border border-border bg-surface2 p-4">
+    <form onSubmit={enviarFormulario} className="grid gap-3 sm:grid-cols-2 rounded-lg border border-border bg-surface2 p-4">
       <Field label="Nome">
         <Input {...register("nome")} placeholder="Preenchido pelo arquivo se vazio" />
       </Field>
