@@ -4,6 +4,7 @@ from openpyxl import Workbook
 import pytest
 
 from app.services.tabela_frete.calculo_uf_zona import CalculoUfZonaError, calcular_uf_zona
+from app.services.tabela_frete.ouro_negro_2026 import aplicar_tabela_ouro_negro_2026
 from app.services.tabela_frete.uf_zona_excel import (
     CABECALHO_CONSOLIDADO, CABECALHO_MALHA, CABECALHO_TARIFAS, extrair_uf_zona_excel,
 )
@@ -87,7 +88,7 @@ def test_calcula_somente_regras_presentes_no_contrato_sem_calibracao_nominal():
     assert resultado["prazo_dias"] == 6
     assert next(item for item in resultado["taxas_detalhadas"] if item["tipo"] == "PEDAGIO")["valor"] == 6.29
     assert not any(item["tipo"] == "ICMS" for item in resultado["taxas_detalhadas"])
-    assert resultado["valor_total"] == 83.54
+    assert resultado["valor_total"] == 83.55
 
 
 def test_extrai_novo_layout_consolidado_e_calcula_acima_de_100kg(tmp_path):
@@ -153,3 +154,77 @@ def test_reproduz_70_07_quando_pedagio_tas_e_icms_sao_omitidos():
     subtotal_incompleto = 67.7255 + (780.90 * .0015) + (780.90 * .0015)
 
     assert round(subtotal_incompleto, 2) == 70.07
+
+
+def _base_ouro_negro_2026() -> dict:
+    return aplicar_tabela_ouro_negro_2026({
+        "mapeamento_zonas": {"SC|Interior II": [{
+            "cidade": "POUSO REDONDO", "uf": "SC", "zona": "Interior II", "prazo_dias": 3,
+            "cep_inicio": "89172000", "cep_fim": "89172999", "tda": 0, "trt": 0,
+            "bloqueio_entrega": False, "bloqueio_ambos": False,
+        }]},
+        "estatisticas": {"localidades": 1},
+    })
+
+
+def test_nova_tabela_ouro_negro_reproduz_cotacao_108_12():
+    resultado = calcular_uf_zona(_base_ouro_negro_2026(), {
+        "peso": 52, "valor_nf": 780.90, "origem_uf": "SP", "destino_uf": "SC",
+        "destino_cep": "89172-000", "volume_total_m3": .110528,
+    })
+
+    assert resultado["peso_considerado_kg"] == 52
+    assert resultado["frete_base"] == 75.10
+    assert resultado["subtotal_sem_imposto"] == 95.15
+    assert resultado["impostos"] == 12.97
+    assert resultado["valor_total"] == 108.12
+    taxas = {item["tipo"]: item["valor"] for item in resultado["taxas_detalhadas"]}
+    assert taxas == {
+        "GRIS": 1.17, "AD_VALOREM": 1.17, "PEDAGIO": 6.97,
+        "TAS": 6.21, "TEC": 4.53, "ICMS": 12.97,
+    }
+
+
+def test_nova_tabela_ouro_negro_calcula_somente_excedente_acima_de_100kg():
+    resultado = calcular_uf_zona(_base_ouro_negro_2026(), {
+        "peso": 150, "valor_nf": 0, "origem_uf": "SP", "destino_uf": "SC",
+        "destino_cep": "89172-000",
+    })
+
+    # R$ 80,32 da faixa de 100 kg + 50 kg x R$ 0,77949.
+    assert resultado["frete_base"] == 119.29
+    assert resultado["valor_total"] == 166.38
+
+
+def test_nova_tabela_ouro_negro_restringe_origens_ao_documento():
+    with pytest.raises(CalculoUfZonaError, match="Origem RJ não contemplada"):
+        calcular_uf_zona(_base_ouro_negro_2026(), {
+            "peso": 52, "valor_nf": 780.90, "origem_uf": "RJ", "destino_uf": "SC",
+            "destino_cep": "89172-000",
+        })
+
+
+@pytest.mark.parametrize(("cidade", "uf", "zona", "cep", "peso", "valor_nf", "esperado"), [
+    ("SARANDI", "PR", "Interior II", "87110-000", 145.02, 9751.10, 198.07),
+    ("SANTA CRUZ DO SUL", "RS", "Interior II", "96810-062", 36, 5290, 108.48),
+    ("SANTO AMARO DA IMPERATRIZ", "SC", "Grande Capital", "88140-000", 59.64, 1135, 103.10),
+    ("POUSO REDONDO", "SC", "Interior II", "89172-000", 133.74, 1322, 155.99),
+    ("POUSO REDONDO", "SC", "Interior II", "89172-000", 52, 780.90, 108.12),
+])
+def test_nova_tabela_reproduz_cotacoes_emitidas_no_portal(
+    cidade, uf, zona, cep, peso, valor_nf, esperado,
+):
+    dados = aplicar_tabela_ouro_negro_2026({
+        "mapeamento_zonas": {f"{uf}|{zona}": [{
+            "cidade": cidade, "uf": uf, "zona": zona, "prazo_dias": 3,
+            "cep_inicio": cep.replace("-", ""), "cep_fim": cep.replace("-", ""),
+            "tda": 0, "trt": 0, "bloqueio_entrega": False, "bloqueio_ambos": False,
+        }]},
+    })
+
+    resultado = calcular_uf_zona(dados, {
+        "peso": peso, "valor_nf": valor_nf, "origem_uf": "SP",
+        "destino_uf": uf, "destino_cep": cep,
+    })
+
+    assert resultado["valor_total"] == esperado

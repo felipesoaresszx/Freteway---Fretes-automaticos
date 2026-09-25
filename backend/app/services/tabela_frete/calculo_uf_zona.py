@@ -1,11 +1,17 @@
 """Cálculo determinístico para tabelas organizadas por UF, zona e peso."""
 
+from decimal import Decimal, ROUND_HALF_UP
 from math import ceil
 import re
 
 
 class CalculoUfZonaError(ValueError):
     pass
+
+
+def _moeda(valor: float) -> float:
+    """Replica o arredondamento comercial por componente usado no portal."""
+    return float(Decimal(str(valor)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def _aliquota_icms(dados: dict, uf_destino: str) -> float | None:
@@ -60,6 +66,13 @@ def _cep(valor: object) -> int | None:
 
 def calcular_uf_zona(dados: dict, cotacao: dict) -> dict:
     validar_regras_calculo(dados)
+    origem_uf = str(cotacao.get("origem_uf") or "").upper()
+    origens_permitidas = {str(uf).upper() for uf in dados.get("origens_uf", [])}
+    if origem_uf and origens_permitidas and origem_uf not in origens_permitidas:
+        raise CalculoUfZonaError(
+            f"Origem {origem_uf} não contemplada pela tabela; origens válidas: "
+            + "/".join(sorted(origens_permitidas))
+        )
     peso_real = float(cotacao.get("peso") or 0)
     if peso_real <= 0:
         raise CalculoUfZonaError("Peso deve ser maior que zero")
@@ -101,17 +114,25 @@ def calcular_uf_zona(dados: dict, cotacao: dict) -> dict:
         frete_base = peso * float(tarifa["excedente_por_kg_acima_100"])
     else:
         frete_base = float(tarifa["faixas_peso"][-1]["valor"]) + (peso - 100) * float(tarifa["excedente_por_kg_acima_100"])
+    frete_base = _moeda(frete_base)
     valor_nf = float(cotacao.get("valor_nf") or 0)
-    gris = valor_nf * float(tarifa.get("gris_percentual") or 0)
-    ad_valorem = valor_nf * float(tarifa.get("ad_valorem_percentual") or 0)
+    gris = _moeda(valor_nf * float(tarifa.get("gris_percentual") or 0))
+    ad_valorem = _moeda(valor_nf * float(tarifa.get("ad_valorem_percentual") or 0))
     pedagio_unitario = float(tarifa.get("pedagio_por_fracao_100kg") or 0)
-    pedagio = ceil(peso / 100) * pedagio_unitario
-    tas = float(tarifa.get("tas_por_cte") or 0)
-    tda = float(cobertura.get("tda") or 0)
-    trt = float(cobertura.get("trt") or tarifa.get("trt") or 0)
+    pedagio = _moeda(ceil(peso / 100) * pedagio_unitario)
+    tas = _moeda(float(tarifa.get("tas_por_cte") or 0))
+    tda = _moeda(float(cobertura.get("tda") or 0))
+    trt = _moeda(float(cobertura.get("trt") or tarifa.get("trt") or 0))
     taxas = {"gris": gris, "ad_valorem": ad_valorem, "pedagio": pedagio, "tas": tas, "tda": tda, "trt": trt}
     total_taxas = sum(taxas.values())
-    subtotal_sem_imposto = frete_base + total_taxas
+    subtotal_antes_tec = _moeda(frete_base + total_taxas)
+    tec_percentual = float((dados.get("regras_gerais") or {}).get("tec_percentual_total_frete") or 0)
+    if not 0 <= tec_percentual < 1:
+        raise CalculoUfZonaError("Percentual de TEC deve ser decimal entre 0 e 1")
+    tec = _moeda(subtotal_antes_tec * tec_percentual)
+    if tec:
+        taxas["tec"] = tec
+    subtotal_sem_imposto = _moeda(subtotal_antes_tec + tec)
     aliquota_icms = _aliquota_icms(dados, uf)
     icms = 0.0
     if aliquota_icms is not None:
@@ -122,7 +143,7 @@ def calcular_uf_zona(dados: dict, cotacao: dict) -> dict:
         taxas["icms"] = icms
     return {
         "status": "success", "frete_base": round(frete_base, 2),
-        "total_taxas": round(total_taxas + icms, 2),
+        "total_taxas": round(total_taxas + tec + icms, 2),
         "taxas_detalhadas": [{"tipo": nome.upper(), "valor": round(valor, 2)} for nome, valor in taxas.items() if valor],
         "subtotal_sem_imposto": round(subtotal_sem_imposto, 2),
         "impostos": round(icms, 2),
