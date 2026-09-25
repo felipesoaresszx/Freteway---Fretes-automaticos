@@ -25,6 +25,7 @@ from app.services.cubagem import calcular_cubagem
 from app.services.tabela_frete.calculo_rodonaves import CalculoRodonavesError, calcular_rodonaves
 from app.services.tabela_frete.calculo_uf_zona import CalculoUfZonaError, calcular_uf_zona
 from app.services.tabela_frete.calculo_transwells import CalculoTranswellsError, calcular_transwells
+from app.services.tabela_frete.calculo_transpecas import CalculoTranspecasError, calcular_transpecas
 from app.services.tabela_frete.contrato_calculo import ContractError, calculate as calcular_contrato
 from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
 
@@ -131,6 +132,12 @@ class TabelaFreteCalculoService:
                     return self._com_memoria(calcular_transwells(tabela.dados_importados.dados, dados_cotacao), tabela, dados_cotacao)
                 except CalculoTranswellsError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_TRANSWELLS", "erro_mensagem": str(exc)}
+
+            if tabela.dados_importados and tabela.dados_importados.formato == "transpecas_cep_routes_v1":
+                try:
+                    return self._com_memoria(calcular_transpecas(tabela.dados_importados.dados, dados_cotacao), tabela, dados_cotacao)
+                except CalculoTranspecasError as exc:
+                    return {"status": "error", "erro_codigo": "REGRA_TABELA_TRANSPECAS", "erro_mensagem": str(exc)}
 
             if tabela.dados_importados and tabela.dados_importados.formato == "canonical_freight_v1":
                 try:

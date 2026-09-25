@@ -4,6 +4,17 @@ from app.schemas.tabela_frete import TabelaExtraidaSchema
 
 
 def normalizar_preview(dados: dict) -> dict:
+    if dados.get("formato") == "transpecas_cep_routes_v1":
+        routes = dados.get("freight_routes") or []
+        return {
+            "formato": dados["formato"],
+            "carrier_tables": dados.get("carrier_tables", {}),
+            "freight_routes": routes,
+            "estatisticas": dados.get("estatisticas", {"rotas": len(routes)}),
+            "requer_mapeamento_tarifario": False,
+            "pendencias": ["vigencia", "cep_faixas_metropolitanas"],
+            "fonte": {"parser": "transpecas_cep_routes_v1"},
+        }
     if dados.get("formato") == "correios_uf_peso_v1":
         return {
             "formato":dados["formato"],"transportadora":dados.get("transportadora"),"servico":dados.get("servico"),

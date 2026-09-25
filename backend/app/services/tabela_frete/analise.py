@@ -392,6 +392,22 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 "campos_com_duvida": [], "resumo": dados.get("statistics", {}),
             }
     if documento.tipo_arquivo == "docx":
+        from app.services.tabela_frete.transpecas_docx import extract_transpecas_docx
+
+        dados_transpecas = extract_transpecas_docx(caminho)
+        if dados_transpecas:
+            return {
+                "dados_extraidos": dados_transpecas,
+                "confianca_extracao": 1.0,
+                "erros_validacao": [],
+                "avisos": [
+                    "Regra de peso real e substituicao da faixa fixa acima de 100 kg confirmada por cotacao real.",
+                    "Cubagem preservada com cubagem_ativa=false ate confirmacao da transportadora.",
+                    "Faixas metropolitanas de CEP pendentes; CEPs PE/BA nao mapeados usam o fallback interior.",
+                ],
+                "campos_com_duvida": ["vigencia", "cep_faixas_metropolitanas"],
+                "resumo": dados_transpecas["estatisticas"],
+            }
         from app.services.tabela_frete.proposta_cif_docx import extract_cif_proposal_docx
 
         dados = extract_cif_proposal_docx(caminho)
@@ -561,6 +577,27 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
     """Substitui regras da tabela pelos dados humanos revisados."""
     from app.services.document_intelligence.learning import learn_structure
     await learn_structure(db,tabela,dados)
+    if dados.get("formato") == "transpecas_cep_routes_v1":
+        routes = dados.get("freight_routes") or []
+        if not routes or not any(route.get("tipo_destino") == "interior" for route in routes):
+            raise AnaliseDocumentoError("Tabela Transpecas precisa conter rotas e fallback interior")
+        if any(route.get("cubagem_ativa") is not False for route in routes):
+            raise AnaliseDocumentoError("Cubagem da Transpecas deve permanecer inativa ate confirmacao oficial")
+        await db.execute(
+            delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
+        )
+        db.add(TabelaFreteDadosImportados(
+            tabela_frete_id=tabela.id,
+            formato=dados["formato"],
+            canonical_schema="transpecas_cep_routes_v1",
+            schema_version=1,
+            validation_status="TABLE_VALIDATED_WITH_PENDING_CEP_RANGES",
+            dados=dados,
+            quantidade_coberturas=sum(len(route.get("cep_faixas") or []) for route in routes),
+            quantidade_tarifas=len(routes) * 2,
+        ))
+        tabela.fator_cubagem = 300.0
+        return
     if dados.get("formato") == "canonical_freight_v1":
         from app.services.tabela_frete.contrato import validate
         validation = validate(dados)

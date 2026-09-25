@@ -1,0 +1,89 @@
+{
+  "formato": "transpecas_cep_routes_v1",
+  "carrier_tables": {
+    "transportadora": "Transpeças",
+    "nome": "Tabela de frete Transpeças - Modial",
+    "vigencia": {
+      "inicio": null,
+      "fim": null,
+      "status": "NAO_INFORMADA_NO_DOCUMENTO"
+    },
+    "source_document": "TABELA DE FRETE TRANSPEÇAS.docx",
+    "calculo_confirmado_por_cotacao_real": true
+  },
+  "freight_routes": [
+    {
+      "origem": "GUARULHOS - SP",
+      "origem_uf": "SP",
+      "origem_cep_faixas": [{"cep_inicio": "07000000", "cep_fim": "07299999"}],
+      "destino_label": "PETROLINA - PE / JUAZEIRO - BA",
+      "destino_ufs": ["PE", "BA"],
+      "tipo_destino": "cidade_metropolitana",
+      "cep_faixas": [],
+      "mapeamento_cep_status": "PENDENTE_CONFIRMACAO_TRANSPORTADORA",
+      "faixa_fixa_valor": 120.00,
+      "faixa_fixa_max": 100,
+      "frete_peso": 1.20,
+      "fator_cubagem": 300,
+      "cubagem_ativa": false
+    },
+    {
+      "origem": "RECIFE - PE",
+      "origem_uf": "PE",
+      "origem_cep_faixas": [{"cep_inicio": "50000000", "cep_fim": "52999999"}],
+      "destino_label": "PETROLINA - PE / JUAZEIRO - BA",
+      "destino_ufs": ["PE", "BA"],
+      "tipo_destino": "cidade_metropolitana",
+      "cep_faixas": [],
+      "mapeamento_cep_status": "PENDENTE_CONFIRMACAO_TRANSPORTADORA",
+      "faixa_fixa_valor": 80.00,
+      "faixa_fixa_max": 100,
+      "frete_peso": 0.70,
+      "fator_cubagem": 300,
+      "cubagem_ativa": false
+    },
+    {
+      "origem": "RECIFE - PE",
+      "origem_uf": "PE",
+      "origem_cep_faixas": [{"cep_inicio": "50000000", "cep_fim": "52999999"}],
+      "destino_label": "INTERIOR PE / BA",
+      "destino_ufs": ["PE", "BA"],
+      "tipo_destino": "interior",
+      "cep_faixas": [],
+      "faixa_fixa_valor": 100.00,
+      "faixa_fixa_max": 100,
+      "frete_peso": 0.90,
+      "fator_cubagem": 300,
+      "cubagem_ativa": false
+    },
+    {
+      "origem": "GUARULHOS - SP",
+      "origem_uf": "SP",
+      "origem_cep_faixas": [{"cep_inicio": "07000000", "cep_fim": "07299999"}],
+      "destino_label": "INTERIOR PE / BA",
+      "destino_ufs": ["PE", "BA"],
+      "tipo_destino": "interior",
+      "cep_faixas": [],
+      "faixa_fixa_valor": 140.00,
+      "faixa_fixa_max": 100,
+      "frete_peso": 1.40,
+      "fator_cubagem": 300,
+      "cubagem_ativa": false
+    },
+    {
+      "origem": "GUARULHOS - SP",
+      "origem_uf": "SP",
+      "origem_cep_faixas": [{"cep_inicio": "07000000", "cep_fim": "07299999"}],
+      "destino_label": "RECIFE - PE (GRANDE RECIFE)",
+      "destino_ufs": ["PE"],
+      "tipo_destino": "cidade_metropolitana",
+      "cep_faixas": [],
+      "mapeamento_cep_status": "PENDENTE_CONFIRMACAO_TRANSPORTADORA",
+      "faixa_fixa_valor": 150.00,
+      "faixa_fixa_max": 100,
+      "frete_peso": 1.50,
+      "fator_cubagem": 300,
+      "cubagem_ativa": false
+    }
+  ]
+}
