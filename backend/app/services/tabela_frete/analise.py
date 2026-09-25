@@ -309,6 +309,21 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
     if documento.tipo_arquivo == "csv":
         return analisar_csv(caminho, tabela)
     if documento.tipo_arquivo == "pdf":
+        from app.services.tabela_frete.tabela_unificada_pdf import extract_unified_table_pdf
+
+        dados_unificados = extract_unified_table_pdf(caminho)
+        if dados_unificados:
+            return {
+                "dados_extraidos": dados_unificados,
+                "confianca_extracao": 1.0,
+                "erros_validacao": [],
+                "avisos": [
+                    "Tabela Unificada reconhecida: tarifas por kg, mínimos, adicionais e cobertura por CEP foram normalizados.",
+                    "O ICMS não foi calculado porque o documento não informa a alíquota aplicável.",
+                ],
+                "campos_com_duvida": ["aliquota_icms"],
+                "resumo": dados_unificados["estatisticas"],
+            }
         from app.services.tabela_frete.tabela_combinada_pdf import extract_combined_table_pdf
 
         dados_combinados = extract_combined_table_pdf(caminho)

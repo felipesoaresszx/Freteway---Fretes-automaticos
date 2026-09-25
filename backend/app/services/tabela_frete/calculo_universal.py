@@ -312,6 +312,8 @@ def calcular_universal(data: dict, quote: dict) -> dict:
             amount = total * float(surcharge.get("value") or 0)
         elif kind == "WEIGHT_FRACTION":
             amount = math.ceil(weight / float(surcharge.get("fraction_kg") or 100)) * float(surcharge.get("value") or 0)
+        elif kind == "PER_KG":
+            amount = weight * float(surcharge.get("value") or 0)
         else:
             continue
         minimum = surcharge.get("minimum")
