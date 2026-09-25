@@ -104,6 +104,9 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
   if (revisao.isError || !revisao.data) return <p className="text-sm text-state-error">Não foi possível carregar a revisão.</p>;
   const preview = revisao.data.preview_estruturado;
   const diagnostico = revisao.data.diagnostico_confianca;
+  const resumo = revisao.data.analysis_summary;
+  const testes = resumo?.tests ?? revisao.data.automatic_tests;
+  const confianca = Number(revisao.data.confianca_extracao ?? resumo?.confidence ?? 0);
   const formatoUfZona = preview?.formato === "uf_zona_peso_v1";
   const formatoCanonical = preview?.formato === "canonical_freight_v1";
   const formatoTranswells = preview?.formato === "transwells_pracas_peso_v1";
@@ -128,28 +131,28 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium">Revisão da extração</h3>
-          <p className="text-xs text-text-secondary">Confiança: {(revisao.data.confianca_extracao * 100).toFixed(0)}%</p>
+          <p className="text-xs text-text-secondary">Confiança: {(confianca * 100).toFixed(0)}%</p>
         </div>
         <button onClick={onClose} className="text-xs text-text-secondary">Fechar</button>
       </div>
-      {revisao.data.analysis_summary && (
-        <div className={`rounded-lg border p-4 ${revisao.data.analysis_summary.approval_ready ? "border-state-success/30 bg-state-success/5" : "border-state-warning/40 bg-state-warning/5"}`}>
+      {resumo && (
+        <div className={`rounded-lg border p-4 ${resumo.approval_ready ? "border-state-success/30 bg-state-success/5" : "border-state-warning/40 bg-state-warning/5"}`}>
           <div className="flex items-start justify-between gap-4">
-            <div><h4 className="text-sm font-medium">{revisao.data.analysis_summary.approval_ready ? "Tabela validada" : "Revisão necessária"}</h4><p className="mt-1 text-xs text-text-secondary">Formato: {revisao.data.analysis_summary.table_type}</p></div>
-            <span className="text-sm font-medium tabular-nums">{(revisao.data.analysis_summary.confidence * 100).toFixed(0)}% de confiança</span>
+            <div><h4 className="text-sm font-medium">{resumo.approval_ready ? "Tabela validada" : "Revisão necessária"}</h4><p className="mt-1 text-xs text-text-secondary">Formato: {resumo.table_type || preview?.formato || "não identificado"}</p></div>
+            <span className="text-sm font-medium tabular-nums">{(Number(resumo.confidence ?? confianca) * 100).toFixed(0)}% de confiança</span>
           </div>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
-            <div><dt className="text-text-secondary">Documentos</dt><dd className="mt-1 text-base font-medium">{revisao.data.analysis_summary.documents}</dd></div>
-            <div><dt className="text-text-secondary">Regras</dt><dd className="mt-1 text-base font-medium">{revisao.data.analysis_summary.rules}</dd></div>
-            <div><dt className="text-text-secondary">Coberturas</dt><dd className="mt-1 text-base font-medium">{revisao.data.analysis_summary.coverage_ranges}</dd></div>
-            <div><dt className="text-text-secondary">Adicionais</dt><dd className="mt-1 text-base font-medium">{revisao.data.analysis_summary.surcharges}</dd></div>
-            <div><dt className="text-text-secondary">Testes</dt><dd className="mt-1 font-medium">{revisao.data.analysis_summary.tests.passed}/{revisao.data.analysis_summary.tests.total} aprovados</dd></div>
-            <div><dt className="text-text-secondary">Para revisão</dt><dd className="mt-1 font-medium">{revisao.data.analysis_summary.review_items}</dd></div>
-            <div className="col-span-2"><dt className="text-text-secondary">Analisador</dt><dd className="mt-1 font-medium">{revisao.data.analysis_summary.ai?.provider === "disabled" ? "Parsers determinísticos" : `${revisao.data.analysis_summary.ai?.provider} / ${revisao.data.analysis_summary.ai?.model}`}</dd></div>
+            <div><dt className="text-text-secondary">Documentos</dt><dd className="mt-1 text-base font-medium">{resumo.documents ?? revisao.data.documentos_originais?.length ?? 1}</dd></div>
+            <div><dt className="text-text-secondary">Regras</dt><dd className="mt-1 text-base font-medium">{resumo.rules ?? "—"}</dd></div>
+            <div><dt className="text-text-secondary">Coberturas</dt><dd className="mt-1 text-base font-medium">{resumo.coverage_ranges ?? "—"}</dd></div>
+            <div><dt className="text-text-secondary">Adicionais</dt><dd className="mt-1 text-base font-medium">{resumo.surcharges ?? "—"}</dd></div>
+            <div><dt className="text-text-secondary">Testes</dt><dd className="mt-1 font-medium">{testes ? `${testes.passed}/${testes.total} aprovados` : "Não disponíveis nesta análise"}</dd></div>
+            <div><dt className="text-text-secondary">Para revisão</dt><dd className="mt-1 font-medium">{resumo.review_items ?? revisao.data.campos_com_duvida?.length ?? 0}</dd></div>
+            <div className="col-span-2"><dt className="text-text-secondary">Analisador</dt><dd className="mt-1 font-medium">{!resumo.ai?.provider || resumo.ai.provider === "disabled" ? "Motor determinístico" : `${resumo.ai.provider}${resumo.ai.model ? ` / ${resumo.ai.model}` : ""}`}</dd></div>
           </dl>
         </div>
       )}
-      {revisao.data.confianca_extracao < 1 && diagnostico && (
+      {confianca < 1 && diagnostico && (
         <div className={`rounded-lg border p-4 ${diagnostico.aceito_para_cadastro ? "border-state-warning/40 bg-state-warning/5" : "border-state-error/40 bg-state-error/5"}`}>
           <div className="flex items-start gap-3">
             <AlertTriangle size={20} className={`mt-0.5 shrink-0 ${diagnostico.aceito_para_cadastro ? "text-state-warning" : "text-state-error"}`} />
@@ -164,7 +167,7 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
             </div>
           </div>
           <div className="mt-4 space-y-3">
-            {diagnostico.motivos.map((motivo) => (
+            {(diagnostico.motivos ?? []).map((motivo) => (
               <div key={motivo.campo} className="rounded border border-border bg-surface2 p-3 text-xs">
                 <div className="flex items-start justify-between gap-3"><strong className={motivo.impeditivo ? "text-state-error" : "text-state-warning"}>{motivo.titulo}</strong><span className="shrink-0 text-text-secondary">{motivo.impeditivo ? "Impede o cadastro" : "Requer revisão"}</span></div>
                 <p className="mt-1 text-text-secondary"><span className="text-text-primary">Por quê:</span> {motivo.explicacao}</p>
@@ -222,10 +225,10 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
             </div>
           ) : preview && !requerMapeamento ? (
             <div className="mt-1 grid gap-3 rounded border border-border bg-surface2 p-4 sm:grid-cols-2">
-              <p className="text-sm"><strong>{preview.pracas.length}</strong><br /><span className="text-xs text-text-secondary">praças/faixas de cobertura</span></p>
-              <p className="text-sm"><strong>{preview.faixas_tarifarias.length}</strong><br /><span className="text-xs text-text-secondary">faixas tarifárias</span></p>
-              <p className="text-sm"><strong>{Object.keys(preview.regras).length}</strong><br /><span className="text-xs text-text-secondary">grupos de regras e taxas</span></p>
-              <p className="text-sm"><strong>{Object.keys(preview.zonas_especiais).length}</strong><br /><span className="text-xs text-text-secondary">grupos de zonas especiais</span></p>
+              <p className="text-sm"><strong>{preview.pracas?.length ?? 0}</strong><br /><span className="text-xs text-text-secondary">praças/faixas de cobertura</span></p>
+              <p className="text-sm"><strong>{preview.faixas_tarifarias?.length ?? 0}</strong><br /><span className="text-xs text-text-secondary">faixas tarifárias</span></p>
+              <p className="text-sm"><strong>{Object.keys(preview.regras ?? {}).length}</strong><br /><span className="text-xs text-text-secondary">grupos de regras e taxas</span></p>
+              <p className="text-sm"><strong>{Object.keys(preview.zonas_especiais ?? {}).length}</strong><br /><span className="text-xs text-text-secondary">grupos de zonas especiais</span></p>
               <p className="sm:col-span-2 text-xs text-text-secondary">Preview universal validado pelo backend. Correções estruturais devem ser feitas no arquivo ou no mapeamento do importador.</p>
             </div>
           ) : requerMapeamento ? (
@@ -246,7 +249,7 @@ export function TabelaFreteRevisao({ tabelaId, transportadoraId, onClose }: Prop
           )}
         </div>
       </div>
-      {revisao.data.avisos.map((aviso) => <p key={aviso} className="text-xs text-state-warning">{aviso}</p>)}
+      {(revisao.data.avisos ?? []).map((aviso) => <p key={aviso} className="text-xs text-state-warning">{aviso}</p>)}
       {preview?.formato === "canonical_freight_v1" && <div className="space-y-3 rounded border border-border bg-surface2 p-4">
         <div><h4 className="text-sm font-medium">Simular cotação</h4><p className="text-xs text-text-secondary">Use o contrato consolidado ainda em revisão. Valores pendentes aparecem explicitamente.</p></div>
         <div className="grid gap-2 sm:grid-cols-4">

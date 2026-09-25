@@ -62,17 +62,17 @@ export interface AnaliseJobStatus {
 }
 
 export interface AnaliseResumo {
-  table_type: string;
-  documents: number;
-  rules: number;
-  coverage_ranges: number;
-  surcharges: number;
-  confidence: number;
-  review_items: number;
-  tests: { status: string; total: number; passed: number; failed: number };
-  approval_ready: boolean;
+  table_type?: string;
+  documents?: number;
+  rules?: number;
+  coverage_ranges?: number;
+  surcharges?: number;
+  confidence?: number;
+  review_items?: number;
+  tests?: { status: string; total: number; passed: number; failed: number };
+  approval_ready?: boolean;
   ai?: { provider?: string; model?: string | null; prompt_version?: string | null };
-  duration_ms: number;
+  duration_ms?: number;
 }
 
 export interface DocumentoFrete {
