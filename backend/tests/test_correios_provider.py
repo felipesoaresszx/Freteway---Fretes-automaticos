@@ -65,7 +65,7 @@ async def test_preco_portal_usa_referencia_e_valor_declarado(monkeypatch):
             return httpx.Response(201, json={"token": "jwt", "expiraEm": "2099-01-01T00:00:00Z"}, request=httpx.Request("POST", url))
         async def get(self, url, **kwargs):
             body = {
-                "pcFinal": "33,47", "pcReferencia": "42,70",
+                "pcFinal": "54,07", "pcReferencia": "89,20",
                 "pcTotalServicosAdicionais": "7,00",
             } if "/preco/" in url else {"prazoEntrega": 6}
             return httpx.Response(200, json=body, request=httpx.Request("GET", url))
@@ -76,13 +76,13 @@ async def test_preco_portal_usa_referencia_e_valor_declarado(monkeypatch):
 
     result = (await CorreiosProvider().quote(request(), credentials()))[0]
 
-    assert result.price == Decimal("49.70")
+    assert result.price == Decimal("96.20")
     assert result.metadata == {
         "pricing_mode": "portal",
         "requested_service_code": "03220",
         "resolved_service_code": "03220",
-        "contract_price": "33.47",
-        "reference_price": "42.70",
+        "contract_price": "54.07",
+        "reference_price": "89.20",
         "additional_services_price": "7.00",
     }
 
@@ -108,6 +108,35 @@ async def test_preco_contrato_preserva_pc_final(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_pac_usa_valor_declarado_standard_e_total_do_portal(monkeypatch):
+    calls = []
+
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+        async def post(self, url, **kwargs):
+            return httpx.Response(201, json={"token": "jwt", "expiraEm": "2099-01-01T00:00:00Z"}, request=httpx.Request("POST", url))
+        async def get(self, url, **kwargs):
+            calls.append((url, kwargs))
+            body = {
+                "pcFinal": "33,47", "pcReferencia": "42,70",
+                "pcTotalServicosAdicionais": "7,00",
+            } if "/preco/" in url else {"prazoEntrega": 6}
+            return httpx.Response(200, json=body, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr("app.integrations.correios.client.validate_external_url", lambda url: url)
+    CorreiosClient._tokens.clear()
+
+    result = (await CorreiosProvider().quote(request(), {**credentials(), "service_codes": "03298"}))[0]
+
+    assert result.price == Decimal("49.70")
+    price_call = next(call for call in calls if "/preco/" in call[0])
+    assert price_call[1]["params"]["servicosAdicionais"] == "064"
+    assert price_call[1]["params"]["vlDeclarado"] == "200.00"
+
+
+@pytest.mark.asyncio
 async def test_pac_tenta_codigo_contratual_alternativo_quando_03298_falha(monkeypatch):
     calls = []
 
@@ -117,7 +146,7 @@ async def test_pac_tenta_codigo_contratual_alternativo_quando_03298_falha(monkey
         async def post(self, url, **kwargs):
             return httpx.Response(201, json={"token": "jwt", "expiraEm": "2099-01-01T00:00:00Z"}, request=httpx.Request("POST", url))
         async def get(self, url, **kwargs):
-            calls.append(url)
+            calls.append((url, kwargs))
             if "/03298" in url:
                 return httpx.Response(400, json={"mensagem": "Produto indisponível"}, request=httpx.Request("GET", url))
             body = {"pcFinal": "33,47", "pcReferencia": "42,70", "pcTotalServicosAdicionais": "7,00"} if "/preco/" in url else {"prazoEntrega": 6}
@@ -134,8 +163,10 @@ async def test_pac_tenta_codigo_contratual_alternativo_quando_03298_falha(monkey
     assert result.service_name == "PAC contrato"
     assert result.metadata["requested_service_code"] == "03298"
     assert result.metadata["resolved_service_code"] == "04669"
-    assert any("/preco/v1/nacional/03298" in url for url in calls)
-    assert any("/preco/v1/nacional/04669" in url for url in calls)
+    assert any("/preco/v1/nacional/03298" in url for url, _ in calls)
+    assert any("/preco/v1/nacional/04669" in url for url, _ in calls)
+    price_calls = [kwargs for url, kwargs in calls if "/preco/" in url]
+    assert all(call["params"]["servicosAdicionais"] == "064" for call in price_calls)
 
 
 @pytest.mark.asyncio

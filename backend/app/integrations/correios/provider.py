@@ -22,6 +22,8 @@ SERVICE_FALLBACKS = {
     "03298": "04669",
 }
 
+STANDARD_SERVICE_CODES = {"03298", "04669"}
+
 
 def _decimal_br(value: Any) -> Decimal:
     text = str(value).strip()
@@ -55,7 +57,7 @@ def _context(request: FreightQuoteRequest) -> dict[str, Any]:
     return request.products[0] if request.products and isinstance(request.products[0], dict) else {}
 
 
-def _package(request: FreightQuoteRequest) -> dict[str, str]:
+def _package(request: FreightQuoteRequest, service_code: str) -> dict[str, str]:
     volumes = _context(request).get("volumes") or []
     volume = volumes[0] if volumes and isinstance(volumes[0], dict) else {}
     package = {
@@ -68,7 +70,9 @@ def _package(request: FreightQuoteRequest) -> dict[str, str]:
         "altura": str(max(2, round(float(volume.get("altura_cm") or 2)))),
     }
     if request.total_value > 0:
-        package["servicosAdicionais"] = "019"
+        # Os Correios usam adicionais distintos para Valor Declarado:
+        # 019 para produtos expressos (SEDEX) e 064 para standard (PAC).
+        package["servicosAdicionais"] = "064" if service_code in STANDARD_SERVICE_CODES else "019"
         package["vlDeclarado"] = format(request.total_value, ".2f")
     return package
 
@@ -93,9 +97,8 @@ class CorreiosProvider(CarrierAdapter):
     async def quote(self, request: FreightQuoteRequest, credentials: dict[str, str]) -> list[FreightQuoteResult]:
         codes = self._service_codes(credentials)
         client = CorreiosClient(credentials)
-        package = _package(request)
         responses = await asyncio.gather(
-            *(client.quote_service(code, package) for code in codes),
+            *(client.quote_service(code, _package(request, code)) for code in codes),
             return_exceptions=True,
         )
         results = []
@@ -108,7 +111,7 @@ class CorreiosProvider(CarrierAdapter):
                 fallback_code = SERVICE_FALLBACKS.get(code)
                 if fallback_code:
                     try:
-                        response = await client.quote_service(fallback_code, package)
+                        response = await client.quote_service(fallback_code, _package(request, fallback_code))
                         resolved_code = fallback_code
                     except BaseException as fallback_error:
                         fallback_message = str(fallback_error).strip() or type(fallback_error).__name__
