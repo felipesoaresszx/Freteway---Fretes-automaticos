@@ -617,7 +617,7 @@ class TabelaFreteDadosImportados(Base):
     formato: Mapped[str] = mapped_column(String(80), index=True)
     canonical_schema: Mapped[str | None] = mapped_column(String(80), nullable=True)
     schema_version: Mapped[int] = mapped_column(Integer, default=1)
-    validation_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    validation_status: Mapped[str | None] = mapped_column(String(64), nullable=True)
     dados: Mapped[dict] = mapped_column(JSONB)
     quantidade_coberturas: Mapped[int] = mapped_column(Integer, default=0)
     quantidade_tarifas: Mapped[int] = mapped_column(Integer, default=0)

@@ -14,9 +14,17 @@ from app.services.tabela_frete.transpecas_docx import (
     extract_transpecas_pdf_text,
     extract_transpecas_text,
 )
+from app.models.models import TabelaFreteDadosImportados
 
 
 TABLE_PATH = Path(__file__).resolve().parents[2] / "data" / "tariffs" / "transpecas" / "tabela_confirmada.json"
+
+
+def test_status_de_validacao_transpecas_cabe_na_coluna_do_banco():
+    status = "TABLE_VALIDATED_WITH_PENDING_CEP_RANGES"
+    column = TabelaFreteDadosImportados.__table__.c.validation_status
+
+    assert column.type.length >= len(status)
 
 
 @pytest.fixture
