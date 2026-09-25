@@ -309,6 +309,21 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
     if documento.tipo_arquivo == "csv":
         return analisar_csv(caminho, tabela)
     if documento.tipo_arquivo == "pdf":
+        from app.services.tabela_frete.transpecas_docx import extract_transpecas_pdf
+
+        dados_transpecas = extract_transpecas_pdf(caminho)
+        if dados_transpecas:
+            return {
+                "dados_extraidos": dados_transpecas,
+                "confianca_extracao": 1.0,
+                "erros_validacao": [],
+                "avisos": [
+                    "Tabela Transpecas reconhecida; regra operacional confirmada pela cotacao real aplicada.",
+                    "Cubagem calculada apenas para auditoria; peso real e fallback interior usados nesta tabela.",
+                ],
+                "campos_com_duvida": ["vigencia", "cep_faixas_metropolitanas"],
+                "resumo": dados_transpecas["estatisticas"],
+            }
         from app.services.tabela_frete.tabela_unificada_pdf import extract_unified_table_pdf
 
         dados_unificados = extract_unified_table_pdf(caminho)

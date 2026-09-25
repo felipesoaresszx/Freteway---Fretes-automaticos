@@ -9,7 +9,11 @@ from app.services.tabela_frete.calculo_transpecas import (
     calcular_transpecas,
 )
 from app.services.tabela_frete.tabela_import import normalizar_preview
-from app.services.tabela_frete.transpecas_docx import extract_transpecas_text
+from app.services.tabela_frete.transpecas_docx import (
+    extract_transpecas_pdf,
+    extract_transpecas_pdf_text,
+    extract_transpecas_text,
+)
 
 
 TABLE_PATH = Path(__file__).resolve().parents[2] / "data" / "tariffs" / "transpecas" / "tabela_confirmada.json"
@@ -177,3 +181,31 @@ def test_layout_docx_e_reconhecido_e_preserva_as_cinco_rotas():
     preview = normalizar_preview(parsed)
     assert preview["requer_mapeamento_tarifario"] is False
     assert "cep_faixas_metropolitanas" in preview["pendencias"]
+
+
+def test_layout_pdf_unificado_e_reconhecido_e_calcula_cotacao_real():
+    text = """
+    TRANSPEÇAS
+    1. MATRIZ DE TARIFAS POR ORIGEM E DESTINO
+    Guarulhos/SP → Petrolina/PE & Juazeiro/BA R$ 120,00 R$ 1,20 / kg
+    Guarulhos/SP → Interior PE & Norte BA R$ 140,00 R$ 1,40 / kg
+    Guarulhos/SP → Grande Recife / PE R$ 150,00 R$ 1,50 / kg
+    Recife/PE → Petrolina/PE & Juazeiro/BA R$ 80,00 R$ 0,70 / kg
+    Recife/PE → Interior PE & Norte BA R$ 100,00 R$ 0,90 / kg
+    """
+    parsed = extract_transpecas_pdf_text(text, source_document="transpecas.pdf")
+    assert parsed is not None
+    assert len(parsed["freight_routes"]) == 5
+    assert calcular_transpecas(parsed, quote(with_dimensions=True))["valor_total"] == 1367.80
+
+
+def test_pdf_real_quando_disponivel():
+    path = Path(r"C:\Users\MODIAL\Downloads\Tabela Unificada Transpeças PE-BA 2024.pdf")
+    if not path.exists():
+        pytest.skip("PDF real nao esta disponivel")
+    parsed = extract_transpecas_pdf(path)
+    assert parsed is not None
+    result = calcular_transpecas(parsed, quote(with_dimensions=True))
+    assert result["valor_total"] == 1367.80
+    assert result["peso_real_kg"] == 977
+    assert result["peso_cubado_kg"] == pytest.approx(5477.9619)
