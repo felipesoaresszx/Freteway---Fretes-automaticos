@@ -12,7 +12,7 @@ def normalizar_preview(dados: dict) -> dict:
             "freight_routes": routes,
             "estatisticas": dados.get("estatisticas", {"rotas": len(routes)}),
             "requer_mapeamento_tarifario": False,
-            "pendencias": ["vigencia", "cep_faixas_metropolitanas"],
+            "pendencias": ["tabela_vigente", "regra_volumes_fora_do_padrao"],
             "fonte": {"parser": "transpecas_cep_routes_v1"},
         }
     if dados.get("formato") == "correios_uf_peso_v1":

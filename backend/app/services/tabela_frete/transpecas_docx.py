@@ -30,12 +30,20 @@ ROUTES = {
         "origem_cep_faixas": [{"cep_inicio": "07000000", "cep_fim": "07299999"}],
         "destino_label": "PETROLINA - PE / JUAZEIRO - BA", "destino_ufs": ["PE", "BA"],
         "tipo_destino": "cidade_metropolitana",
+        "cep_faixas": [
+            {"cep_inicio": "56300000", "cep_fim": "56334999"},
+            {"cep_inicio": "48900000", "cep_fim": "48919999"},
+        ],
     },
     "RECIFE PE A PETROLINA PE JUAZEIRO BA": {
         "origem": "RECIFE - PE", "origem_uf": "PE",
         "origem_cep_faixas": [{"cep_inicio": "50000000", "cep_fim": "52999999"}],
         "destino_label": "PETROLINA - PE / JUAZEIRO - BA", "destino_ufs": ["PE", "BA"],
         "tipo_destino": "cidade_metropolitana",
+        "cep_faixas": [
+            {"cep_inicio": "56300000", "cep_fim": "56334999"},
+            {"cep_inicio": "48900000", "cep_fim": "48919999"},
+        ],
     },
     "RECIFE PE A INTERIOR PE BA": {
         "origem": "RECIFE - PE", "origem_uf": "PE",
@@ -54,6 +62,7 @@ ROUTES = {
         "origem_cep_faixas": [{"cep_inicio": "07000000", "cep_fim": "07299999"}],
         "destino_label": "RECIFE - PE (GRANDE RECIFE)", "destino_ufs": ["PE"],
         "tipo_destino": "cidade_metropolitana",
+        "cep_faixas": [{"cep_inicio": "50000000", "cep_fim": "55099999"}],
     },
 }
 
@@ -78,9 +87,14 @@ def _result(routes: list[dict], source_document: str) -> dict:
             "vigencia": {"inicio": None, "fim": None, "status": "NAO_INFORMADA_NO_DOCUMENTO"},
             "source_document": source_document,
             "calculo_confirmado_por_cotacao_real": True,
+            "cotacao_automatica_liberada": False,
+            "bloqueio_motivo": (
+                "Tabela identificada como 2024; tarifa vigente e regra para volumes "
+                "fora do padrao precisam ser confirmadas"
+            ),
             "regra_operacional_observada": {
-                "descricao": "Cotacao real prevalece sobre a regra geral do PDF",
-                "peso_taxavel": "PESO_REAL",
+                "descricao": "Evidencias de cotacoes reais divergem da regra geral do PDF",
+                "peso_taxavel": "PENDENTE_CONFIRMACAO",
                 "recife_cep_51180130": "TARIFA_INTERIOR_PE_BA",
                 "cotacao_referencia": {"peso_kg": 977, "valor_frete": 1367.80},
             },
@@ -107,12 +121,12 @@ def extract_transpecas_text(text: str, *, source_document: str) -> dict | None:
             return None
         route = {
             **metadata,
-            "cep_faixas": [],
+            "cep_faixas": list(metadata.get("cep_faixas", [])),
             "faixa_fixa_valor": amounts[0],
             "faixa_fixa_max": 100,
             "frete_peso": amounts[1],
             "fator_cubagem": 300,
-            "cubagem_ativa": False,
+            "cubagem_ativa": True,
         }
         if route["tipo_destino"] == "cidade_metropolitana":
             route["mapeamento_cep_status"] = "PENDENTE_CONFIRMACAO_TRANSPORTADORA"
@@ -139,12 +153,12 @@ def extract_transpecas_pdf_text(text: str, *, source_document: str) -> dict | No
         metadata = ROUTES[route_key]
         route = {
             **metadata,
-            "cep_faixas": [],
+            "cep_faixas": list(metadata.get("cep_faixas", [])),
             "faixa_fixa_valor": _money(match.group(1)),
             "faixa_fixa_max": 100,
             "frete_peso": _money(match.group(2)),
             "fator_cubagem": 300,
-            "cubagem_ativa": False,
+            "cubagem_ativa": True,
         }
         if route["tipo_destino"] == "cidade_metropolitana":
             route["mapeamento_cep_status"] = "PENDENTE_CONFIRMACAO_TRANSPORTADORA"

@@ -611,8 +611,8 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
         routes = dados.get("freight_routes") or []
         if not routes or not any(route.get("tipo_destino") == "interior" for route in routes):
             raise AnaliseDocumentoError("Tabela Transpecas precisa conter rotas e fallback interior")
-        if any(route.get("cubagem_ativa") is not False for route in routes):
-            raise AnaliseDocumentoError("Cubagem da Transpecas deve permanecer inativa ate confirmacao oficial")
+        if any(route.get("cubagem_ativa") is not True for route in routes):
+            raise AnaliseDocumentoError("Cubagem da Transpecas deve usar o maior peso entre real e cubado")
         await db.execute(
             delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
         )

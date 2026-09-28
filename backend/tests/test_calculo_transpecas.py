@@ -29,7 +29,15 @@ def test_status_de_validacao_transpecas_cabe_na_coluna_do_banco():
 
 @pytest.fixture
 def table():
-    return json.loads(TABLE_PATH.read_text(encoding="utf-8"))
+    result = json.loads(TABLE_PATH.read_text(encoding="utf-8"))
+    result["carrier_tables"]["cotacao_automatica_liberada"] = True
+    return result
+
+
+def test_tabela_2024_confirmada_fica_bloqueada_ate_nova_validacao():
+    configured = json.loads(TABLE_PATH.read_text(encoding="utf-8"))
+    with pytest.raises(CalculoTranspecasError, match="Cotacao automatica.*bloqueada"):
+        calcular_transpecas(configured, quote())
 
 
 VOLUMES_CASO_REAL = [
@@ -69,17 +77,17 @@ def quote(*, weight=977, destination="51180-130", with_dimensions=False):
 def test_caso_real_67_volumes_reproduz_regra_operacional_da_transportadora(table):
     result = calcular_transpecas(table, quote(with_dimensions=True))
 
-    assert result["valor_total"] == 1367.80
+    assert result["valor_total"] == 8216.94
     assert result["peso_real_kg"] == 977
     assert result["peso_cubado_kg"] == pytest.approx(5477.9619)
-    assert result["peso_considerado_kg"] == 977
-    assert result["cubagem_aplicada"] is False
-    assert result["politica_peso_taxavel"] == "PESO_REAL"
+    assert result["peso_considerado_kg"] == pytest.approx(5477.9619)
+    assert result["cubagem_aplicada"] is True
+    assert result["politica_peso_taxavel"] == "MAIOR_ENTRE_REAL_E_CUBADO"
     assert result["detalhe_calculo"]["regra_operacional_observada"] is True
-    assert result["rota_aplicada"] == "INTERIOR PE / BA"
-    assert result["fallback_interior"] is True
+    assert result["rota_aplicada"] == "RECIFE - PE (GRANDE RECIFE)"
+    assert result["fallback_interior"] is False
     assert result["tarifa_aplicada"] == {
-        "tipo": "frete_peso", "valor": 1.4, "unidade": "BRL/kg", "faixa_fixa_max_kg": 100.0,
+        "tipo": "frete_peso", "valor": 1.5, "unidade": "BRL/kg", "faixa_fixa_max_kg": 100.0,
     }
 
 
@@ -90,7 +98,7 @@ def test_cotacao_pode_determinar_ufs_apenas_pelos_ceps(table):
     request.pop("origem_cidade")
     request.pop("destino_cidade")
     result = calcular_transpecas(table, request)
-    assert result["valor_total"] == 1367.80
+    assert result["valor_total"] == 1465.50
 
 
 def test_uf_informada_nao_pode_contradizer_o_cep(table):
@@ -103,7 +111,7 @@ def test_uf_informada_nao_pode_contradizer_o_cep(table):
 @pytest.mark.parametrize("weight", [1, 100])
 def test_peso_ate_100kg_usa_valor_fixo_inclusive(table, weight):
     result = calcular_transpecas(table, quote(weight=weight))
-    assert result["valor_total"] == 140.00
+    assert result["valor_total"] == 150.00
     assert result["tarifa_aplicada"]["tipo"] == "faixa_fixa"
 
 
@@ -119,10 +127,10 @@ def test_peso_acima_de_100_em_rota_metropolitana_usa_peso_vezes_1_50(table):
     assert result["fallback_interior"] is False
 
 
-def test_cep_de_recife_nao_mapeado_cai_no_fallback_interior(table):
+def test_cep_da_grande_recife_usa_rota_metropolitana(table):
     result = calcular_transpecas(table, quote(weight=120, destination="50050-000"))
-    assert result["valor_total"] == 168.00
-    assert result["fallback_interior"] is True
+    assert result["valor_total"] == 180.00
+    assert result["fallback_interior"] is False
 
 
 def test_multiplas_nfs_sao_consolidadas_em_um_unico_frete(table):
@@ -137,7 +145,7 @@ def test_multiplas_nfs_sao_consolidadas_em_um_unico_frete(table):
 
     assert result["peso_real_kg"] == 120
     assert result["quantidade_nfs_consolidadas"] == 2
-    assert result["valor_total"] == 168.00
+    assert result["valor_total"] == 180.00
 
 
 def test_lista_de_volumes_prevalece_sobre_peso_total_e_soma_quantidades(table):
@@ -148,7 +156,23 @@ def test_lista_de_volumes_prevalece_sobre_peso_total_e_soma_quantidades(table):
     ]
     result = calcular_transpecas(table, request)
     assert result["peso_real_kg"] == 100
-    assert result["valor_total"] == 140.00
+    assert result["valor_total"] == 150.00
+
+
+def test_caso_reportado_juazeiro_segue_polo_na_tabela_2024(table):
+    request = quote(weight=90, destination="48906-770")
+    request["destino_uf"] = "BA"
+    request["volumes"] = [{
+        "quantidade": 1, "comprimento_cm": 50, "largura_cm": 165,
+        "altura_cm": 40, "peso_kg": 90,
+    }]
+
+    result = calcular_transpecas(table, request)
+
+    assert result["peso_cubado_kg"] == 99
+    assert result["peso_considerado_kg"] == 99
+    assert result["rota_aplicada"] == "PETROLINA - PE / JUAZEIRO - BA"
+    assert result["valor_total"] == 120
 
 
 def test_nfs_de_destinos_diferentes_nao_sao_consolidadas(table):
@@ -183,12 +207,12 @@ def test_layout_docx_e_reconhecido_e_preserva_as_cinco_rotas():
     parsed = extract_transpecas_text(text, source_document="transpecas.docx")
     assert parsed is not None
     assert len(parsed["freight_routes"]) == 5
-    assert all(route["cubagem_ativa"] is False for route in parsed["freight_routes"])
+    assert all(route["cubagem_ativa"] is True for route in parsed["freight_routes"])
     assert parsed["freight_routes"][-1]["frete_peso"] == 1.50
 
     preview = normalizar_preview(parsed)
     assert preview["requer_mapeamento_tarifario"] is False
-    assert "cep_faixas_metropolitanas" in preview["pendencias"]
+    assert "tabela_vigente" in preview["pendencias"]
 
 
 def test_layout_pdf_unificado_e_reconhecido_e_calcula_cotacao_real():
@@ -204,7 +228,8 @@ def test_layout_pdf_unificado_e_reconhecido_e_calcula_cotacao_real():
     parsed = extract_transpecas_pdf_text(text, source_document="transpecas.pdf")
     assert parsed is not None
     assert len(parsed["freight_routes"]) == 5
-    assert calcular_transpecas(parsed, quote(with_dimensions=True))["valor_total"] == 1367.80
+    with pytest.raises(CalculoTranspecasError, match="Cotacao automatica.*bloqueada"):
+        calcular_transpecas(parsed, quote(with_dimensions=True))
 
 
 def test_pdf_real_quando_disponivel():
@@ -213,7 +238,5 @@ def test_pdf_real_quando_disponivel():
         pytest.skip("PDF real nao esta disponivel")
     parsed = extract_transpecas_pdf(path)
     assert parsed is not None
-    result = calcular_transpecas(parsed, quote(with_dimensions=True))
-    assert result["valor_total"] == 1367.80
-    assert result["peso_real_kg"] == 977
-    assert result["peso_cubado_kg"] == pytest.approx(5477.9619)
+    with pytest.raises(CalculoTranspecasError, match="Cotacao automatica.*bloqueada"):
+        calcular_transpecas(parsed, quote(with_dimensions=True))

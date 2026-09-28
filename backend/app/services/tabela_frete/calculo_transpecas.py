@@ -180,7 +180,11 @@ def _real_weight(quote: dict, origin_cep: str, destination_cep: str) -> tuple[De
 
 def _volume_m3(item: dict) -> Decimal:
     if item.get("volume_total_m3") is not None:
-        return max(Decimal("0"), _decimal(item["volume_total_m3"], "volume total"))
+        informed = max(Decimal("0"), _decimal(item["volume_total_m3"], "volume total"))
+        # Alguns chamadores legados enviam zero junto com os volumes. Nesse
+        # caso as dimensoes continuam sendo a fonte confiavel da cubagem.
+        if informed > 0 or not item.get("volumes"):
+            return informed
     total = Decimal("0")
     for volume in item.get("volumes") or []:
         dimensions = [volume.get(name) for name in ("comprimento_cm", "largura_cm", "altura_cm")]
@@ -207,6 +211,11 @@ def calcular_transpecas(data: dict, quote: dict) -> dict:
     table = data.get("carrier_tables") or {}
     if _key(table.get("transportadora")) not in {"TRANSPECAS", "TRANSPECAS TRANSPORTES"}:
         raise CalculoTranspecasError("Tabela nao pertence a Transpecas")
+    if table.get("cotacao_automatica_liberada") is not True:
+        raise CalculoTranspecasError(
+            "Cotacao automatica da Transpecas bloqueada: confirme a tabela vigente e "
+            "as regras de cubagem/volumes com a transportadora"
+        )
 
     origin_cep = _cep(quote.get("origem_cep"), "CEP de origem")
     destination_cep = _cep(quote.get("destino_cep"), "CEP de destino")
