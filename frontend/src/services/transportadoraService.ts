@@ -1,5 +1,5 @@
 import { apiClient, getErrorStatus } from "../api/client";
-import type { AnttTransportadora, CarrierCardsPage, CarrierEligibility, CarrierIntegration, CarrierIntegrationType, CarrierService, CarrierStats, CarrierSummary, ConfiguracaoApi, ConfiguracaoApiInput, CoverageCheck, CredentialStatus, ConsultaCnpj, EnrichmentBranch, EnrichmentCoverage, EnrichmentEvidence, EnrichmentIntegration, EnrichmentJob, EnrichmentSource, EnrichmentStatus, ImportacaoPreview, ImportacaoResultado, MapeamentoSankhya, MapeamentoSankhyaInput, SSWIntegration, SSWIntegrationInput, Transportadora, TransportadoraInput } from "../types/transportadora";
+import type { AnttTransportadora, CarrierCalculationConfig, CarrierCardsPage, CarrierEligibility, CarrierIntegration, CarrierIntegrationType, CarrierService, CarrierStats, CarrierSummary, ConfiguracaoApi, ConfiguracaoApiInput, CoverageCheck, CredentialStatus, ConsultaCnpj, EnrichmentBranch, EnrichmentCoverage, EnrichmentEvidence, EnrichmentIntegration, EnrichmentJob, EnrichmentSource, EnrichmentStatus, FreightCalculationAudit, ImportacaoPreview, ImportacaoResultado, MapeamentoSankhya, MapeamentoSankhyaInput, SSWIntegration, SSWIntegrationInput, Transportadora, TransportadoraInput } from "../types/transportadora";
 
 export const transportadoraService = {
   async listar(): Promise<Transportadora[]> {
@@ -43,6 +43,15 @@ export const transportadoraService = {
   },
   async salvarMapeamentoSankhya(payload: MapeamentoSankhyaInput): Promise<MapeamentoSankhya> {
     return (await apiClient.put<MapeamentoSankhya>(`/integrations/sankhya/mapeamentos/${payload.transportadora_id}`, payload)).data;
+  },
+  async obterConfiguracaoCalculo(id: string): Promise<CarrierCalculationConfig> {
+    return (await apiClient.get<CarrierCalculationConfig>(`/transportadoras/${id}/calculation-config`)).data;
+  },
+  async salvarConfiguracaoCalculo(id: string, payload: Pick<CarrierCalculationConfig, "calculation_engine" | "shadow_calculation" | "new_engine_version">): Promise<CarrierCalculationConfig> {
+    return (await apiClient.put<CarrierCalculationConfig>(`/transportadoras/${id}/calculation-config`, payload)).data;
+  },
+  async listarAuditoriasCalculo(id: string, limit = 50): Promise<FreightCalculationAudit[]> {
+    return (await apiClient.get<FreightCalculationAudit[]>(`/transportadoras/${id}/calculation-audits`, { params: { limit } })).data;
   },
   async buscarNaAntt(query: string): Promise<AnttTransportadora[]> {
     return (await apiClient.get<AnttTransportadora[]>("/transportadoras/search/antt", { params: { q: query, limit: 20 } })).data;

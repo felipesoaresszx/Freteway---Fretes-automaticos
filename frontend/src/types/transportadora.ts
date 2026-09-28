@@ -123,6 +123,34 @@ export interface SSWIntegration {
   mensagem_ultima_validacao: string | null;
 }
 
+export interface CarrierCalculationConfig {
+  carrier_id: string;
+  calculation_engine: "LEGACY" | "NEW";
+  shadow_calculation: boolean;
+  new_engine_version: string | null;
+  is_default: boolean;
+}
+
+export interface FreightCalculationAudit {
+  id: string;
+  quote_id: string | null;
+  request_id: string;
+  carrier_id: string;
+  rate_table_id: string | null;
+  rate_table_version: string | null;
+  official_engine: "LEGACY" | "NEW";
+  shadow_engine: "NEW" | null;
+  status: string;
+  official_result: Record<string, unknown>;
+  shadow_result: Record<string, unknown> | null;
+  comparison: Record<string, unknown> | null;
+  official_duration_ms: number | null;
+  shadow_duration_ms: number | null;
+  shadow_error: string | null;
+  created_at: string;
+  shadow_completed_at: string | null;
+}
+
 export interface AnttTransportadora {
   nome: string;
   cnpj: string;
