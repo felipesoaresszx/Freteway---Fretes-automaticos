@@ -40,6 +40,27 @@ async def executar_com_timeout(execution, timeout_seconds: int):
     return await asyncio.wait_for(execution, timeout=timeout_seconds)
 
 
+async def registrar_falha_analise_tabela(
+    db, job: ProcessamentoJob, resource_id: str, exc: Exception
+) -> None:
+    """Finaliza uma analise sem recriar referencias para tabelas ja removidas."""
+    tabela = await db.get(TabelaFrete, resource_id)
+    if not tabela:
+        logger.warning(
+            "orphan_table_analysis_job job_id=%s table_id=%s",
+            job.id, resource_id,
+        )
+        return
+    if tabela.status == "processing":
+        tabela.status = "draft"
+    db.add(AnaliseTabelaEvento(
+        job_id=job.id, tabela_frete_id=resource_id,
+        etapa=job.current_step or "ANALYZING", status="failed",
+        progresso=job.progress or 0,
+        detalhes={"error_type": type(exc).__name__, "message": str(exc)[:1000]},
+    ))
+
+
 async def processar_job() -> bool:
     async with AsyncSessionLocal() as db:
         agora = datetime.utcnow()
@@ -105,15 +126,7 @@ async def processar_job() -> bool:
                 if cotacao and cotacao.status == "processing":
                     cotacao.status = "failed"
             elif job.status == "failed" and job_type == "tabela_analise":
-                tabela = await db.get(TabelaFrete, resource_id)
-                if tabela and tabela.status == "processing":
-                    tabela.status = "draft"
-                db.add(AnaliseTabelaEvento(
-                    job_id=job.id, tabela_frete_id=resource_id,
-                    etapa=job.current_step or "ANALYZING", status="failed",
-                    progresso=job.progress or 0,
-                    detalhes={"error_type": type(exc).__name__, "message": str(exc)[:1000]},
-                ))
+                await registrar_falha_analise_tabela(db, job, resource_id, exc)
             elif job.status == "failed" and job_type == "carrier_enrichment":
                 carrier = await db.get(Transportadora, resource_id)
                 if carrier:
