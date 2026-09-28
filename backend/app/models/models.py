@@ -184,6 +184,31 @@ class Transportadora(Base):
         back_populates="transportadora", cascade="all, delete-orphan", uselist=False
     )
 
+    calculation_config: Mapped["CarrierCalculationConfig | None"] = relationship(
+        back_populates="carrier", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class CarrierCalculationConfig(Base):
+    """Selecao reversivel do motor, independente da fonte de tarifa."""
+
+    __tablename__ = "carrier_calculation_configs"
+
+    carrier_id: Mapped[str] = mapped_column(
+        ForeignKey("transportadoras.id", ondelete="CASCADE"), primary_key=True
+    )
+    calculation_engine: Mapped[str] = mapped_column(String(20), default="LEGACY")
+    shadow_calculation: Mapped[bool] = mapped_column(Boolean, default=False)
+    new_engine_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    updated_by_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    carrier: Mapped["Transportadora"] = relationship(back_populates="calculation_config")
+    updated_by: Mapped["User | None"] = relationship()
+
 
 class CarrierService(Base):
     __tablename__ = "carrier_services"
@@ -472,9 +497,45 @@ class CotacaoResultado(Base):
     erro_mensagem: Mapped[str | None] = mapped_column(Text, nullable=True)
     request_id: Mapped[str] = mapped_column(String(50), default=gen_uuid)
     detalhamento: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    calculation_engine: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    rate_table_id: Mapped[str | None] = mapped_column(
+        ForeignKey("tabelas_frete.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    rate_table_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     cotacao: Mapped[Cotacao] = relationship(back_populates="resultados")
+
+
+class FreightCalculationAudit(Base):
+    """Registro imutavel do resultado oficial e da comparacao shadow."""
+
+    __tablename__ = "freight_calculation_audits"
+    __table_args__ = (
+        Index("ix_freight_audit_carrier_created", "carrier_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    quote_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    request_id: Mapped[str] = mapped_column(String(50), default=gen_uuid, index=True)
+    carrier_id: Mapped[str] = mapped_column(
+        ForeignKey("transportadoras.id", ondelete="CASCADE"), index=True
+    )
+    rate_table_id: Mapped[str | None] = mapped_column(
+        ForeignKey("tabelas_frete.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    rate_table_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    official_engine: Mapped[str] = mapped_column(String(20))
+    shadow_engine: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="official_completed", index=True)
+    official_result: Mapped[dict] = mapped_column(JSONB)
+    shadow_result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    comparison: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    official_duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    shadow_duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    shadow_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    shadow_completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class LogIntegracao(Base):

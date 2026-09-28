@@ -14,13 +14,13 @@ from app.core.observability import log_event
 from app.core.resilience import CircuitOpenError, executar_resiliente
 from app.integrations.transportadoras.mock.client import MockTransportadoraAdapter
 from app.integrations.transportadoras.api_generica import ApiGenericaAdapter
-from app.integrations.transportadoras.tabela_frete import TabelaFreteAdapter
 from app.integrations.transportadoras.jamef import JamefAdapter
 from app.integrations.transportadoras.braspress import BraspressAdapter
 from app.integrations.ssw.provider import SSWProvider
 from app.integrations.ssw.schemas import SSWQuoteRequest
 from app.integrations.transportadoras.registry import registry
 from app.models.models import (
+    CarrierCalculationConfig,
     CarrierCredential,
     CarrierIntegration,
     TabelaFrete,
@@ -29,6 +29,7 @@ from app.models.models import (
 )
 from app.schemas.carrier import FreightQuoteRequest
 from app.services.credenciais import descriptografar
+from app.services.freight_calculation.orchestrator import FreightCalculationOrchestrator
 from app.schemas.cotacao import CotacaoCreate, ErroResultado, ResultadoTransportadora
 
 settings = get_settings()
@@ -91,31 +92,42 @@ async def _cotar_por_tabela(
     tabela: TabelaFrete,
     payload: dict,
     db_session: AsyncSession,
+    calculation_config: CarrierCalculationConfig | None = None,
+    quote_id: str | None = None,
 ) -> ResultadoTransportadora:
-    resultado = await TabelaFreteAdapter(
-        db_session, tabela.id, tabela_carregada=tabela
-    ).cotar(payload)
+    calculation = await FreightCalculationOrchestrator(db_session).calculate(
+        quote=payload, table=tabela, config=calculation_config, quote_id=quote_id
+    )
     request_id = str(uuid.uuid4())
-    if resultado.status == "success":
+    if calculation.status == "success":
+        detalhe = dict(calculation.raw_result)
+        detalhe.setdefault("calculation_engine", calculation.calculation_engine)
+        detalhe.setdefault("calculation_version", calculation.calculation_version)
+        detalhe.setdefault("rate_table_id", tabela.id)
+        detalhe.setdefault("rate_table_version", tabela.versao)
         return ResultadoTransportadora(
             transportadora_id=transportadora.id,
             transportadora=transportadora.nome,
             status="success",
-            valor_frete=resultado.valor_frete,
-            prazo_dias=resultado.prazo_dias,
-            moeda=resultado.moeda,
+            valor_frete=float(calculation.total),
+            prazo_dias=calculation.delivery_days,
+            moeda=tabela.moeda,
             request_id=request_id,
-            detalhamento=resultado.detalhamento,
+            detalhamento=detalhe,
             provider="tabela_frete",
-            memoria_calculo=(resultado.detalhamento or {}).get("memoria_calculo"),
+            memoria_calculo=detalhe.get("memoria_calculo"),
+            calculation_engine=calculation.calculation_engine,
+            calculation_version=calculation.calculation_version,
+            rate_table_id=tabela.id,
+            rate_table_version=tabela.versao,
         )
     return ResultadoTransportadora(
         transportadora_id=transportadora.id,
         transportadora=transportadora.nome,
         status="error",
         erro=ErroResultado(
-            codigo=resultado.erro_codigo or "ERRO_TABELA_FRETE",
-            mensagem=resultado.erro_mensagem or "Erro no cálculo da tabela de frete",
+            codigo=calculation.error_code or "ERRO_TABELA_FRETE",
+            mensagem=calculation.error_message or "Erro no cálculo da tabela de frete",
         ),
         request_id=request_id,
     )
@@ -282,6 +294,7 @@ async def executar_cotacao(
 ) -> list[ResultadoTransportadora]:
     """Dispara as consultas a todas as transportadoras selecionadas de forma
     concorrente. Uma falha isolada nunca derruba as demais (Sprint 3)."""
+    quote_id = quote_id or cotacao.quote_id
     primeiro_volume = cotacao.volumes[0] if cotacao.volumes else None
     payload = {
         # O peso informado em cada linha de volume e unitario.
@@ -384,6 +397,15 @@ async def executar_cotacao(
         configuracao.transportadora_id: configuracao for configuracao in configuracoes
     }
 
+    calculation_configs = list((await db_session.execute(
+        select(CarrierCalculationConfig).where(
+            CarrierCalculationConfig.carrier_id.in_(transportadora_ids)
+        )
+    )).scalars().all()) if transportadora_ids else []
+    calculation_configs_by_carrier = {
+        config.carrier_id: config for config in calculation_configs
+    }
+
     integration_ids = [integration.id for integration in integrations_por_transportadora.values()]
     credential_rows = list((await db_session.execute(
         select(CarrierCredential)
@@ -407,7 +429,10 @@ async def executar_cotacao(
         if tabela and transportadora.metodo_calculo == "tabela_propria":
             # AsyncSession não suporta operações concorrentes na mesma instância.
             resultados_tabela.append(await _observar_provider(
-                _cotar_por_tabela(transportadora, tabela, payload, db_session),
+                _cotar_por_tabela(
+                    transportadora, tabela, payload, db_session,
+                    calculation_configs_by_carrier.get(transportadora.id), quote_id,
+                ),
                 carrier_id=transportadora.id, provider="tabela_frete", quote_id=quote_id,
                 job_id=job_id, attempt=attempt,
             ))

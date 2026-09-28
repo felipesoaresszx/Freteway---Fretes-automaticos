@@ -12,7 +12,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import require_permission
 from app.db.session import get_db
-from app.models.models import CarrierIntegration, Transportadora, TransportadoraConfiguracaoApi, TransportadoraImportacao
+from app.models.models import (
+    AuditLog,
+    CarrierCalculationConfig,
+    CarrierIntegration,
+    FreightCalculationAudit,
+    TabelaFrete,
+    TabelaFreteDadosImportados,
+    Transportadora,
+    TransportadoraConfiguracaoApi,
+    TransportadoraImportacao,
+    User,
+)
 from app.schemas.transportadora import (
     ConsultaCnpjOut,
     TransportadoraCreate,
@@ -29,6 +40,8 @@ from app.schemas.transportadora import (
     ImportacaoResultadoOut,
     AnttTransportadoraAddIn,
     AnttTransportadoraOut,
+    CarrierCalculationConfigOut,
+    CarrierCalculationConfigUpdate,
 )
 from app.schemas.transportadora import documento_valido, somente_digitos
 from app.services.consulta_cnpj import consultar_cnpj
@@ -321,6 +334,115 @@ async def atualizar_transportadora(
     await db.commit()
     await db.refresh(transportadora)
     return transportadora
+
+
+@router.get(
+    "/transportadoras/{transportadora_id}/calculation-config",
+    response_model=CarrierCalculationConfigOut,
+)
+async def obter_configuracao_calculo(
+    transportadora_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_permission("transportadoras.view")),
+):
+    await _obter_ou_404(db, transportadora_id)
+    config = await db.get(CarrierCalculationConfig, transportadora_id)
+    if config is None:
+        return CarrierCalculationConfigOut(
+            carrier_id=transportadora_id, calculation_engine="LEGACY",
+            shadow_calculation=False, is_default=True,
+        )
+    return CarrierCalculationConfigOut(
+        carrier_id=transportadora_id,
+        calculation_engine=config.calculation_engine,
+        shadow_calculation=config.shadow_calculation,
+        new_engine_version=config.new_engine_version,
+        is_default=False,
+    )
+
+
+@router.put(
+    "/transportadoras/{transportadora_id}/calculation-config",
+    response_model=CarrierCalculationConfigOut,
+)
+async def atualizar_configuracao_calculo(
+    transportadora_id: str,
+    dados: CarrierCalculationConfigUpdate,
+    db: AsyncSession = Depends(get_db),
+    usuario: User = Depends(require_permission("transportadoras.manage")),
+):
+    transportadora = await _obter_ou_404(db, transportadora_id)
+    if dados.calculation_engine == "NEW":
+        if transportadora.metodo_calculo != "tabela_propria":
+            raise HTTPException(status_code=409, detail="Motor NEW inicialmente suporta apenas tabela propria")
+        compatible = await db.scalar(
+            select(TabelaFrete.id)
+            .join(TabelaFreteDadosImportados)
+            .where(
+                TabelaFrete.transportadora_id == transportadora_id,
+                TabelaFrete.status == "active",
+                TabelaFreteDadosImportados.formato == "canonical_freight_v1",
+            )
+            .limit(1)
+        )
+        if not compatible:
+            raise HTTPException(
+                status_code=409,
+                detail="Ative uma tabela canonical_freight_v1 antes de selecionar o motor NEW",
+            )
+    config = await db.get(CarrierCalculationConfig, transportadora_id)
+    previous = {
+        "calculation_engine": config.calculation_engine if config else "LEGACY",
+        "shadow_calculation": config.shadow_calculation if config else False,
+    }
+    if config is None:
+        config = CarrierCalculationConfig(carrier_id=transportadora_id)
+        db.add(config)
+    config.calculation_engine = dados.calculation_engine
+    config.shadow_calculation = dados.shadow_calculation
+    config.new_engine_version = dados.new_engine_version
+    config.updated_by_id = usuario.id
+    db.add(AuditLog(
+        user_id=usuario.id, acao="alterar_motor_calculo", recurso="transportadora",
+        recurso_id=transportadora_id, dados_anteriores=previous,
+        dados_novos=dados.model_dump(mode="json"),
+    ))
+    await db.commit()
+    return CarrierCalculationConfigOut(
+        carrier_id=transportadora_id,
+        calculation_engine=config.calculation_engine,
+        shadow_calculation=config.shadow_calculation,
+        new_engine_version=config.new_engine_version,
+        is_default=False,
+    )
+
+
+@router.get("/transportadoras/{transportadora_id}/calculation-audits")
+async def listar_auditorias_calculo(
+    transportadora_id: str,
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_permission("transportadoras.view")),
+):
+    await _obter_ou_404(db, transportadora_id)
+    audits = list(await db.scalars(
+        select(FreightCalculationAudit)
+        .where(FreightCalculationAudit.carrier_id == transportadora_id)
+        .order_by(FreightCalculationAudit.created_at.desc())
+        .limit(limit)
+    ))
+    return [{
+        "id": item.id, "quote_id": item.quote_id, "request_id": item.request_id,
+        "carrier_id": item.carrier_id, "rate_table_id": item.rate_table_id,
+        "rate_table_version": item.rate_table_version,
+        "official_engine": item.official_engine, "shadow_engine": item.shadow_engine,
+        "status": item.status, "official_result": item.official_result,
+        "shadow_result": item.shadow_result, "comparison": item.comparison,
+        "official_duration_ms": item.official_duration_ms,
+        "shadow_duration_ms": item.shadow_duration_ms,
+        "shadow_error": item.shadow_error, "created_at": item.created_at,
+        "shadow_completed_at": item.shadow_completed_at,
+    } for item in audits]
 
 
 @router.patch("/transportadoras/{transportadora_id}/status", response_model=TransportadoraOut)

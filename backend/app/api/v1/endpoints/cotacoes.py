@@ -238,6 +238,10 @@ async def obter_cotacao(
             detalhamento=r.detalhamento,
             provider=(r.detalhamento or {}).get("provider"),
             memoria_calculo=(r.detalhamento or {}).get("memoria_calculo"),
+            calculation_engine=r.calculation_engine,
+            calculation_version=(r.detalhamento or {}).get("calculation_version"),
+            rate_table_id=r.rate_table_id,
+            rate_table_version=r.rate_table_version,
         )
         for r in resultados_db
     ]

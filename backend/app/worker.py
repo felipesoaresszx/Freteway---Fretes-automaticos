@@ -12,6 +12,7 @@ from app.db.session import AsyncSessionLocal
 from app.core.observability import log_event
 from app.models.models import AnaliseTabelaEvento, AuditoriaTabela, Cotacao, ProcessamentoJob, TabelaFrete, Transportadora
 from app.services.cotacao_jobs import executar_job_analise_tabela, executar_job_cotacao, reagendar_job
+from app.services.freight_calculation.jobs import execute_shadow_job
 from app.services.enrichment import CarrierEnrichmentService
 from app.services.enrichment.search_provider import DuckDuckGoSearchProvider
 from app.services.tabela_frete.analise import AnaliseDocumentoError
@@ -25,7 +26,7 @@ def proximo_job_query(agora: datetime, stale_after_seconds: int):
     """Claim concorrente: linhas bloqueadas por outro worker sao ignoradas."""
     return (
         select(ProcessamentoJob).where(
-            ProcessamentoJob.tipo.in_(["cotacao", "tabela_analise", "carrier_enrichment"]),
+            ProcessamentoJob.tipo.in_(["cotacao", "tabela_analise", "carrier_enrichment", "freight_shadow"]),
             ProcessamentoJob.disponivel_em <= agora,
             or_(
                 ProcessamentoJob.status == "pending",
@@ -93,6 +94,8 @@ async def processar_job() -> bool:
                 execution = CarrierEnrichmentService(
                     db, search_provider=DuckDuckGoSearchProvider()
                 ).run(resource_id, job=job)
+            elif job_type == "freight_shadow":
+                execution = execute_shadow_job(db, job)
             await executar_com_timeout(execution, settings.WORKER_JOB_TIMEOUT_SECONDS)
             job.status = "completed"
             job.bloqueado_em = None

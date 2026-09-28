@@ -27,6 +27,7 @@ class CotacaoCreate(BaseModel):
     volumes: list[VolumeIn]
     documento_destinatario: str | None = None
     transportadoras_ids: list[str] | None = None  # None = todas as ativas
+    quote_id: str | None = Field(default=None, exclude=True)
 
     @field_validator("documento_destinatario")
     @classmethod
@@ -57,6 +58,10 @@ class ResultadoTransportadora(BaseModel):
     detalhamento: dict | None = None
     provider: str = "unknown"
     memoria_calculo: dict | None = None
+    calculation_engine: str | None = None
+    calculation_version: str | None = None
+    rate_table_id: str | None = None
+    rate_table_version: str | None = None
 
     @property
     def transportadora_nome(self) -> str:

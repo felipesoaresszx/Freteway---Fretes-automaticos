@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.cotacao import Endereco, VolumeIn
-from app.schemas.transportadora import somente_digitos
+from app.schemas.transportadora import documento_valido, somente_digitos
 
 
 class EnderecoSankhya(Endereco):
@@ -65,6 +65,17 @@ class CotacaoSankhyaIn(BaseModel):
     valor_mercadoria: float = Field(gt=0, allow_inf_nan=False)
     numero_pedido: str = Field(min_length=1, max_length=100)
     transportadoras_ids: list[str] | None = None
+    documento_destinatario: str | None = None
+
+    @field_validator("documento_destinatario")
+    @classmethod
+    def validar_documento_destinatario(cls, valor: str | None) -> str | None:
+        if not valor:
+            return None
+        normalizado = somente_digitos(str(valor))
+        if not documento_valido(normalizado):
+            raise ValueError("CPF ou CNPJ do destinatario invalido")
+        return normalizado
 
     @model_validator(mode="before")
     @classmethod
@@ -79,6 +90,9 @@ class CotacaoSankhyaIn(BaseModel):
             "VlrNota": "valor_mercadoria",
             "valor_total_mercadoria": "valor_mercadoria", "numero_pedido_sankhya": "numero_pedido",
             "volumes": "itens", "Volumes": "itens",
+            "CPF_CNPJ_DESTINATARIO": "documento_destinatario",
+            "CNPJ_DESTINATARIO": "documento_destinatario",
+            "documento": "documento_destinatario",
         }
         for origem, destino in aliases.items():
             if origem in data and destino not in data:
@@ -86,6 +100,8 @@ class CotacaoSankhyaIn(BaseModel):
         for campo in ("empresa_sankhya_id", "numero_pedido"):
             if campo in data and data[campo] is not None:
                 data[campo] = str(data[campo])
+        if data.get("documento_destinatario"):
+            data["documento_destinatario"] = somente_digitos(str(data["documento_destinatario"]))
         cep_origem = data.get("cep_origem") or data.get("CEP_ORIGEM") or data.get("CepOrigem")
         cep_destino = data.get("cep_destino") or data.get("CEP_DESTINO") or data.get("CepDestino")
         if "origem" not in data and cep_origem:

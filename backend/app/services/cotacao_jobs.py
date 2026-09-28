@@ -46,6 +46,9 @@ async def executar_job_cotacao(db: AsyncSession, job: ProcessamentoJob) -> None:
         if resultado.memoria_calculo:
             detalhe["memoria_calculo"] = resultado.memoria_calculo
         persistido.detalhamento = detalhe or None
+        persistido.calculation_engine = resultado.calculation_engine or detalhe.get("calculation_engine")
+        persistido.rate_table_id = resultado.rate_table_id or detalhe.get("rate_table_id")
+        persistido.rate_table_version = resultado.rate_table_version or detalhe.get("rate_table_version")
     cotacao.status = determinar_status_geral(resultados)
     cotacao.melhor_opcao_id = determinar_melhor_opcao(resultados)
 

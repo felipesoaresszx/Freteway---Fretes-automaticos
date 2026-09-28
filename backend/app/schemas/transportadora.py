@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 
 
 TIPOS_INTEGRACAO = {"api", "tabela", "webservice", "soap", "edi", "n8n", "playwright"}
@@ -134,6 +134,31 @@ class TransportadoraUpdate(BaseModel):
 
 class TransportadoraStatusUpdate(BaseModel):
     ativa: bool
+
+
+class CarrierCalculationConfigUpdate(BaseModel):
+    calculation_engine: str = "LEGACY"
+    shadow_calculation: bool = False
+    new_engine_version: str | None = Field(default=None, max_length=50)
+
+    @field_validator("calculation_engine")
+    @classmethod
+    def validate_engine(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if normalized not in {"LEGACY", "NEW"}:
+            raise ValueError("Motor deve ser LEGACY ou NEW")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_shadow(self):
+        if self.calculation_engine == "NEW" and self.shadow_calculation:
+            raise ValueError("Shadow so pode ser habilitado enquanto LEGACY for oficial")
+        return self
+
+
+class CarrierCalculationConfigOut(CarrierCalculationConfigUpdate):
+    carrier_id: str
+    is_default: bool = False
 
 
 class ConsultaCnpjOut(BaseModel):
