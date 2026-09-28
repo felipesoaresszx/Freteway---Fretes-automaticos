@@ -26,6 +26,7 @@ pip-wheel-metadata/
 !frontend/.env.production
 !frontend/.env.production.example
 .pytest_cache/
+.pytest-*/
 .mypy_cache/
 .coverage
 coverage.xml
@@ -82,6 +83,7 @@ yarn-debug.log*
 nohup.out
 
 # Temporary files
+tmp/
 *.tmp
 *.temp
 *~
