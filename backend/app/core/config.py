@@ -113,11 +113,12 @@ def validate_runtime_settings(settings: Settings) -> None:
         or "127.0.0.1" in public_url
         or (not public_url.startswith("https://") and not settings.ALLOW_INSECURE_HTTP)
         or (settings.ALLOW_INSECURE_HTTP and not public_url.startswith("http://"))
-        or ai_provider not in {"disabled", "none", "openai"}
-        or (ai_provider == "openai" and not settings.AI_API_KEY)
+        # IA documental permanece desabilitada em producao. Isso impede que uma
+        # variavel antiga ou injetada por engano altere o motor deterministico.
+        or ai_provider not in {"disabled", "none"}
     )
     if invalid:
         raise RuntimeError(
             "Produção exige PUBLIC_BASE_URL HTTPS, segredos distintos com 32+ caracteres, "
-            "cookies seguros e hosts/origens explícitos"
+            "cookies seguros, hosts/origens explícitos e AI_PROVIDER desabilitado"
         )

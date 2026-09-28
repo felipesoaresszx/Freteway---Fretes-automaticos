@@ -35,6 +35,8 @@ services:
       - ${BACKEND_ENV_FILE:-./backend/.env.production}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED:?Defina POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
+      AI_PROVIDER: disabled
+      AI_API_KEY: ""
       TABELA_FRETE_STORAGE_DIR: /app/storage/tabelas_frete
       EMPRESA_LOGO_STORAGE_DIR: /app/storage/configuracoes/logos
       DOCUMENT_STORAGE_DIR: /app/storage/documentos
@@ -72,6 +74,8 @@ services:
       - ${BACKEND_ENV_FILE:-./backend/.env.production}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-frete}:${POSTGRES_PASSWORD_URLENCODED:?Defina POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB:-frete}
+      AI_PROVIDER: disabled
+      AI_API_KEY: ""
       TABELA_FRETE_STORAGE_DIR: /app/storage/tabelas_frete
       EMPRESA_LOGO_STORAGE_DIR: /app/storage/configuracoes/logos
       DOCUMENT_STORAGE_DIR: /app/storage/documentos

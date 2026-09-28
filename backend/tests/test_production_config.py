@@ -29,3 +29,19 @@ def test_producao_aceita_dominio_ou_ip_configurado():
         CORS_ORIGINS=["https://64.181.183.229"],
     )
     validate_runtime_settings(settings)
+
+
+def test_producao_rejeita_provider_de_ia_habilitado():
+    from app.core.config import Settings, validate_runtime_settings
+
+    settings = Settings(
+        ENVIRONMENT="production", PUBLIC_BASE_URL="https://freteway.example.com",
+        JWT_SECRET="j" * 32, CREDENTIAL_ENCRYPTION_KEY="c" * 32,
+        COOKIE_SECURE=True,
+        TRUSTED_HOSTS=["freteway.example.com", "backend"],
+        CORS_ORIGINS=["https://freteway.example.com"],
+        AI_PROVIDER="openai", AI_API_KEY="nao-deve-ser-usada-em-producao",
+    )
+
+    with pytest.raises(RuntimeError, match="AI_PROVIDER desabilitado"):
+        validate_runtime_settings(settings)
