@@ -1,0 +1,14 @@
+{
+  "carrier_cnpj": "12209448000107",
+  "route_tax_overrides": {
+    "GUARULHOS_SP_TO_PE": {"mode": "GROSS_UP", "rate": "0.07", "source": "regra_fiscal_confirmada_pelo_cliente"},
+    "JABOATAO_PE_TO_PE": {"mode": "REQUIRED_PARAMETER"}
+  },
+  "city_regions": {
+    "PAULISTA": "RMR"
+  },
+  "manual_quote_contact": {
+    "email": "cotacaorec@colinastransportes.com.br",
+    "phone": "(87) 99998-0227"
+  }
+}

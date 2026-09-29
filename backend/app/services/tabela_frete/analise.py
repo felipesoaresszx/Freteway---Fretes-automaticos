@@ -309,6 +309,21 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
     if documento.tipo_arquivo == "csv":
         return analisar_csv(caminho, tabela)
     if documento.tipo_arquivo == "pdf":
+        from app.services.tabela_frete.colinas_pdf import extract_colinas_table_pdf
+
+        dados_colinas = extract_colinas_table_pdf(caminho)
+        if dados_colinas:
+            return {
+                "dados_extraidos": dados_colinas,
+                "confianca_extracao": 1.0,
+                "erros_validacao": [],
+                "avisos": [
+                    "Tabela Colinas reconhecida deterministicamente por conteudo e convertida para freight_rules_v3.",
+                    "Cidades sem mapeamento regional confirmado permanecem em cotacao manual.",
+                ],
+                "campos_com_duvida": [],
+                "resumo": dados_colinas["statistics"],
+            }
         from app.services.tabela_frete.transpecas_docx import extract_transpecas_pdf
 
         dados_transpecas = extract_transpecas_pdf(caminho)
