@@ -1,0 +1,62 @@
+{
+  "schema": "freight_rules_v3",
+  "version": "COLINAS-MODIAL-2026.1",
+  "carrier": {"name": "Colinas Transportadoras LTDA ME", "cnpj": "12.209.448/0001-07"},
+  "validity": {"start": "2026-09-25", "end": "2027-03-31"},
+  "cubage_factor_kg_m3": "300",
+  "weight_policy": "MAX_REAL_CUBED",
+  "expiry_warning_days": 30,
+  "manual_quote_contact": {"email": "cotacaorec@colinastransportes.com.br", "phone": "(87) 99998-0227"},
+  "warnings": ["Tabela sujeita a reajuste por aumento de combustivel"],
+  "claim_notice": "Falta ou avaria deve ser anotada no CT-e no ato da entrega; a transportadora informa que nao aceita reclamacoes posteriores.",
+  "carrier_tax_regime": "UNCONFIRMED",
+  "informative_taxes": [
+    {"code": "CBS", "rate": "0.009", "adds_to_total": false, "disabled_for_regime": "SIMPLES_NACIONAL"},
+    {"code": "IBS", "rate": "0.001", "adds_to_total": false, "disabled_for_regime": "SIMPLES_NACIONAL"}
+  ],
+  "assumptions": [
+    "AD_VALOREM_FULL_INVOICE", "PER_KG_ON_ALL_WEIGHT", "ADMIN_FEE_PER_CTE_ROUTE_B",
+    "MAX_REAL_OR_CUBED", "ROUTE_B_ICMS_UNCONFIRMED", "CARRIER_TAX_REGIME_UNCONFIRMED",
+    "VALIDITY_START_FROM_DOCUMENT_DATE"
+  ],
+  "routes": [
+    {
+      "id": "GUARULHOS_SP_TO_PE",
+      "when": {"op": "and", "conditions": [
+        {"field": "origin_city", "op": "eq", "value": "Guarulhos"},
+        {"field": "origin_state", "op": "eq", "value": "SP"},
+        {"field": "destination_state", "op": "eq", "value": "PE"}
+      ]},
+      "coverage": {"field": "destination_region", "op": "in", "value": ["Agreste", "Mata Sul", "Mata Norte", "RMR"]},
+      "weight_bands": [
+        {"id": "A_0_200", "min_exclusive": "0", "max_inclusive": "200", "formula": {"type": "FIXED", "amount": "240.00"},
+         "charges": [{"code": "AD_VALOREM", "when": {"field": "invoice_value", "op": "gt", "value": "3000"},
+                      "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}]},
+        {"id": "A_200_4999_99", "min_exclusive": "200", "max_inclusive": "4999.99", "formula": {"type": "PER_KG", "rate_per_kg": "1.20"},
+         "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}]},
+        {"id": "A_4999_99_PLUS", "min_exclusive": "4999.99", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.05"},
+         "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}]}
+      ],
+      "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    },
+    {
+      "id": "JABOATAO_PE_TO_PE",
+      "when": {"op": "and", "conditions": [
+        {"field": "origin_city", "op": "eq", "value": "Jaboatao dos Guararapes"},
+        {"field": "origin_state", "op": "eq", "value": "PE"},
+        {"field": "destination_state", "op": "eq", "value": "PE"}
+      ]},
+      "coverage": {"field": "destination_region", "op": "in", "value": ["Agreste", "Mata Sul", "Mata Norte", "RMR"]},
+      "minimum_freight": "129.00",
+      "charges": [{"code": "ADMIN_FEE", "formula": {"type": "FIXED", "amount": "59.50"}}],
+      "weight_bands": [
+        {"id": "B_0_300", "min_exclusive": "0", "max_inclusive": "300", "formula": {"type": "FIXED", "amount": "129.00"},
+         "charges": [{"code": "AD_VALOREM", "when": {"field": "invoice_value", "op": "gt", "value": "3000"},
+                      "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}]},
+        {"id": "B_300_PLUS", "min_exclusive": "300", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "0.43"},
+         "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}]}
+      ],
+      "taxes": {"icms": {"mode": "REQUIRED_PARAMETER"}}
+    }
+  ]
+}
