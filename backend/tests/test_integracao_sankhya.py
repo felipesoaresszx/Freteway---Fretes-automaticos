@@ -188,6 +188,20 @@ def test_provider_serializa_disponivel_e_indisponivel_sem_quebrar_parser():
                 assert not any(character in value for character in '\"[]{}')
 
 
+def test_provider_envia_cotacao_sem_prazo_com_delivery_time_zero():
+    resultado = ResultadoTransportadora(
+        transportadora_id="colinas", transportadora="COLINAS TRANSPORTES", status="success",
+        valor_frete=333.23, prazo_dias=None, request_id="cotacao-colinas",
+    )
+
+    assert SankhyaQuoteProvider.is_available(resultado) is True
+    linha = SankhyaQuoteProvider().line(resultado)
+    assert linha["ShippingPrice"] == "333.23"
+    assert linha["DeliveryTime"] == "0"
+    assert linha["Error"] is False
+    assert linha["Msg"] == ""
+
+
 def test_provider_serializa_array_vazio_e_um_unico_array():
     serialized = SankhyaQuoteProvider.serialize([])
     assert serialized == '{"ShippingSevicesArray":[]}'
@@ -249,6 +263,26 @@ def test_endpoint_processa_chamada_externa_e_multiplos_volumes(monkeypatch):
     assert sum(volume.quantidade for volume in cotacao.volumes) == 3
     assert len(fake_db.audit_rows) == 1
     assert fake_db.audit_rows[0].recurso_id == "21259"
+
+
+def test_endpoint_envia_colinas_sem_prazo_com_zero(monkeypatch):
+    resultados = [ResultadoTransportadora(
+        transportadora_id="colinas", transportadora="COLINAS TRANSPORTES", status="success",
+        valor_frete=333.23, prazo_dias=None, request_id="cotacao-colinas",
+    )]
+    client, _calls, _fake_db = _http_client(monkeypatch, resultados)
+
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"}, json=PAYLOAD_SANKHYA,
+    )
+
+    assert response.status_code == 200
+    linha = response.json()["ShippingSevicesArray"][0]
+    assert linha["Carrier"] == "COLINAS TRANSPORTES"
+    assert linha["ShippingPrice"] == "333.23"
+    assert linha["DeliveryTime"] == "0"
+    assert linha["Error"] is False
 
 
 @pytest.mark.parametrize("headers", [{}, {"X-API-Key": "incorreta"}])

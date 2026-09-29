@@ -16,11 +16,12 @@ class SankhyaQuoteProvider:
     @classmethod
     def is_available(cls, result: ResultadoTransportadora) -> bool:
         """Retorna se o resultado pode ser enviado como uma cotacao valida."""
-        if result.status != "success" or result.valor_frete is None or result.prazo_dias is None:
+        if result.status != "success" or result.valor_frete is None:
             return False
         try:
             shipping_price = Decimal(cls.price(result.valor_frete))
-            cls.delivery_days(result.prazo_dias)
+            if result.prazo_dias is not None:
+                cls.delivery_days(result.prazo_dias)
         except ValueError:
             return False
         return shipping_price > 0
@@ -58,7 +59,7 @@ class SankhyaQuoteProvider:
         normalized_cnpj = re.sub(r"\D", "", self.sanitize(carrier_cnpj))
         if len(normalized_cnpj) != 14:
             normalized_cnpj = ""
-        error = result.status != "success" or result.valor_frete is None or result.prazo_dias is None
+        error = result.status != "success" or result.valor_frete is None
         message = ""
         shipping_price = "0"
         delivery_time = "0"
@@ -70,7 +71,8 @@ class SankhyaQuoteProvider:
         else:
             try:
                 shipping_price = self.price(result.valor_frete)
-                delivery_time = self.delivery_days(result.prazo_dias)
+                if result.prazo_dias is not None:
+                    delivery_time = self.delivery_days(result.prazo_dias)
             except ValueError as exc:
                 error = True
                 message = str(exc)
