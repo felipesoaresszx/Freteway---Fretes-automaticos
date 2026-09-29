@@ -64,13 +64,28 @@ async def simular_tabela_frete(
         ).order_by(DocumentoFrete.created_at.desc()))
         if documento:
             dados = carregar_revisao(documento).get("dados_extraidos")
-    if not dados or dados.get("formato") != "canonical_freight_v1":
+    if not dados or dados.get("formato") not in {"canonical_freight_v1", "freight_rules_v3"}:
         raise HTTPException(status_code=422, detail="A tabela ainda não possui contrato canônico para simulação")
-    from app.services.tabela_frete.contrato_calculo import ContractError, calculate
-    try:
-        resultado = calculate(dados, entrada.model_dump(), preview=True)
-    except ContractError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if dados.get("formato") == "freight_rules_v3":
+        from app.services.tabela_frete.rule_engine import RuleEngineError, calculate as calculate_v3
+        payload = entrada.model_dump()
+        request = {
+            **payload, "origin_city": payload.get("origem_cidade"),
+            "origin_state": payload.get("origem_uf"), "destination_state": payload.get("destino_uf"),
+            "destination_city": payload.get("destino_cidade"), "destination_cep": payload.get("destino_cep"),
+            "destination_region": payload.get("destino_regiao"), "real_weight_kg": payload.get("peso"),
+            "volume_m3": payload.get("volume_total_m3", 0), "invoice_value": payload.get("valor_nf"),
+        }
+        try:
+            resultado = calculate_v3(dados, request)
+        except RuleEngineError as exc:
+            raise HTTPException(status_code=422, detail={"code": exc.code, "message": str(exc)}) from exc
+    else:
+        from app.services.tabela_frete.contrato_calculo import ContractError, calculate
+        try:
+            resultado = calculate(dados, entrada.model_dump(), preview=True)
+        except ContractError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"tabela_id": tabela.id, "tabela": tabela.nome,
             "transportadora_id": tabela.transportadora_id, **resultado}
 
@@ -541,7 +556,20 @@ async def atualizar_dados_revisao(
         raise HTTPException(status_code=404, detail="Nenhuma análise disponível")
     atual = carregar_revisao(documento)
     atual["dados_extraidos"] = revisao.dados_extraidos
-    if revisao.dados_extraidos.get("formato") == "canonical_freight_v1":
+    if revisao.dados_extraidos.get("formato") == "freight_rules_v3":
+        from app.services.tabela_frete.rule_engine import validate_contract
+        from app.services.tabela_frete.tabela_import import normalizar_preview
+
+        errors = validate_contract(revisao.dados_extraidos)
+        validation = {"status": "TABLE_VALIDATED" if not errors else "NEEDS_REVIEW",
+                      "issues": errors, "warnings": revisao.dados_extraidos.get("warnings", [])}
+        revisao.dados_extraidos["validation"] = validation
+        atual["erros_validacao"] = errors
+        atual["avisos"] = validation["warnings"]
+        atual["campos_com_duvida"] = errors
+        atual["confianca_extracao"] = 0.99 if not errors else 0.8
+        atual["preview_estruturado"] = normalizar_preview(revisao.dados_extraidos)
+    elif revisao.dados_extraidos.get("formato") == "canonical_freight_v1":
         from app.services.tabela_frete.contrato import validate
         from app.services.tabela_frete.tabela_import import normalizar_preview
         validation = validate(revisao.dados_extraidos)
@@ -697,18 +725,21 @@ async def aprovar_e_publicar_tabela(
     dados_revisados = dados.dados_extraidos
     tests = None
     validation = dados_revisados.get("validation") or {}
-    if dados_revisados.get("formato") == "tabela_frete_universal_v1" and dados_revisados.get("ai_analysis"):
+    if dados_revisados.get("formato") in {"tabela_frete_universal_v1", "freight_rules_v3"} and dados_revisados.get("ai_analysis"):
         from app.services.tabela_frete.ai_analysis.schemas import AIAnalysisResult
         from app.services.tabela_frete.ai_analysis.testing import TableTestService
         from app.services.tabela_frete.ai_analysis.validation import validate_ai_contract
+        from app.services.tabela_frete.ai_analysis.v3 import V3TableTestService, validate_ai_contract_v3
 
         analysis = AIAnalysisResult.model_validate(dados_revisados["ai_analysis"])
-        validation = validate_ai_contract(
+        is_v3 = dados_revisados.get("formato") == "freight_rules_v3"
+        validator = validate_ai_contract_v3 if is_v3 else validate_ai_contract
+        validation = validator(
             dados_revisados, analysis,
             minimum_confidence=get_settings().AI_MIN_CONFIDENCE,
             expected_carrier_id=tabela.transportadora_id,
         )
-        tests = TableTestService().run(dados_revisados)
+        tests = (V3TableTestService() if is_v3 else TableTestService()).run(dados_revisados)
         dados_revisados["validation"] = validation
         if tests["status"] != "PASSED":
             raise HTTPException(status_code=422, detail="Os testes automáticos da tabela não foram aprovados")

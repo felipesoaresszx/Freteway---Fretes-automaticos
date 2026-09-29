@@ -458,6 +458,9 @@ class SimulacaoTabelaFrete(BaseModel):
     destino_cep: Optional[str] = None
     destino_cidade: Optional[str] = None
     destino_uf: Optional[str] = None
+    destino_regiao: Optional[str] = None
+    volume_total_m3: float = Field(default=0, ge=0)
+    icms: Optional[dict] = None
     peso: float = Field(..., gt=0)
     valor_nf: float = Field(..., ge=0)
     quantidade_volumes: int = Field(default=1, ge=1)

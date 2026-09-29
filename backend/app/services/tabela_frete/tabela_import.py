@@ -36,6 +36,17 @@ def normalizar_preview(dados: dict) -> dict:
             "requer_mapeamento_tarifario": bool(dados.get("itens_para_revisao")),
             "fonte": {"parser": "transwells_pracas_peso_v1"},
         }
+    if dados.get("formato") == "freight_rules_v3":
+        routes = dados.get("routes") or []
+        return {
+            "formato": "freight_rules_v3", "schema_version": 3,
+            "fator_cubagem": dados.get("cubage_factor_kg_m3"),
+            "rotas": routes, "premissas": dados.get("assumptions", []),
+            "pendencias": dados.get("unresolved", []),
+            "estatisticas": {"rotas": len(routes), "faixas": sum(len(item.get("weight_bands") or []) for item in routes)},
+            "requer_mapeamento_tarifario": bool(dados.get("unresolved")),
+            "fonte": {"parser": "freight_rules_v3"},
+        }
     if dados.get("formato") == "canonical_freight_v1":
         validation = dados.get("validation") or {}
         return {

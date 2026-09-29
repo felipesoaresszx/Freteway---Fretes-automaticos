@@ -381,14 +381,14 @@ async def atualizar_configuracao_calculo(
             .where(
                 TabelaFrete.transportadora_id == transportadora_id,
                 TabelaFrete.status == "active",
-                TabelaFreteDadosImportados.formato == "canonical_freight_v1",
+                TabelaFreteDadosImportados.formato.in_(("canonical_freight_v1", "freight_rules_v3")),
             )
             .limit(1)
         )
         if not compatible:
             raise HTTPException(
                 status_code=409,
-                detail="Ative uma tabela canonical_freight_v1 antes de selecionar o motor NEW",
+                detail="Ative uma tabela canonical_freight_v1 ou freight_rules_v3 antes de selecionar o motor NEW",
             )
     config = await db.get(CarrierCalculationConfig, transportadora_id)
     previous = {

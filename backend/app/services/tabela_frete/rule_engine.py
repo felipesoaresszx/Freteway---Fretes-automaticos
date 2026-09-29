@@ -64,6 +64,10 @@ def _condition(condition: dict | None, context: dict[str, Any]) -> bool:
         return normalized(left) in {normalized(item) for item in right}
     if op == "eq":
         return normalized(left) == normalized(right)
+    if op == "between":
+        value = re.sub(r"\D", "", str(left or ""))
+        lower, upper = (re.sub(r"\D", "", str(item)) for item in right)
+        return bool(value) and lower <= value <= upper
     left_number, right_number = decimal(left, condition.get("field", "valor")), decimal(right, "limite")
     return {"gt": left_number > right_number, "gte": left_number >= right_number,
             "lt": left_number < right_number, "lte": left_number <= right_number}.get(op, False)
@@ -75,6 +79,9 @@ def validate_contract(contract: dict) -> list[str]:
         errors.append("schema deve ser freight_rules_v3")
     if not contract.get("routes"):
         errors.append("ao menos uma rota e obrigatoria")
+    validity = contract.get("validity") or {}
+    if not validity.get("start") or not validity.get("end"):
+        errors.append("vigencia inicial e final sao obrigatorias")
     for route in contract.get("routes", []):
         bands = route.get("weight_bands", [])
         if not bands:
@@ -93,6 +100,20 @@ def validate_contract(contract: dict) -> list[str]:
                 previous = upper_value
             elif band is not bands[-1]:
                 errors.append(f"faixa ilimitada deve ser a ultima na rota {route.get('id')}")
+            formula = band.get("formula") or {}
+            if formula.get("type") == "FIXED" and formula.get("amount") is None:
+                errors.append(f"valor fixo ausente na rota {route.get('id')}")
+            elif formula.get("type") == "PER_KG" and formula.get("rate_per_kg") is None:
+                errors.append(f"tarifa por kg ausente na rota {route.get('id')}")
+            elif formula.get("type") not in {"FIXED", "PER_KG"}:
+                errors.append(f"formula invalida na rota {route.get('id')}")
+            else:
+                raw_rate = formula.get("amount") if formula.get("type") == "FIXED" else formula.get("rate_per_kg")
+                try:
+                    if decimal(raw_rate, "tarifa") < 0:
+                        errors.append(f"tarifa negativa na rota {route.get('id')}")
+                except RuleEngineError:
+                    errors.append(f"tarifa invalida na rota {route.get('id')}")
     return list(dict.fromkeys(errors))
 
 

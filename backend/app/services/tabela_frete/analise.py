@@ -607,6 +607,27 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
     """Substitui regras da tabela pelos dados humanos revisados."""
     from app.services.document_intelligence.learning import learn_structure
     await learn_structure(db,tabela,dados)
+    if dados.get("formato") == "freight_rules_v3":
+        from app.services.tabela_frete.rule_engine import validate_contract
+
+        errors = validate_contract(dados)
+        unresolved = [item for item in dados.get("unresolved", []) if item.get("critical", True)]
+        if errors or unresolved:
+            messages = [*errors, *[item.get("problem", "Regra critica pendente") for item in unresolved]]
+            raise AnaliseDocumentoError("Contrato v3 invalido: " + "; ".join(messages))
+        await db.execute(
+            delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
+        )
+        routes = dados.get("routes") or []
+        db.add(TabelaFreteDadosImportados(
+            tabela_frete_id=tabela.id, formato="freight_rules_v3",
+            canonical_schema="freight_rules_v3", schema_version=3,
+            validation_status=(dados.get("validation") or {}).get("status", "TABLE_VALIDATED"),
+            dados=dados, quantidade_coberturas=len(routes),
+            quantidade_tarifas=sum(len(route.get("weight_bands") or []) for route in routes),
+        ))
+        tabela.fator_cubagem = float(dados.get("cubage_factor_kg_m3", tabela.fator_cubagem))
+        return
     if dados.get("formato") == "transpecas_cep_routes_v1":
         routes = dados.get("freight_routes") or []
         if not routes or not any(route.get("tipo_destino") == "interior" for route in routes):

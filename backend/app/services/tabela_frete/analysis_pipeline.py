@@ -20,6 +20,12 @@ from .ai_analysis.normalizer import normalize_ai_analysis
 from .ai_analysis.provider import get_ai_provider
 from .ai_analysis.testing import TableTestService
 from .ai_analysis.validation import validate_ai_contract
+from .ai_analysis.v3 import (
+    V3TableTestService,
+    normalize_ai_analysis_v3,
+    requires_v3,
+    validate_ai_contract_v3,
+)
 
 
 logger = logging.getLogger("freteway.table_analysis")
@@ -106,16 +112,15 @@ class TableAnalysisService:
         tests = None
         if use_ai_contract:
             analysis = provider_result.analysis
-            canonical = normalize_ai_analysis(
-                analysis,
-                carrier_id=table.transportadora_id,
-                table_code=table.codigo,
-                table_version=table.versao,
-                default_cubage_factor=table.fator_cubagem,
+            use_v3 = requires_v3(analysis)
+            normalizer = normalize_ai_analysis_v3 if use_v3 else normalize_ai_analysis
+            canonical = normalizer(
+                analysis, carrier_id=table.transportadora_id, table_code=table.codigo,
+                table_version=table.versao, default_cubage_factor=table.fator_cubagem,
             )
-            validation = validate_ai_contract(
-                canonical, analysis,
-                minimum_confidence=self.settings.AI_MIN_CONFIDENCE,
+            validator = validate_ai_contract_v3 if use_v3 else validate_ai_contract
+            validation = validator(
+                canonical, analysis, minimum_confidence=self.settings.AI_MIN_CONFIDENCE,
                 expected_carrier_id=table.transportadora_id,
             )
             canonical["validation"] = validation
@@ -147,8 +152,9 @@ class TableAnalysisService:
             "status": validation.get("status"), "issues": len(validation.get("issues") or []),
         })
 
-        if data.get("formato") == "tabela_frete_universal_v1":
-            tests = TableTestService().run(data)
+        if data.get("formato") in {"tabela_frete_universal_v1", "freight_rules_v3"}:
+            test_service = V3TableTestService() if data.get("formato") == "freight_rules_v3" else TableTestService()
+            tests = test_service.run(data)
         else:
             tests = {"status": "LEGACY_ENGINE", "total": 0, "passed": 0, "failed": 0, "cases": []}
         combined["automatic_tests"] = tests
