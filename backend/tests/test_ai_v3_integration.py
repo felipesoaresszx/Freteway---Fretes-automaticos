@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.freight_calculation.new import NewFreightCalculator
+from app.services.tabela_frete.calculo import TabelaFreteCalculoService
 from app.services.tabela_frete.ai_analysis.schemas import AIAnalysisResult
 from app.services.tabela_frete.ai_analysis.v3 import (
     V3TableTestService,
@@ -74,3 +75,17 @@ async def test_new_engine_calculates_published_v3_contract():
     assert result.status == "success"
     assert str(result.total) == "1505.38"
     assert result.calculation_version == "freight-rules-v3"
+
+
+@pytest.mark.asyncio
+async def test_legacy_compatibility_path_dispatches_v3_without_lazy_relations():
+    table = SimpleNamespace(
+        id="table-1", nome="Colinas", transportadora_id="carrier-1",
+        dados_importados=SimpleNamespace(formato="freight_rules_v3", dados=contract()),
+    )
+    result = await TabelaFreteCalculoService(None).calcular("table-1", {
+        "origem_cidade": "Guarulhos", "origem_uf": "SP", "destino_uf": "PE",
+        "destino_regiao": "RMR", "peso": 1000, "volume_total_m3": 0, "valor_nf": 20000,
+    }, tabela_carregada=table)
+    assert result["status"] == "success"
+    assert result["valor_total"] == "1505.38"

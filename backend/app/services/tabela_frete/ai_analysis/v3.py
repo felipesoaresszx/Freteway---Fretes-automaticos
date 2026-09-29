@@ -170,7 +170,11 @@ class V3TableTestService:
                     "cases": [{"name": "vigencia", "passed": False}]}
         for route in contract.get("routes") or []:
             def atoms(condition):
-                return [item for child in condition.get("conditions", []) for item in atoms(child)] if condition.get("op") == "and" else [condition]
+                if condition.get("op") == "and":
+                    return [item for child in condition.get("conditions", []) for item in atoms(child)]
+                if condition.get("op") == "or" and condition.get("conditions"):
+                    return atoms(condition["conditions"][0])
+                return [condition]
 
             values = {}
             for atom in [*atoms(route.get("when") or {}), *atoms(route.get("coverage") or {})]:

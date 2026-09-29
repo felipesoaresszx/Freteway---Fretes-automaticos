@@ -28,6 +28,7 @@ from app.services.tabela_frete.calculo_transwells import CalculoTranswellsError,
 from app.services.tabela_frete.calculo_transpecas import CalculoTranspecasError, calcular_transpecas
 from app.services.tabela_frete.contrato_calculo import ContractError, calculate as calcular_contrato
 from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
+from app.services.tabela_frete.rule_engine import RuleEngineError, calculate as calcular_regras_v3
 
 
 class TabelaFreteCalculoService:
@@ -150,6 +151,36 @@ class TabelaFreteCalculoService:
                     return self._com_memoria(calcular_universal(tabela.dados_importados.dados, dados_cotacao), tabela, dados_cotacao)
                 except CalculoUniversalError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_UNIVERSAL", "erro_mensagem": str(exc)}
+
+            if tabela.dados_importados and tabela.dados_importados.formato == "freight_rules_v3":
+                payload = {
+                    **dados_cotacao,
+                    "origin_city": dados_cotacao.get("origin_city", dados_cotacao.get("origem_cidade")),
+                    "origin_state": dados_cotacao.get("origin_state", dados_cotacao.get("origem_uf")),
+                    "destination_state": dados_cotacao.get("destination_state", dados_cotacao.get("destino_uf")),
+                    "destination_city": dados_cotacao.get("destination_city", dados_cotacao.get("destino_cidade")),
+                    "destination_cep": dados_cotacao.get("destination_cep", dados_cotacao.get("destino_cep")),
+                    "destination_region": dados_cotacao.get("destination_region", dados_cotacao.get("destino_regiao")),
+                    "real_weight_kg": dados_cotacao.get("real_weight_kg", dados_cotacao.get("peso")),
+                    "volume_m3": dados_cotacao.get("volume_m3", dados_cotacao.get("volume_total_m3", 0)),
+                    "invoice_value": dados_cotacao.get("invoice_value", dados_cotacao.get("valor_nf")),
+                }
+                try:
+                    resultado = calcular_regras_v3(tabela.dados_importados.dados, payload)
+                except RuleEngineError as exc:
+                    return {"status": "error", "erro_codigo": exc.code, "erro_mensagem": str(exc)}
+                return {
+                    **resultado,
+                    "valor_total": resultado["total"],
+                    "peso_real_kg": resultado["real_weight_kg"],
+                    "peso_cubado_kg": resultado["cubed_weight_kg"],
+                    "peso_considerado_kg": resultado["charged_weight_kg"],
+                    "taxas_detalhadas": [
+                        {"tipo": item["code"], "valor": item["amount"]}
+                        for item in resultado["components"]
+                    ] + [{"tipo": "ICMS", "valor": resultado["icms"]}],
+                    "memoria_calculo": resultado,
+                }
 
             # 2. Valida dados de entrada
             erro = self._validar_dados_entrada(dados_cotacao)

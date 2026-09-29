@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.services.tabela_frete.colinas_pdf import extract_colinas_table_pdf, parse_colinas_table_text
+from app.services.tabela_frete.ai_analysis.v3 import V3TableTestService
 from app.services.tabela_frete.rule_engine import RuleEngineError, calculate, validate_contract
 
 
@@ -55,6 +56,7 @@ def test_parser_extracts_v3_rules_without_ai():
         "type": "PER_KG", "rate_per_kg": "1.20",
     }
     assert result["routes"][1]["charges"][0]["formula"]["amount"] == "59.50"
+    assert V3TableTestService().run(result)["status"] == "PASSED"
 
 
 def test_quote_from_image_returns_expected_freight():
