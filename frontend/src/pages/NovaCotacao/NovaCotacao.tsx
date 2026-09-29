@@ -2,10 +2,12 @@ import { LoaderCircle, Star, Trash2, PlusCircle } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { Badge, Card, Field, Input } from "../../components/ui";
+import { CotacaoResultDetail } from "../../components/CotacaoResultDetail";
 import { useCotacao } from "../../hooks/useCotacao";
 import { useTransportadoras } from "../../hooks/useTransportadoras";
 import type { VolumeIn } from "../../types/cotacao";
 import { enderecoService } from "../../services/enderecoService";
+import { formatMoney } from "../../utils/formatters";
 
 let nextVolumeId = 1;
 
@@ -219,11 +221,11 @@ export function NovaCotacao() {
                   </div>
                   {r.status === "success" && (
                     <span className="text-sm text-right">
-                      R$ {r.valor_frete?.toFixed(2)} <span className="mx-1 text-text-secondary">·</span>
-                      <span className="text-text-secondary">{r.prazo_dias} dias</span>
+                      {formatMoney(r.valor_frete, "Valor indisponível")} <span className="mx-1 text-text-secondary">·</span>
+                      <span className="text-text-secondary">{r.prazo_dias == null ? "Prazo não informado" : `${r.prazo_dias} dias`}</span>
                     </span>
                   )}
-                  {r.status === "success" && r.detalhamento && <details className="mt-2 basis-full border-t border-border pt-2 text-xs"><summary className="cursor-pointer text-state-info">Ver memória de cálculo</summary><div className="mt-2 grid gap-1 sm:grid-cols-3"><span>Região: {r.detalhamento.regiao_tarifaria}</span><span>Peso real: {r.detalhamento.peso_real_kg} kg</span><span>Peso cubado: {r.detalhamento.peso_cubado_kg} kg</span><span>Peso taxado: {r.detalhamento.peso_considerado_kg} kg</span><span>Faixa: até {r.detalhamento.faixa?.to_kg} kg</span><span>Prazo: {r.detalhamento.prazo_dias} dias</span></div><div className="mt-2 space-y-1">{r.detalhamento.taxas_detalhadas?.map((item, indice) => <div key={`${item.tipo}-${indice}`} className="flex justify-between"><span>{item.tipo}</span><span>{item.valor == null ? "Pendente" : `R$ ${item.valor.toFixed(2)}`}</span></div>)}</div></details>}
+                  {r.status === "success" && r.detalhamento && <CotacaoResultDetail detalhamento={r.detalhamento} />}
                   {(r.status === "error" || r.status === "timeout") && (
                     <div className="max-w-md text-right">
                       <Badge tone={r.status === "timeout" ? "warning" : "error"}>

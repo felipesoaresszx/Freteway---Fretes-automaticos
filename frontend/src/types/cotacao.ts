@@ -30,6 +30,18 @@ export interface ErroResultado {
 export type StatusResultado = "processing" | "success" | "error" | "timeout";
 export type StatusCotacao = "processing" | "completed" | "completed_with_errors" | "failed";
 
+export interface DetalhamentoCotacao {
+  regiao_tarifaria?: string;
+  route_id?: string;
+  weight_band?: string;
+  peso_real_kg?: number | string;
+  peso_cubado_kg?: number | string;
+  peso_considerado_kg?: number | string;
+  prazo_dias?: number;
+  faixa?: { from_kg: number; to_kg: number };
+  taxas_detalhadas?: Array<{ tipo: string; valor: number | string | null }>;
+}
+
 export interface ResultadoTransportadora {
   transportadora_id: string;
   transportadora: string;
@@ -39,15 +51,7 @@ export interface ResultadoTransportadora {
   moeda: string;
   erro: ErroResultado | null;
   request_id: string;
-  detalhamento?: {
-    regiao_tarifaria?: string;
-    peso_real_kg?: number;
-    peso_cubado_kg?: number;
-    peso_considerado_kg?: number;
-    prazo_dias?: number;
-    faixa?: { from_kg: number; to_kg: number };
-    taxas_detalhadas?: Array<{ tipo: string; valor: number | null }>;
-  } | null;
+  detalhamento?: DetalhamentoCotacao | null;
 }
 
 export interface CotacaoOut {
