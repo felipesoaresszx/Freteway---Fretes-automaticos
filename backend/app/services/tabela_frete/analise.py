@@ -622,6 +622,22 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
     """Substitui regras da tabela pelos dados humanos revisados."""
     from app.services.document_intelligence.learning import learn_structure
     await learn_structure(db,tabela,dados)
+    if dados.get("formato") == "rispar_freight_v1":
+        counts = dados.get("counts") or {}
+        if counts != {"tariffs": 81, "cep_ranges": 5786, "cities": 5016, "collection": 26}:
+            raise AnaliseDocumentoError("Contagens da tabela Rispar não correspondem aos quatro CSVs oficiais")
+        await db.execute(
+            delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
+        )
+        db.add(TabelaFreteDadosImportados(
+            tabela_frete_id=tabela.id, formato="rispar_freight_v1",
+            canonical_schema="rispar_freight_v1", schema_version=1,
+            validation_status="TABLE_VALIDATED_WITH_COMMERCIAL_PENDING_ITEMS",
+            dados=dados, quantidade_coberturas=counts["cep_ranges"],
+            quantidade_tarifas=counts["tariffs"],
+        ))
+        tabela.fator_cubagem = 300.0
+        return
     if dados.get("formato") == "freight_rules_v3":
         from app.services.tabela_frete.rule_engine import validate_contract
 

@@ -1,4 +1,4 @@
-import { Bell, Calculator, ChevronDown, History as HistoryIcon, LayoutDashboard, ListChecks, LogOut, Menu, PlusCircle, Plug, Settings, Truck, User, Wifi, WifiOff } from "lucide-react";
+import { Bell, ChevronDown, History as HistoryIcon, LayoutDashboard, ListChecks, LogOut, Menu, PlusCircle, Plug, Settings, Truck, User, Wifi, WifiOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
@@ -12,7 +12,6 @@ const NAV_ITEMS: Array<{ to: AppRoute; label: string; icon: typeof LayoutDashboa
   { to: "/cotacoes/nova", label: "Nova cotação", icon: PlusCircle },
   { to: "/cotacoes", label: "Cotações", icon: ListChecks },
   { to: "/transportadoras", label: "Transportadoras", icon: Truck },
-  { to: "/rispar", label: "Rispar", icon: Calculator },
   { to: "/historico", label: "Histórico", icon: HistoryIcon },
   { to: "/integracoes", label: "Integrações", icon: Plug },
   { to: "/configuracoes", label: "Configurações", icon: Settings, permission: "settings.view" },

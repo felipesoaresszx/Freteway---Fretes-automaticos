@@ -8,14 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.observability import log_event
-from app.models.models import AnaliseTabelaEvento, DocumentoFrete, ProcessamentoJob, TabelaFrete
+from app.models.models import AnaliseTabelaEvento, DocumentoFrete, ProcessamentoJob, TabelaFrete, Transportadora
 from app.services.tabela_frete.analise import (
+    AnaliseDocumentoError,
     adicionar_diagnostico_confianca,
     analisar_documento_local,
     combinar_resultados_documentos,
 )
 from app.services.tabela_frete.table_engine.extraction.document import extract_document
 from app.services.tabela_frete.tabela_import import normalizar_preview
+from app.services.tabela_frete.rispar import build_contract as build_rispar_contract
 from .ai_analysis.normalizer import normalize_ai_analysis
 from .ai_analysis.provider import get_ai_provider
 from .ai_analysis.testing import TableTestService
@@ -29,6 +31,22 @@ from .ai_analysis.v3 import (
 
 
 logger = logging.getLogger("freteway.table_analysis")
+
+
+def _rispar_sources(documents: list[DocumentoFrete], storage: Path) -> dict[str, Path]:
+    expected = {
+        "tarifas": "tarifas_por_sigla", "ceps": "faixas_cep",
+        "cidades": "cidades_atendidas", "coletas": "coleta",
+    }
+    sources: dict[str, Path] = {}
+    for document in documents:
+        name = document.nome_arquivo.casefold()
+        if document.tipo_arquivo != "csv":
+            continue
+        for key, marker in expected.items():
+            if marker in name:
+                sources[key] = (storage.resolve() / document.caminho_storage).resolve()
+    return sources
 
 
 class TableAnalysisService:
@@ -67,14 +85,38 @@ class TableAnalysisService:
         storage = Path(self.settings.TABELA_FRETE_STORAGE_DIR)
         await self._stage(job, table, "ANALYZING", 10, details={"documents": len(documents)})
         log_event(logger, "table_analysis_started", job_id=job.id, carrier_id=table.transportadora_id, status="ANALYZING")
-
-        deterministic_results = [
-            analisar_documento_local(document, table, storage) for document in documents
-        ]
-        formats = [
-            item.get("dados_extraidos", {}).get("formato", "UNKNOWN")
-            for item in deterministic_results
-        ]
+        carrier = await self.db.get(Transportadora, table.transportadora_id)
+        is_rispar = bool(carrier and (
+            carrier.cnpj_cpf == "34185588000117"
+            or (carrier.codigo or "").casefold() == "rispar"
+        ))
+        rispar_sources = _rispar_sources(documents, storage) if is_rispar else {}
+        if is_rispar:
+            missing = sorted({"tarifas", "ceps", "cidades", "coletas"} - set(rispar_sources))
+            if missing or len(documents) != 4:
+                raise AnaliseDocumentoError(
+                    "A tabela Rispar exige exatamente os quatro CSVs: tarifas por sigla, "
+                    "faixas de CEP, cidades atendidas e coleta."
+                )
+            contract = build_rispar_contract(
+                rispar_sources["tarifas"], rispar_sources["ceps"],
+                rispar_sources["cidades"], rispar_sources["coletas"],
+            )
+            deterministic_results = [{
+                "dados_extraidos": contract, "confianca_extracao": 1.0,
+                "erros_validacao": [],
+                "avisos": [item["description"] for item in contract["pendencies"]],
+                "campos_com_duvida": [],
+            }]
+            formats = ["rispar_freight_v1"]
+        else:
+            deterministic_results = [
+                analisar_documento_local(document, table, storage) for document in documents
+            ]
+            formats = [
+                item.get("dados_extraidos", {}).get("formato", "UNKNOWN")
+                for item in deterministic_results
+            ]
         await self._stage(job, table, "FORMAT_DETECTED", 25, details={"formats": formats})
 
         combined = combinar_resultados_documentos(deterministic_results)
@@ -85,7 +127,7 @@ class TableAnalysisService:
         provider = get_ai_provider(self.settings)
         provider_result = None
         extracted_line_count = 0
-        if provider is not None:
+        if provider is not None and not is_rispar:
             inputs = []
             per_document_limit = max(
                 1, self.settings.AI_MAX_DOCUMENT_CHARS // len(documents)

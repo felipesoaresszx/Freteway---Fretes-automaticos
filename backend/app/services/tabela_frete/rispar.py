@@ -56,7 +56,7 @@ PENDENCIAS = [
     ("GRIS_MINIMO", "Confirmar se o mínimo de R$ 6,70 é por CT-e ou por volume."),
     ("PRAZOS", "Conciliar divergências entre proposta, faixas de CEP e cidades atendidas."),
     ("ORIGEM_UNICA", "Tabela válida exclusivamente para origem Guarulhos-SP."),
-    ("FISCAL_SP", "Confirmar ICMS interno de SP e cClassTrib do CT-e com o contador."),
+    ("CCLASSTRIB", "Confirmar CST e cClassTrib do CT-e com o contador e a tabela fiscal vigente."),
     ("ALIQUOTAS", "Validar alíquotas fiscais com o contador antes de cobrança real."),
 ]
 
@@ -113,18 +113,24 @@ def build_contract(
         "fee": str(_decimal(r["taxa_coleta_rs"], "0")),
     } for r in coletas}
     return {
-        "schema": "rispar_freight_v1", "version": "1.1", "valid_from": "2026-03-25",
+        "formato": "rispar_freight_v1", "schema": "rispar_freight_v1", "version": "1.1", "valid_from": "2026-03-25",
         "valid_to": "2099-12-31", "source": "TABELA_RISPA_TODO_BRASIL_V1_26.xlsx",
         "carrier": {"name": "Rispar Transportes", "cnpj": "34185588000117", "ie": "796931656114",
                     "tax_regime": "UNCONFIRMED"},
         "origin": {"city": "GUARULHOS", "uf": "SP"},
         "tariffs": tariff_map, "cep_ranges": cep_ranges, "cities": city_rows, "collection": collection,
-        "icms": {"SP": None, **{uf: "0.07" for uf in ("AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MS","MT","PA","PB","PE","PI","RN","RO","RR","SE","TO")},
+        "icms": {"SP": "0.12", **{uf: "0.07" for uf in ("AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MS","MT","PA","PB","PE","PI","RN","RO","RR","SE","TO")},
                  **{uf: "0.12" for uf in ("MG","PR","RJ","RS","SC")}},
         "ibs_cbs": {"2026": {"cbs": "0.009", "ibs_uf": "0.001", "ibs_municipal": "0", "add_to_total": False,
                               "cst": None, "cclass_trib": None}},
         "assumptions": {"round_weight_up": True, "toll_weight": "TAXABLE", "tda_basis": "CTE",
                         "gris_basis": "CTE", "trt_basis": ["FRETE_PESO", "PEDAGIO", "GRIS_ADV"]},
+        "tax_sources": {
+            "icms_interstate": "Resolução do Senado Federal 22/1989",
+            "icms_sp_internal": "RICMS/SP, artigo 54, I; Resposta à Consulta Tributária 28953/2023",
+            "ibs_cbs_2026": "Lei Complementar 214/2025, artigo 343 e artigo 346",
+        },
+        "requer_mapeamento_tarifario": False,
         "optional_services": {"palletization_per_pallet": "68.00", "tde": "350.00",
                               "return_rate": "1.00", "redelivery_rate": "0.50", "redelivery_sp_interior_rate": "1.00",
                               "storage_per_pallet_day": "68.00", "storage_insurance_rate": "0.002",
@@ -154,7 +160,7 @@ def calculate(contract: dict[str, Any], quote: dict[str, Any]) -> dict[str, Any]
     tariff = contract["tariffs"].get(destination["sigla"])
     if not tariff or not tariff["weight_bands"]:
         raise RisparError("TARIFA_NAO_ENCONTRADA", f"A praça {destination['sigla']} não possui faixas comercializadas.")
-    if str(quote.get("origem_uf", "SP")).upper() != "SP" or str(quote.get("origem_cidade", "GUARULHOS")).upper() != "GUARULHOS":
+    if str(quote.get("origem_uf") or "SP").upper() != "SP" or str(quote.get("origem_cidade") or "GUARULHOS").upper() != "GUARULHOS":
         raise RisparError("ORIGEM_NAO_ATENDIDA", "Esta tabela aceita somente origem Guarulhos-SP.")
 
     real = _decimal(quote.get("peso") or quote.get("real_weight_kg"), "0") or D(0)
@@ -184,7 +190,7 @@ def calculate(contract: dict[str, Any], quote: dict[str, Any]) -> dict[str, Any]
     fixed = _money(D(tariff["fixed_fee"])) if tariff["fixed_fee_type"] == "TAS" else D(0)
     dispatch = _money(D(tariff["dispatch_fee"]))
     tda = _money(D(destination["tda"]))
-    collection_key = f"{str(quote.get('collection_uf', 'SP')).upper()}|{str(quote.get('collection_city', 'GUARULHOS')).upper()}"
+    collection_key = f"{str(quote.get('collection_uf') or 'SP').upper()}|{str(quote.get('collection_city') or 'GUARULHOS').upper()}"
     collection = _money(D((contract["collection"].get(collection_key) or {"fee": "0"})["fee"]))
     trt_base = freight + toll + gris
     trt = D(0)

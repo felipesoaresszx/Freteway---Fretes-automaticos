@@ -64,9 +64,21 @@ async def simular_tabela_frete(
         ).order_by(DocumentoFrete.created_at.desc()))
         if documento:
             dados = carregar_revisao(documento).get("dados_extraidos")
-    if not dados or dados.get("formato") not in {"canonical_freight_v1", "freight_rules_v3"}:
+    if not dados or dados.get("formato") not in {"canonical_freight_v1", "freight_rules_v3", "rispar_freight_v1"}:
         raise HTTPException(status_code=422, detail="A tabela ainda não possui contrato canônico para simulação")
-    if dados.get("formato") == "freight_rules_v3":
+    if dados.get("formato") == "rispar_freight_v1":
+        from app.services.tabela_frete.rispar import RisparError, calculate as calculate_rispar
+        try:
+            payload = entrada.model_dump()
+            if payload.get("dimensoes"):
+                payload["volume_total_m3"] = sum(
+                    item["comprimento_cm"] * item["largura_cm"] * item["altura_cm"] * item["quantidade"] / 1_000_000
+                    for item in payload["dimensoes"]
+                )
+            resultado = calculate_rispar(dados, payload)
+        except RisparError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    elif dados.get("formato") == "freight_rules_v3":
         from app.services.tabela_frete.rule_engine import RuleEngineError, calculate as calculate_v3
         payload = entrada.model_dump()
         request = {
@@ -360,15 +372,20 @@ async def upload_documento(
             detail="Documentos só podem ser enviados para tabelas em rascunho",
         )
 
+    carrier = await db.get(Transportadora, tabela.transportadora_id)
+    is_rispar = bool(carrier and (
+        carrier.cnpj_cpf == "34185588000117" or (carrier.codigo or "").casefold() == "rispar"
+    ))
+    document_limit = 4 if is_rispar else 2
     document_count = await db.scalar(
         select(func.count()).select_from(DocumentoFrete).where(
             DocumentoFrete.tabela_frete_id == tabela_id
         )
     )
-    if (document_count or 0) >= 2:
+    if (document_count or 0) >= document_limit:
         raise HTTPException(
             status_code=422,
-            detail="Cada análise aceita no máximo dois documentos",
+            detail=f"Cada análise aceita no máximo {document_limit} documentos",
         )
 
     settings = get_settings()
@@ -427,8 +444,13 @@ async def analisar_documento(
     if not tabela:
         raise HTTPException(status_code=404, detail="Tabela não encontrada")
     ids = list(dict.fromkeys(documento_ids or ([documento_id] if documento_id else [])))
-    if not ids or len(ids) > 2:
-        raise HTTPException(status_code=422, detail="Informe um ou dois documentos para análise")
+    carrier = await db.get(Transportadora, tabela.transportadora_id)
+    is_rispar = bool(carrier and (
+        carrier.cnpj_cpf == "34185588000117" or (carrier.codigo or "").casefold() == "rispar"
+    ))
+    document_limit = 4 if is_rispar else 2
+    if not ids or len(ids) > document_limit:
+        raise HTTPException(status_code=422, detail=f"Informe de um a {document_limit} documentos para análise")
     documentos = (await db.scalars(select(DocumentoFrete).where(
         DocumentoFrete.id.in_(ids), DocumentoFrete.tabela_frete_id == tabela_id,
     ))).all()

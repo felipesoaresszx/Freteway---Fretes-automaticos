@@ -4,6 +4,9 @@ from pathlib import Path
 import pytest
 
 from app.services.tabela_frete.rispar import RisparError, build_contract, calculate
+from app.models.models import DocumentoFrete
+from app.services.tabela_frete.analysis_pipeline import _rispar_sources
+from app.services.tabela_frete.tabela_import import normalizar_preview
 
 
 SOURCE = Path(__file__).parents[2] / "data" / "tariffs" / "rispa" / "source"
@@ -69,3 +72,23 @@ def test_import_contract_is_deterministic(contract):
     )
     assert again["source_hashes"] == contract["source_hashes"]
     assert again["counts"] == {"tariffs": 81, "cep_ranges": 5786, "cities": 5016, "collection": 26}
+
+
+def test_contract_is_ready_for_standard_table_pipeline(contract):
+    assert contract["formato"] == "rispar_freight_v1"
+    assert contract["icms"]["SP"] == "0.12"
+    preview = normalizar_preview(contract)
+    assert preview["requer_mapeamento_tarifario"] is False
+    assert preview["estatisticas"]["cep_ranges"] == 5786
+
+
+def test_standard_analyzer_recognizes_the_four_csv_names(tmp_path):
+    names = [
+        "rispar_tarifas_por_sigla.csv", "rispar_faixas_cep.csv",
+        "rispar_cidades_atendidas.csv", "rispar_coleta.csv",
+    ]
+    documents = [DocumentoFrete(
+        tabela_frete_id="table", nome_arquivo=name, tipo_arquivo="csv",
+        tamanho_bytes=1, hash_conteudo=str(index), caminho_storage=name, origem="upload",
+    ) for index, name in enumerate(names)]
+    assert set(_rispar_sources(documents, tmp_path)) == {"tarifas", "ceps", "cidades", "coletas"}

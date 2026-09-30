@@ -42,6 +42,8 @@ const ETAPAS = [
 ] as const;
 
 export function TabelaFreteForm({ transportadoraId, transportadoraNome, salvando, progresso, onSave, onCancel }: Props) {
+  const isRispar = transportadoraNome.toLocaleLowerCase("pt-BR").includes("rispar");
+  const limiteArquivos = isRispar ? 4 : 2;
   const arquivoRef = useRef<HTMLInputElement>(null);
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [erroArquivo, setErroArquivo] = useState("");
@@ -64,25 +66,27 @@ export function TabelaFreteForm({ transportadoraId, transportadoraNome, salvando
       for (const arquivo of novos) {
         if (!unicos.some((item) => item.name === arquivo.name && item.size === arquivo.size && item.lastModified === arquivo.lastModified)) unicos.push(arquivo);
       }
-      return unicos.slice(0, 2);
+      return unicos.slice(0, limiteArquivos);
     });
   }
 
   function enviar(dados: TabelaFreteCreate) {
-    if (!arquivos.length) {
-      setErroArquivo("Selecione pelo menos um documento para iniciar a análise.");
+    if (!arquivos.length || (isRispar && arquivos.length !== 4)) {
+      setErroArquivo(isRispar
+        ? "Selecione os quatro CSVs da Rispar: tarifas, faixas de CEP, cidades atendidas e coleta."
+        : "Selecione pelo menos um documento para iniciar a análise.");
       arquivoRef.current?.focus();
       return;
     }
     const base = arquivos[0].name.replace(/\.[^.]+$/, "");
     void onSave({
       ...dados,
-      nome: dados.nome.trim() || nomeTabelaPadrao(transportadoraNome, base),
-      codigo: dados.codigo.trim() || `IMP-${Date.now()}`,
-      versao: dados.versao.trim() || "1",
+      nome: dados.nome.trim() || (isRispar ? "Tabela Rispar Todo Brasil" : nomeTabelaPadrao(transportadoraNome, base)),
+      codigo: dados.codigo.trim() || (isRispar ? "RISPAR-BR-1.1" : `IMP-${Date.now()}`),
+      versao: dados.versao.trim() || (isRispar ? "1.1" : "1"),
       fator_cubagem: Number.isFinite(dados.fator_cubagem) ? dados.fator_cubagem : 300,
-      data_inicio: dados.data_inicio || new Date().toISOString().slice(0, 10),
-      data_fim: dados.data_fim || dataFutura(90),
+      data_inicio: dados.data_inicio || (isRispar ? "2026-03-25" : new Date().toISOString().slice(0, 10)),
+      data_fim: dados.data_fim || (isRispar ? "2099-12-31" : dataFutura(90)),
     }, arquivos);
   }
 
@@ -114,10 +118,10 @@ export function TabelaFreteForm({ transportadoraId, transportadoraNome, salvando
         <span className="text-xs font-medium text-text-secondary">Documentos da tabela *</span>
         <input ref={arquivoRef} multiple className="sr-only" type="file" accept=".pdf,.xlsx,.xls,.xlsm,.doc,.docx,.csv,.png,.jpg,.jpeg" onChange={(e) => { adicionarArquivos(Array.from(e.target.files ?? [])); e.currentTarget.value = ""; }} />
         <button type="button" onClick={() => arquivoRef.current?.click()} onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("border-state-info"); }} onDragLeave={(e) => e.currentTarget.classList.remove("border-state-info")} onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove("border-state-info"); adicionarArquivos(Array.from(e.dataTransfer.files ?? [])); }} className={`mt-1.5 flex min-h-20 w-full items-center justify-center gap-2 rounded border border-dashed bg-surface px-3 text-sm text-text-secondary hover:border-state-info focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-state-info ${erroArquivo ? "border-state-error" : "border-border"}`}>
-          <FileUp size={18} /> {arquivos.length ? `${arquivos.length} documento(s) selecionado(s)` : "Selecionar até 2 PDFs, planilhas, documentos ou imagens"}
+          <FileUp size={18} /> {arquivos.length ? `${arquivos.length} documento(s) selecionado(s)` : isRispar ? "Selecionar os 4 CSVs da Rispar" : "Selecionar até 2 PDFs, planilhas, documentos ou imagens"}
         </button>
         {arquivos.length > 0 && <div className="mt-2 space-y-1">{arquivos.map((arquivo, indice) => <div key={`${arquivo.name}-${arquivo.lastModified}`} className="flex items-center gap-2 rounded border border-border bg-surface px-2 py-1.5 text-xs"><FileText size={14} className="text-state-info" /><span className="min-w-0 flex-1 truncate">{indice + 1}. {arquivo.name}</span><button type="button" aria-label={`Remover ${arquivo.name}`} onClick={() => setArquivos((atuais) => atuais.filter((_, itemIndice) => itemIndice !== indice))}><X size={14} /></button></div>)}</div>}
-        <p className="mt-1 text-center text-xs text-text-secondary">Use Ctrl para escolher dois arquivos ou arraste os dois para esta área.</p>
+        <p className="mt-1 text-center text-xs text-text-secondary">{isRispar ? "Selecione juntos os quatro CSVs ou arraste-os para esta área." : "Use Ctrl para escolher dois arquivos ou arraste os dois para esta área."}</p>
         <p className="mt-1 text-xs text-text-secondary">Os documentos serão analisados juntos. Se os valores forem validados, a tabela será ativada automaticamente para cotações; divergências serão abertas para revisão.</p>
         {erroArquivo && <p role="alert" className="mt-2 text-xs text-state-error">{erroArquivo}</p>}
       </div>

@@ -4,6 +4,17 @@ from app.schemas.tabela_frete import TabelaExtraidaSchema
 
 
 def normalizar_preview(dados: dict) -> dict:
+    if dados.get("formato") == "rispar_freight_v1":
+        return {
+            "formato": dados["formato"],
+            "versao": dados.get("version"),
+            "origem": dados.get("origin", {}),
+            "estatisticas": dados.get("counts", {}),
+            "pendencias": dados.get("pendencies", []),
+            "fontes_fiscais": dados.get("tax_sources", {}),
+            "requer_mapeamento_tarifario": False,
+            "fonte": {"parser": "rispar_freight_v1", "arquivos": 4},
+        }
     if dados.get("formato") == "transpecas_cep_routes_v1":
         routes = dados.get("freight_routes") or []
         return {
