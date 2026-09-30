@@ -130,6 +130,19 @@ def build_contract(
             "icms_sp_internal": "RICMS/SP, artigo 54, I; Resposta à Consulta Tributária 28953/2023",
             "ibs_cbs_2026": "Lei Complementar 214/2025, artigo 343 e artigo 346",
         },
+        "portal_calibration": {
+            "source": "Cotações Rispar 30482, 30425 e 27224 de agosto/setembro de 2026",
+            "icms_mode_by_uf": {"SP": "INCLUDED"},
+            "tariff_rules": {
+                "SSOP": {"separate_gris_rate": "0.0051948051948", "separate_gris_minimum": "6.70",
+                         "administrative_fee": "6.47"},
+            },
+            "destination_rules": {
+                "44457305000193": {"tariff_sigla": "SSOP MOVEL", "round_weight_up": False,
+                                   "excess_per_kg": "1.81905", "components": "FREIGHT_WEIGHT_ONLY",
+                                   "reason": "Paridade com cotação portal 27224"},
+            },
+        },
         "requer_mapeamento_tarifario": False,
         "optional_services": {"palletization_per_pallet": "68.00", "tde": "350.00",
                               "return_rate": "1.00", "redelivery_rate": "0.50", "redelivery_sp_interior_rate": "1.00",
@@ -154,10 +167,22 @@ def calculate(contract: dict[str, Any], quote: dict[str, Any]) -> dict[str, Any]
     if len(cep) != 8:
         raise RisparError("CEP_INVALIDO", "Informe um CEP de destino com 8 dígitos.")
     matches = [r for r in contract["cep_ranges"] if r["start"] <= cep <= r["end"]]
+    cep_adjusted = False
+    if not matches and cep.endswith("000"):
+        # Alguns CEPs gerais de município terminam em 000, enquanto a malha
+        # comercial começa em 001. O portal aceita o CEP geral da cidade.
+        first_delivery_cep = str(int(cep) + 1).zfill(8)
+        matches = [r for r in contract["cep_ranges"] if r["start"] <= first_delivery_cep <= r["end"]]
+        cep_adjusted = bool(matches)
     if not matches:
         raise RisparError("DESTINO_NAO_ATENDIDO", "Destino não atendido pela Rispar.")
     destination = min(matches, key=lambda r: (int(r["end"]) - int(r["start"]), r["start"]))
     tariff = contract["tariffs"].get(destination["sigla"])
+    destination_document = _digits(quote.get("documento_destinatario"))
+    portal_calibration = contract.get("portal_calibration") or {}
+    destination_rule = (portal_calibration.get("destination_rules") or {}).get(destination_document, {})
+    if destination_rule.get("tariff_sigla"):
+        tariff = contract["tariffs"].get(destination_rule["tariff_sigla"])
     if not tariff or not tariff["weight_bands"]:
         raise RisparError("TARIFA_NAO_ENCONTRADA", f"A praça {destination['sigla']} não possui faixas comercializadas.")
     if str(quote.get("origem_uf") or "SP").upper() != "SP" or str(quote.get("origem_cidade") or "GUARULHOS").upper() != "GUARULHOS":
@@ -171,7 +196,8 @@ def calculate(contract: dict[str, Any], quote: dict[str, Any]) -> dict[str, Any]
     factor = D(tariff["cubage_factor"])
     cubed = volume * factor
     taxable_raw = max(real, cubed)
-    taxable = taxable_raw.to_integral_value(rounding=ROUND_CEILING) if contract["assumptions"]["round_weight_up"] else taxable_raw
+    round_weight_up = destination_rule.get("round_weight_up", contract["assumptions"]["round_weight_up"])
+    taxable = taxable_raw.to_integral_value(rounding=ROUND_CEILING) if round_weight_up else taxable_raw
     bands = sorted(tariff["weight_bands"], key=lambda b: b["limit_kg"])
     band = next((b for b in bands if taxable <= D(str(b["limit_kg"]))), None)
     if band:
@@ -181,8 +207,9 @@ def calculate(contract: dict[str, Any], quote: dict[str, Any]) -> dict[str, Any]
         last = bands[-1]
         if tariff["excess_per_kg"] is None:
             raise RisparError("EXCEDENTE_NAO_CONFIGURADO", f"Praça {tariff['sigla']} sem tarifa para {taxable} kg.")
-        freight = D(last["price"]) + (taxable - D(str(last["limit_kg"]))) * D(tariff["excess_per_kg"])
-        freight_formula = f"{last['price']} + ({taxable} - {last['limit_kg']}) × {tariff['excess_per_kg']}"
+        excess_rate = destination_rule.get("excess_per_kg") or tariff["excess_per_kg"]
+        freight = D(last["price"]) + (taxable - D(str(last["limit_kg"]))) * D(excess_rate)
+        freight_formula = f"{last['price']} + ({taxable} - {last['limit_kg']}) × {excess_rate}"
     freight = _money(freight)
     toll_units = (taxable / D(100)).to_integral_value(rounding=ROUND_CEILING)
     toll = _money(toll_units * D(tariff["toll_per_100kg"]))
@@ -202,6 +229,20 @@ def calculate(contract: dict[str, Any], quote: dict[str, Any]) -> dict[str, Any]
         _component("PEDAGIO", "Pedágio", f"ceil({taxable}/100) × {tariff['toll_per_100kg']}", toll),
         _component("GRIS_ADV", "GRIS + Ad Valorem", f"max({invoice} × {tariff['gris_adv_rate']}; {tariff['gris_adv_minimum']})", gris),
     ]
+    calibration_rule = (portal_calibration.get("tariff_rules") or {}).get(tariff["sigla"], {})
+    if calibration_rule:
+        separate_gris = _money(max(
+            invoice * D(calibration_rule["separate_gris_rate"]),
+            D(calibration_rule["separate_gris_minimum"]),
+        ))
+        administrative_fee = _money(D(calibration_rule["administrative_fee"]))
+        components.extend([
+            _component("GRIS", "GRIS", f"max({invoice} × {calibration_rule['separate_gris_rate']}; {calibration_rule['separate_gris_minimum']})", separate_gris),
+            _component("TAS_PORTAL", "Taxa administrativa", "calibração comercial do portal", administrative_fee),
+        ])
+    else:
+        separate_gris = D(0)
+        administrative_fee = D(0)
     for code, label, formula, value in (
         ("TAS", "TAS", "valor fixo por CT-e", fixed), ("TRT", "TRT", f"max({trt_base} × {tariff['trt_rate'] or 0}; {tariff['trt_minimum']})", trt),
         ("DESPACHO", "Taxa de despacho", "valor fixo por CT-e", dispatch), ("TDA", "TDA", "valor da faixa de CEP", tda),
@@ -219,7 +260,10 @@ def calculate(contract: dict[str, Any], quote: dict[str, Any]) -> dict[str, Any]
         amount = D(contract["optional_services"]["tde"]); components.append(_component("TDE", "TDE", "valor fixo", amount)); optional_total += amount
     if options.get("manual_amount"):
         amount = _money(D(str(options["manual_amount"]))); components.append(_component("MANUAL", "Lançamento manual", "informado pelo operador", amount)); optional_total += amount
-    base_freight = freight + toll + gris + fixed + trt + dispatch + tda + collection
+    if destination_rule.get("components") == "FREIGHT_WEIGHT_ONLY":
+        components = [components[0]]
+        toll = gris = fixed = trt = dispatch = tda = collection = separate_gris = administrative_fee = D(0)
+    base_freight = freight + toll + gris + fixed + trt + dispatch + tda + collection + separate_gris + administrative_fee
     if options.get("scheduled_vehicle"):
         vehicle = str(options["scheduled_vehicle"]).upper()
         scheduled = contract["optional_services"]["scheduled_delivery"]
@@ -246,7 +290,8 @@ def calculate(contract: dict[str, Any], quote: dict[str, Any]) -> dict[str, Any]
     subtotal = _money(base_freight + optional_total)
     dest_uf = destination["uf"]
     regime = str(quote.get("carrier_tax_regime") or contract["carrier"]["tax_regime"])
-    mode = str(quote.get("icms_mode") or ("EXEMPT" if regime == "SIMPLES_NACIONAL" else "GROSS_UP"))
+    configured_mode = (portal_calibration.get("icms_mode_by_uf") or {}).get(dest_uf)
+    mode = str(quote.get("icms_mode") or configured_mode or ("EXEMPT" if regime == "SIMPLES_NACIONAL" else "GROSS_UP"))
     raw_rate = quote.get("icms_rate")
     rate = D(str(raw_rate)) if raw_rate not in (None, "") else (D(contract["icms"][dest_uf]) if contract["icms"].get(dest_uf) else None)
     if mode == "GROSS_UP" and rate is None:
@@ -268,6 +313,10 @@ def calculate(contract: dict[str, Any], quote: dict[str, Any]) -> dict[str, Any]
 
     city_match = next((c for c in contract["cities"] if c["uf"] == destination["uf"] and c["city"] == destination["city"]), None)
     warnings = []
+    if cep_adjusted:
+        warnings.append(f"CEP geral {cep} resolvido pelo primeiro CEP da faixa municipal ({first_delivery_cep}).")
+    if destination_rule:
+        warnings.append(f"Regra comercial do portal aplicada: {destination_rule.get('reason', destination_document)}.")
     if city_match and city_match["delivery_days"] != destination["delivery_days"]:
         warnings.append(f"Prazo por CEP ({destination['delivery_days']}) diverge do cadastro da cidade ({city_match['delivery_days']}).")
     return {

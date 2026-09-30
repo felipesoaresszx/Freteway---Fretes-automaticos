@@ -42,7 +42,7 @@ def test_acceptance_quotes(contract, payload, total, subtotal):
 
 def test_unknown_zip_is_never_zero(contract):
     with pytest.raises(RisparError) as exc:
-        calculate(contract, quote("06000000", 10, 100))
+        calculate(contract, quote("10000001", 10, 100))
     assert exc.value.code == "DESTINO_NAO_ATENDIDO"
 
 
@@ -80,6 +80,20 @@ def test_contract_is_ready_for_standard_table_pipeline(contract):
     preview = normalizar_preview(contract)
     assert preview["requer_mapeamento_tarifario"] is False
     assert preview["estatisticas"]["cep_ranges"] == 5786
+
+
+@pytest.mark.parametrize("payload,expected", [
+    ({"destino_cep": "12912030", "peso": "55", "valor_nf": "1481.90", "volume_total_m3": "0.48939",
+      "origem_cidade": "GUARULHOS", "origem_uf": "SP", "documento_destinatario": "07671929000191"}, "293.81"),
+    ({"destino_cep": "14801295", "peso": "29", "valor_nf": "1327.90", "volume_total_m3": "0.44187",
+      "origem_cidade": "GUARULHOS", "origem_uf": "SP", "documento_destinatario": "36429083000186"}, "228.89"),
+    ({"destino_cep": "19700000", "peso": "37", "valor_nf": "2984.55", "volume_total_m3": "0.44277",
+      "origem_cidade": "GUARULHOS", "origem_uf": "SP", "documento_destinatario": "44457305000193"}, "582.89"),
+])
+def test_portal_reference_quotes(contract, payload, expected):
+    result = calculate(contract, payload)
+    assert result["valor_total"] == expected
+    assert result["prazo_dias"] == 3
 
 
 def test_standard_analyzer_recognizes_the_four_csv_names(tmp_path):
