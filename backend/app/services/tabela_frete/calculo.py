@@ -29,6 +29,7 @@ from app.services.tabela_frete.calculo_transpecas import CalculoTranspecasError,
 from app.services.tabela_frete.contrato_calculo import ContractError, calculate as calcular_contrato
 from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
 from app.services.tabela_frete.rule_engine import RuleEngineError, calculate as calcular_regras_v3
+from app.services.tabela_frete.rispar import RisparError, calculate as calcular_rispar
 
 
 class TabelaFreteCalculoService:
@@ -180,6 +181,25 @@ class TabelaFreteCalculoService:
                         for item in resultado["components"]
                     ] + [{"tipo": "ICMS", "valor": resultado["icms"]}],
                     "memoria_calculo": resultado,
+                }
+
+            if tabela.dados_importados and tabela.dados_importados.formato == "rispar_freight_v1":
+                try:
+                    resultado = calcular_rispar(tabela.dados_importados.dados, dados_cotacao)
+                except RisparError as exc:
+                    return {"status": "error", "erro_codigo": exc.code, "erro_mensagem": str(exc)}
+                return {
+                    **resultado,
+                    "valor_total": float(resultado["valor_total"]),
+                    "peso_real_kg": float(resultado["real_weight_kg"]),
+                    "peso_cubado_kg": float(resultado["cubed_weight_kg"]),
+                    "peso_considerado_kg": float(resultado["taxable_weight_kg"]),
+                    "taxas_detalhadas": [
+                        {"tipo": item["code"], "valor": float(item["amount"])}
+                        for item in resultado["components"]
+                        if item["code"] not in {"SUBTOTAL"}
+                    ],
+                    "memoria_calculo": resultado["memoria_calculo"],
                 }
 
             # 2. Valida dados de entrada

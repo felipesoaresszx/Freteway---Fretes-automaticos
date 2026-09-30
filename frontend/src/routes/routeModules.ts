@@ -6,6 +6,7 @@ export const routeModules = {
   "/transportadoras": () => import("../pages/Transportadoras/Transportadoras"),
   "/integracoes": () => import("../pages/Integracoes/Integracoes"),
   "/configuracoes": () => import("../pages/Configuracoes/Configuracoes"),
+  "/rispar": () => import("../pages/Rispar/Rispar"),
 } as const;
 
 export type AppRoute = keyof typeof routeModules;

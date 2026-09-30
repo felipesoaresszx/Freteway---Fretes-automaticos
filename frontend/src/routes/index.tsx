@@ -13,6 +13,7 @@ const Configuracoes = lazy(() => routeModules["/configuracoes"]().then((m) => ({
 const Integracoes = lazy(() => routeModules["/integracoes"]().then((m) => ({ default: m.Integracoes })));
 const NovaCotacao = lazy(() => routeModules["/cotacoes/nova"]().then((m) => ({ default: m.NovaCotacao })));
 const Transportadoras = lazy(() => routeModules["/transportadoras"]().then((m) => ({ default: m.Transportadoras })));
+const Rispar = lazy(() => routeModules["/rispar"]().then((m) => ({ default: m.Rispar })));
 
 export function AppRoutes() {
   return (
@@ -34,6 +35,7 @@ export function AppRoutes() {
         <Route path="/transportadoras" element={<Transportadoras />} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/configuracoes" element={<PermissionRoute permission="settings.view"><Configuracoes /></PermissionRoute>} />
+        <Route path="/rispar" element={<Rispar />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
