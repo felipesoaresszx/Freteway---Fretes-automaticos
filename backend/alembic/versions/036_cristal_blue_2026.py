@@ -60,12 +60,14 @@ def upgrade() -> None:
     bind.execute(sa.text("""
         INSERT INTO tabelas_frete (
             id, transportadora_id, nome, codigo, versao, status, moeda,
-            fator_cubagem, data_inicio, data_fim, observacoes, approved_at
+            fator_cubagem, data_inicio, data_fim, observacoes,
+            created_at, updated_at, approved_at
         )
         SELECT :table_id, :carrier_id, 'Cristal Blue 2026', 'CRISTAL-BLUE-2026',
             '2026.1', 'active', 'BRL', 300,
             TIMESTAMP '2026-06-16 00:00:00', TIMESTAMP '2027-06-16 23:59:59',
-            'Proposta comercial de 16/06/2026, validade de um ano.', CURRENT_TIMESTAMP
+            'Proposta comercial de 16/06/2026, validade de um ano.',
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         WHERE NOT EXISTS (
             SELECT 1 FROM tabelas_frete
             WHERE transportadora_id = :carrier_id AND codigo = 'CRISTAL-BLUE-2026'
@@ -79,10 +81,11 @@ def upgrade() -> None:
     bind.execute(sa.text("""
         INSERT INTO tabelas_frete_dados_importados (
             id, tabela_frete_id, formato, canonical_schema, schema_version,
-            validation_status, dados, quantidade_coberturas, quantidade_tarifas
+            validation_status, dados, quantidade_coberturas, quantidade_tarifas,
+            created_at
         )
         SELECT :imported_id, :table_id, 'freight_rules_v3', 'freight_rules_v3', 3,
-            'validated', CAST(:contract AS jsonb), 9, 9
+            'validated', CAST(:contract AS jsonb), 9, 9, CURRENT_TIMESTAMP
         WHERE NOT EXISTS (
             SELECT 1 FROM tabelas_frete_dados_importados WHERE tabela_frete_id = :table_id
         )

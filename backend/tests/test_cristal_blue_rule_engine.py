@@ -5,7 +5,11 @@ from pathlib import Path
 import pytest
 
 from app.services.tabela_frete.rule_engine import calculate, validate_contract
-from app.services.tabela_frete.cristal_blue_2026 import build_contract
+from app.services.tabela_frete.cristal_blue_2026 import (
+    build_contract,
+    extract_cristal_blue_pdf,
+    parse_cristal_blue_text,
+)
 
 
 TABLE = Path(__file__).parents[2] / "data" / "tariffs" / "cristal_blue" / "2026.json"
@@ -27,6 +31,35 @@ def quote(*, city="Araguaina", state="TO", weight="100", invoice="1000", volume=
 def test_contract_is_valid(contract):
     assert validate_contract(contract) == []
     assert contract == build_contract()
+
+
+def test_pdf_text_is_recognized_without_ai():
+    text = """
+    CRISTALBLUE CARGAS
+    Guarulhos 16/06/2026
+    PROPOSTA COMERCIAL FRETE CIF
+    Araguína - TO R$ 1,20
+    Balsas - MA R$ 1,20
+    Marabá - PA R$ 1,20
+    Teresina - PI R$ 1,30
+    Taxa de Reentrega 50%.
+    Cubagem: 300 K por m³.
+    """
+    result = parse_cristal_blue_text(
+        text, source_document="TABELA CRISTAL BLUE 2026.pdf", content_hash="a" * 64,
+    )
+    assert result is not None
+    assert result["formato"] == "freight_rules_v3"
+    assert result["validation"] == {"status": "TABLE_VALIDATED"}
+
+
+def test_real_pdf_is_recognized_when_available():
+    path = Path(r"C:\Users\MODIAL\Downloads\TABELA CRISTAL BLUE 2026.pdf")
+    if not path.exists():
+        pytest.skip("PDF real nao disponivel neste ambiente")
+    result = extract_cristal_blue_pdf(path)
+    assert result is not None
+    assert validate_contract(result) == []
 
 
 def test_named_city_uses_specific_rate_minimum_and_deadline(contract):

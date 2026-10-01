@@ -309,6 +309,21 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
     if documento.tipo_arquivo == "csv":
         return analisar_csv(caminho, tabela)
     if documento.tipo_arquivo == "pdf":
+        from app.services.tabela_frete.cristal_blue_2026 import extract_cristal_blue_pdf
+
+        dados_cristal_blue = extract_cristal_blue_pdf(caminho)
+        if dados_cristal_blue:
+            return {
+                "dados_extraidos": dados_cristal_blue,
+                "confianca_extracao": 1.0,
+                "erros_validacao": [],
+                "avisos": [
+                    "Tabela Cristal Blue 2026 reconhecida deterministicamente e convertida para freight_rules_v3.",
+                    "Praças genéricas de TO, PA e PI são aplicadas como fallback estadual.",
+                ],
+                "campos_com_duvida": [],
+                "resumo": dados_cristal_blue["statistics"],
+            }
         from app.services.tabela_frete.colinas_pdf import extract_colinas_table_pdf
 
         dados_colinas = extract_colinas_table_pdf(caminho)

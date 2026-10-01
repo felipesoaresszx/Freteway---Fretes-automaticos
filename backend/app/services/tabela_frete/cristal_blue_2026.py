@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
+from pathlib import Path
+import re
+import unicodedata
+
+from app.services.tabela_frete.table_engine.extraction.document import extract_document
+
 
 ROUTES = (
     ("TO_01", "TO", "Araguaina", "1.20", 10),
@@ -77,3 +84,48 @@ def build_contract() -> dict:
         ],
         "routes": routes,
     }
+
+
+def _plain(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    return "".join(char for char in normalized if not unicodedata.combining(char))
+
+
+def parse_cristal_blue_text(
+    text: str, *, source_document: str, content_hash: str,
+) -> dict | None:
+    """Reconhece somente a proposta Cristal Blue homologada de 16/06/2026."""
+    compact = re.sub(r"\s+", " ", _plain(text)).upper()
+    required = (
+        "CRISTALBLUE", "PROPOSTA COMERCIAL FRETE CIF", "ARAGU", "BALSAS",
+        "MARAB", "TERESINA", "CUBAGEM", "TAXA DE REENTREGA 50",
+    )
+    if not all(marker in compact for marker in required):
+        return None
+    if not re.search(r"GUARULHOS\s+16/06/2026", compact):
+        return None
+
+    contract = build_contract()
+    contract.update({
+        "formato": "freight_rules_v3",
+        "canonical_schema": "freight_rules_v3",
+        "schema_version": 3,
+        "validation": {"status": "TABLE_VALIDATED"},
+        "unresolved": [],
+        "documents": [{
+            "document": source_document,
+            "sha256": content_hash,
+            "page": 1,
+        }],
+        "statistics": {"routes": 9, "weight_bands": 9},
+    })
+    return contract
+
+
+def extract_cristal_blue_pdf(path: str | Path) -> dict | None:
+    document = Path(path)
+    return parse_cristal_blue_text(
+        extract_document(document),
+        source_document=document.name,
+        content_hash=sha256(document.read_bytes()).hexdigest(),
+    )
