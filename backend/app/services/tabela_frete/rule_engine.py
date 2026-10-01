@@ -6,7 +6,7 @@ documento. Valores numericos permanecem Decimal ate a serializacao da resposta.
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_DOWN, ROUND_HALF_UP
 from typing import Any
 import re
 import unicodedata
@@ -137,6 +137,8 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
         raise RuleEngineError("INVALID_INPUT", "Peso e valor da nota devem ser maiores que zero")
     cubed = volume * decimal(contract.get("cubage_factor_kg_m3", 300), "fator de cubagem")
     charged = max(real, cubed) if contract.get("weight_policy") == "MAX_REAL_CUBED" else real
+    if contract.get("charged_weight_rounding") == "TRUNCATE_3_DECIMALS":
+        charged = charged.quantize(Decimal("0.001"), rounding=ROUND_DOWN)
     context = {**request, "real_weight_kg": real, "invoice_value": invoice,
                "volume_m3": volume, "cubed_weight_kg": cubed, "charged_weight_kg": charged}
 
@@ -159,7 +161,7 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
     formula = band["formula"]
     freight_weight = (decimal(formula["amount"], "tarifa") if formula["type"] == "FIXED"
                       else charged * decimal(formula["rate_per_kg"], "tarifa por kg"))
-    route_minimum = Decimal("0") if route.get("minimum_scope") == "SUBTOTAL" else decimal(
+    route_minimum = Decimal("0") if route.get("minimum_scope") in {"SUBTOTAL", "POST_TAX"} else decimal(
         route.get("minimum_freight", 0), "frete minimo"
     )
     freight_base = max(freight_weight, route_minimum)
@@ -221,16 +223,36 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
     else:
         raise RuleEngineError("INVALID_TAX_MODE", "Modo de ICMS invalido")
 
+    if tax_config.get("rounding") == "TRUNCATE_CENT":
+        total = total.quantize(CENT, rounding=ROUND_DOWN)
+        icms = total - subtotal
+
+    if route.get("minimum_scope") == "POST_TAX":
+        minimum = decimal(route.get("minimum_freight", 0), "frete minimo")
+        if total < minimum:
+            adjustment = minimum - total
+            components.append({"code": "FREIGHT_MINIMUM_ADJUSTMENT", "amount": adjustment})
+            total = minimum
+
     for charge in (item for item in all_charges if item.get("stage") == "POST_TAX"):
         if not _condition(charge.get("when"), context):
             continue
         formula = charge.get("formula", {})
-        if formula.get("type") != "REQUEST_VALUE" or not formula.get("field"):
+        kind = formula.get("type")
+        if kind == "REQUEST_VALUE" and formula.get("field"):
+            field = formula["field"]
+            amount = decimal(context.get(field, 0), field)
+        elif kind == "PERCENTAGE":
+            base_name = formula.get("base")
+            if base_name not in context:
+                raise RuleEngineError("UNKNOWN_BASE", f"Base desconhecida: {base_name}")
+            amount = decimal(context[base_name], base_name) * decimal(formula.get("rate"), charge["code"])
+        else:
             raise RuleEngineError("INVALID_CONTRACT", f"Formula pos-imposto invalida: {charge.get('code')}")
-        field = formula["field"]
-        amount = decimal(context.get(field, 0), field)
         if amount < 0:
-            raise RuleEngineError("INVALID_INPUT", f"{field} nao pode ser negativo")
+            raise RuleEngineError("INVALID_INPUT", f"{charge['code']} nao pode ser negativo")
+        if formula.get("rounding") == "CEILING_UNIT":
+            amount = amount.quantize(Decimal("1"), rounding=ROUND_CEILING)
         components.append({"code": charge["code"], "amount": amount})
         total += amount
 

@@ -16,7 +16,7 @@ ROUTES = (
     ("MA_02", "MA", "Bacabal", "1.30", 15),
     ("MA_03", "MA", "Sao Luis", "1.30", 15),
     ("PA_01", "PA", "Maraba", "1.20", 10),
-    ("PI_01", "PI", "Teresina", "1.30", 10),
+    ("PI_01", "PI", "Teresina", "1.30", 12),
     ("TO_02", "TO", None, "1.25", 15),
     ("PA_02", "PA", None, "1.25", 12),
     ("PI_02", "PI", None, "1.45", 12),
@@ -37,17 +37,20 @@ def build_contract() -> dict:
             "id": route_id,
             "transit_days": days,
             "when": {"op": "and", "conditions": conditions},
-            "minimum_freight": "200.00",
-            "minimum_scope": "SUBTOTAL",
+            "minimum_freight": "230.00",
+            "minimum_scope": "POST_TAX",
             "weight_bands": [{
                 "id": f"{route_id}_ALL", "min_exclusive": "0", "max_inclusive": None,
                 "formula": {"type": "PER_KG", "rate_per_kg": rate},
             }],
-            "charges": [
-                {"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}},
-                {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}},
-            ],
-            "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}},
+            "charges": [{
+                "code": "RCTR_C", "stage": "POST_TAX",
+                "formula": {
+                    "type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01",
+                    "rounding": "CEILING_UNIT",
+                },
+            }],
+            "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07", "rounding": "TRUNCATE_CENT"}},
         })
     return {
         "schema": "freight_rules_v3",
@@ -58,6 +61,7 @@ def build_contract() -> dict:
         "service": {"freight_term": "CIF", "cargo_type": "CARGA_FRACIONADA", "billing_terms": "15 DDL"},
         "cubage_factor_kg_m3": "300",
         "weight_policy": "MAX_REAL_CUBED",
+        "charged_weight_rounding": "TRUNCATE_3_DECIMALS",
         "expiry_warning_days": 30,
         "warnings": [
             "Equipamentos e taxas de descarga cobrados pelo destinatario nao estao inclusos no frete.",
@@ -78,9 +82,11 @@ def build_contract() -> dict:
             "formula": {"type": "REQUEST_VALUE", "field": "partner_freight_amount"},
         }],
         "assumptions": [
-            "PERCENTUAL_NOTA_MAPPED_AS_AD_VALOREM",
+            "PERCENTUAL_NOTA_NOT_CHARGED_IN_PORTAL_QUOTES_721_AND_733",
             "ICMS_SP_TO_TO_MA_PA_PI_GROSS_UP_7_PERCENT",
             "GENERIC_STATE_ROUTE_IS_FALLBACK_AFTER_NAMED_CITIES",
+            "OPERATIONAL_MINIMUM_230_AFTER_ICMS",
+            "INSURANCE_1_PERCENT_ROUNDED_UP_TO_FULL_BRL",
         ],
         "routes": routes,
     }
