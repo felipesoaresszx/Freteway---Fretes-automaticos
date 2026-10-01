@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from time import perf_counter
 
 from app.integrations.ssw.client import SSWClient
@@ -60,6 +61,7 @@ class SSWProvider(CarrierAdapter, FreightProvider):
     async def quote(self, request: FreightQuoteRequest, credentials: dict[str, str]) -> list[FreightQuoteResult]:
         product = request.products[0] if request.products else {}
         recipient_document = str(product.get("documento_destinatario") or "")
+        recipient_taxpayer = bool(product.get("destinatario_contribuinte_icms", False))
         # O contrato SSW aceita CNPJ; CPF é omitido em vez de invalidar toda a cotação.
         recipient_cnpj = recipient_document if len(recipient_document) == 14 else None
         quote_request = SSWQuoteRequest(
@@ -68,8 +70,17 @@ class SSWProvider(CarrierAdapter, FreightProvider):
             volume=request.cubage_m3 or 0, mercadoria=int(credentials.get("mercadoria_padrao", "1")),
             cnpj_destinatario=recipient_cnpj,
             cnpj_remetente=credentials.get("cnpj_remetente") or None,
+            destinatario_contribuinte="S" if recipient_taxpayer else "N",
         )
         result = await self.cotar("", "", quote_request, credentials)
+        composition = result.composicao.model_dump(mode="json")
+        detailed_fees = [
+            {"tipo": name.replace("_", " ").title(), "valor": value}
+            for name, value in composition.items() if Decimal(str(value)) != 0
+        ]
         return [FreightQuoteResult(carrier_id="", carrier_name="", service_name="SSW", price=result.valor_total,
             delivery_days=result.prazo_dias, source="SSW", metadata={"alerta": result.alerta, "mensagem": result.mensagem,
-            "peso_calculo": str(result.peso_calculo), "composicao": result.composicao.model_dump(mode="json")})]
+            "peso_calculo": str(result.peso_calculo), "composicao": composition,
+            "memoria_calculo": {"peso_considerado_kg": str(result.peso_calculo),
+                "prazo_dias": result.prazo_dias, "taxas_detalhadas": detailed_fees,
+                "total_frete": str(result.valor_total), "tabela_calculo": result.tabela_calculo}})]

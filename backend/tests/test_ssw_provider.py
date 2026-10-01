@@ -57,13 +57,15 @@ async def test_quote_aceita_configuracao_numerica_e_encaminha_cnpj_do_destinatar
     request = FreightQuoteRequest(
         origin_zipcode="87000000", destination_zipcode="01001000", weight_kg="10",
         volumes=1, total_value="100", cubage_m3="0.1",
-        products=[{"documento_destinatario": "11222333000181"}],
+        products=[{"documento_destinatario": "11222333000181", "destinatario_contribuinte_icms": True}],
     )
     result = await SSWProvider(client=client).quote(request, {**credentials(), "mercadoria_padrao": 2})
 
     assert result[0].price == Decimal("10")
     assert captured["mercadoria"] == 2
     assert captured["cnpj_destinatario"] == "11222333000181"
+    assert captured["destinatario_contribuinte"] == "S"
+    assert result[0].metadata["memoria_calculo"]["total_frete"] == "10"
 
 
 @pytest.mark.asyncio
@@ -83,3 +85,4 @@ async def test_quote_omite_cpf_no_campo_cnpj_destinatario():
     await SSWProvider(client=client).quote(request, credentials())
 
     assert captured["cnpj_destinatario"] is None
+    assert captured["destinatario_contribuinte"] == "N"

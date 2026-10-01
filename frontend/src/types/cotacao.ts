@@ -19,6 +19,7 @@ export interface CotacaoCreate {
   peso: number;
   volumes: VolumeIn[];
   documento_destinatario?: string | null;
+  destinatario_contribuinte_icms?: boolean;
   transportadoras_ids?: string[] | null;
 }
 
@@ -31,6 +32,7 @@ export type StatusResultado = "processing" | "success" | "error" | "timeout";
 export type StatusCotacao = "processing" | "completed" | "completed_with_errors" | "failed";
 
 export interface DetalhamentoCotacao {
+  memoria_calculo?: DetalhamentoCotacao;
   regiao_tarifaria?: string;
   route_id?: string;
   weight_band?: string;
@@ -40,6 +42,8 @@ export interface DetalhamentoCotacao {
   prazo_dias?: number;
   faixa?: { from_kg: number; to_kg: number };
   taxas_detalhadas?: Array<{ tipo: string; valor: number | string | null }>;
+  total_frete?: number | string;
+  tabela_calculo?: string | null;
 }
 
 export interface ResultadoTransportadora {
