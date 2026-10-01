@@ -107,6 +107,21 @@ def test_portal_quote_733_is_reproduced(contract):
     assert any(item == {"code": "RCTR_C", "amount": "72.00"} for item in result["components"])
 
 
+def test_portal_quote_29974_sao_joao_do_piaui_is_reproduced(contract):
+    result = calculate(
+        contract,
+        quote(
+            city="Sao Joao do Piaui", state="PI", weight="20", invoice="4082.00",
+            volume=str(.58 * .44 * .57),
+        ),
+        on_date=date(2026, 10, 1),
+    )
+    assert result["route_id"] == "PI_02"
+    assert result["charged_weight_kg"] == "43.639"
+    assert result["total"] == "404.35"
+    assert result["delivery_days"] == 15
+
+
 def test_approved_redispatch_is_added_after_system_freight(contract):
     payload = quote() | {"partner_freight_approved": True, "partner_freight_amount": "50.00"}
     result = calculate(contract, payload, on_date=date(2026, 10, 1))

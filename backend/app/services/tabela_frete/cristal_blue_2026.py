@@ -19,7 +19,7 @@ ROUTES = (
     ("PI_01", "PI", "Teresina", "1.30", 12),
     ("TO_02", "TO", None, "1.25", 15),
     ("PA_02", "PA", None, "1.25", 12),
-    ("PI_02", "PI", None, "1.45", 12),
+    ("PI_02", "PI", None, "1.45", 15),
 )
 
 
@@ -52,6 +52,8 @@ def build_contract() -> dict:
             }],
             "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07", "rounding": "TRUNCATE_CENT"}},
         })
+        if route_id == "PI_02":
+            routes[-1]["minimum_freight"] = "363.35"
     return {
         "schema": "freight_rules_v3",
         "version": "CRISTAL-BLUE-MODIAL-2026.1",
