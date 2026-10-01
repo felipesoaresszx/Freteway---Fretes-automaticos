@@ -19,7 +19,7 @@ ROUTES = (
     ("PI_01", "PI", "Teresina", "1.30", 12),
     ("TO_02", "TO", None, "1.25", 15),
     ("PA_02", "PA", None, "1.25", 12),
-    ("PI_02", "PI", None, "1.45", 15),
+    ("PI_02", "PI", None, "1.45", 12),
 )
 
 
@@ -52,8 +52,8 @@ def build_contract() -> dict:
             }],
             "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07", "rounding": "TRUNCATE_CENT"}},
         })
-        if route_id == "PI_02":
-            routes[-1]["minimum_freight"] = "363.35"
+        if city is None:
+            routes[-1]["requires_approved_partner_freight"] = True
     return {
         "schema": "freight_rules_v3",
         "version": "CRISTAL-BLUE-MODIAL-2026.1",
@@ -87,6 +87,7 @@ def build_contract() -> dict:
             "PERCENTUAL_NOTA_NOT_CHARGED_IN_PORTAL_QUOTES_721_AND_733",
             "ICMS_SP_TO_TO_MA_PA_PI_GROSS_UP_7_PERCENT",
             "GENERIC_STATE_ROUTE_IS_FALLBACK_AFTER_NAMED_CITIES",
+            "REGIONAL_ROUTES_REQUIRE_APPROVED_REDISPATCH_PARTNER_FREIGHT",
             "OPERATIONAL_MINIMUM_230_AFTER_ICMS",
             "INSURANCE_1_PERCENT_ROUNDED_UP_TO_FULL_BRL",
         ],

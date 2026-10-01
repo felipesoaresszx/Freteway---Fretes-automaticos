@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.tabela_frete.rule_engine import calculate, validate_contract
+from app.services.tabela_frete.rule_engine import RuleEngineError, calculate, validate_contract
 from app.services.tabela_frete.cristal_blue_2026 import (
     build_contract,
     extract_cristal_blue_pdf,
@@ -72,18 +72,14 @@ def test_portal_quote_721_is_reproduced(contract):
     assert any(item == {"code": "RCTR_C", "amount": "25.00"} for item in result["components"])
 
 
-def test_cubed_weight_and_generic_state_fallback(contract):
-    result = calculate(
-        contract, quote(city="Palmas", weight="100", invoice="1000", volume="1"),
-        on_date=date(2026, 10, 1),
-    )
-
-    assert result["route_id"] == "TO_02"
-    assert result["charged_weight_kg"] == "300.000"
-    assert result["freight_weight"] == "375.00"
-    assert result["subtotal"] == "375.00"
-    assert result["total"] == "413.22"
-    assert result["delivery_days"] == 15
+def test_generic_state_route_requires_approved_redispatch(contract):
+    with pytest.raises(RuleEngineError) as raised:
+        calculate(
+            contract, quote(city="Palmas", weight="100", invoice="1000", volume="1"),
+            on_date=date(2026, 10, 1),
+        )
+    assert raised.value.code == "MANUAL_QUOTE"
+    assert raised.value.manual_quote is True
 
 
 def test_named_city_has_precedence_over_generic_state_route(contract):
@@ -113,7 +109,11 @@ def test_portal_quote_29974_sao_joao_do_piaui_is_reproduced(contract):
         quote(
             city="Sao Joao do Piaui", state="PI", weight="20", invoice="4082.00",
             volume=str(.58 * .44 * .57),
-        ),
+        ) | {
+            "partner_freight_approved": True,
+            "partner_freight_amount": "133.35",
+            "partner_transit_days": 15,
+        },
         on_date=date(2026, 10, 1),
     )
     assert result["route_id"] == "PI_02"
@@ -123,14 +123,18 @@ def test_portal_quote_29974_sao_joao_do_piaui_is_reproduced(contract):
 
 
 def test_approved_redispatch_is_added_after_system_freight(contract):
-    payload = quote() | {"partner_freight_approved": True, "partner_freight_amount": "50.00"}
+    payload = quote(city="Palmas") | {
+        "partner_freight_approved": True, "partner_freight_amount": "50.00",
+    }
     result = calculate(contract, payload, on_date=date(2026, 10, 1))
 
-    assert result["subtotal"] == "120.00"
+    assert result["subtotal"] == "125.00"
     assert result["total"] == "290.00"
     assert any(item == {"code": "REDISPATCH_PARTNER", "amount": "50.00"} for item in result["components"])
 
 
 def test_unapproved_redispatch_is_not_added(contract):
-    payload = quote() | {"partner_freight_approved": False, "partner_freight_amount": "50.00"}
-    assert calculate(contract, payload, on_date=date(2026, 10, 1))["total"] == "240.00"
+    payload = quote(city="Palmas") | {"partner_freight_approved": False, "partner_freight_amount": "50.00"}
+    with pytest.raises(RuleEngineError) as raised:
+        calculate(contract, payload, on_date=date(2026, 10, 1))
+    assert raised.value.code == "MANUAL_QUOTE"

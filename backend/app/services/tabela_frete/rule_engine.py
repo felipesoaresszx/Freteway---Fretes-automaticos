@@ -145,6 +145,15 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
     route = next((item for item in contract["routes"] if _condition(item.get("when"), context)), None)
     if not route:
         raise RuleEngineError("ROUTE_NOT_FOUND", "Rota nao atendida; solicitar cotacao manual", manual_quote=True)
+    if route.get("requires_approved_partner_freight") and not (
+        request.get("partner_freight_approved") is True
+        and decimal(request.get("partner_freight_amount", 0), "frete do parceiro") > 0
+    ):
+        raise RuleEngineError(
+            "MANUAL_QUOTE",
+            "Rota com redespacho: informe o frete do parceiro aprovado para concluir a cotacao",
+            manual_quote=True,
+        )
     coverage = route.get("coverage")
     if coverage and not _condition(coverage, context):
         contact = contract.get("manual_quote_contact", {})
@@ -272,7 +281,7 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
               "components": [{**item, "amount": rounded(item["amount"])} for item in components],
               "subtotal": rounded(subtotal), "icms_mode": mode, "icms_rate": rate,
               "icms": rounded(icms), "total": rounded(total), "informative_taxes": informative,
-              "delivery_days": route.get("transit_days"),
+              "delivery_days": request.get("partner_transit_days", route.get("transit_days")),
               "recoverable_credit": None, "warnings": warnings,
               "assumptions": contract.get("assumptions", [])}
     return json_value(result)
