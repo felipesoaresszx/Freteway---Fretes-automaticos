@@ -22,6 +22,31 @@ ROUTES = (
     ("PI_02", "PI", None, "1.45", 12),
 )
 
+# Cotacoes operacionais emitidas pela Cristal em 24/09/2026 confirmaram que
+# estas pracas do interior do Maranhao nao usam o redespacho informado
+# manualmente da rota estadual generica. O piso e as taxas abaixo reproduzem
+# a composicao exibida nas cotacoes 690, 691 e 692.
+MA_INTERIOR_CONFIRMED_ROUTES = (
+    {
+        "id": "MA_OLINDA_NOVA",
+        "cities": ("Olinda Nova do Maranhao", "Olinda Nova Maranhao"),
+        "transit_days": 12,
+        "charges": (("TDE", "25.00"),),
+    },
+    {
+        "id": "MA_ESPERANTINOPOLIS",
+        "cities": ("Esperantinopolis",),
+        "transit_days": 17,
+        "charges": (("DELIVERY_FEE", "60.00"), ("TDE", "20.00")),
+    },
+    {
+        "id": "MA_TIMBIRAS",
+        "cities": ("Timbiras",),
+        "transit_days": 17,
+        "charges": (),
+    },
+)
+
 
 def build_contract() -> dict:
     common_origin = [
@@ -29,6 +54,27 @@ def build_contract() -> dict:
         {"field": "origin_state", "op": "eq", "value": "SP"},
     ]
     routes = []
+    for confirmed in MA_INTERIOR_CONFIRMED_ROUTES:
+        routes.append({
+            "id": confirmed["id"],
+            "transit_days": confirmed["transit_days"],
+            "when": {"op": "and", "conditions": [
+                *common_origin,
+                {"field": "destination_state", "op": "eq", "value": "MA"},
+                {"field": "destination_city", "op": "in", "value": confirmed["cities"]},
+            ]},
+            "minimum_freight": "200.00",
+            "weight_bands": [{
+                "id": f'{confirmed["id"]}_ALL', "min_exclusive": "0", "max_inclusive": None,
+                "formula": {"type": "PER_KG", "rate_per_kg": "1.30"},
+            }],
+            "charges": [{
+                "code": code,
+                "stage": "PRE_TAX",
+                "formula": {"type": "FIXED", "amount": amount},
+            } for code, amount in confirmed["charges"]],
+            "taxes": {"icms": {"mode": "INCLUDED", "rate": "0.07"}},
+        })
     for route_id, state, city, rate, days in ROUTES:
         conditions = [*common_origin, {"field": "destination_state", "op": "eq", "value": state}]
         if city:
@@ -56,7 +102,7 @@ def build_contract() -> dict:
             routes[-1]["requires_approved_partner_freight"] = True
     return {
         "schema": "freight_rules_v3",
-        "version": "CRISTAL-BLUE-MODIAL-2026.1",
+        "version": "CRISTAL-BLUE-MODIAL-2026.2",
         "carrier": {"name": "Cristal Blue Cargos", "legal_name": "Cristal Blue Cargos"},
         "validity": {"start": "2026-06-16", "end": "2027-06-16"},
         "origin": {"city": "Guarulhos", "state": "SP", "cep": "07042180"},
@@ -90,6 +136,7 @@ def build_contract() -> dict:
             "REGIONAL_ROUTES_REQUIRE_APPROVED_REDISPATCH_PARTNER_FREIGHT",
             "OPERATIONAL_MINIMUM_230_AFTER_ICMS",
             "INSURANCE_1_PERCENT_ROUNDED_UP_TO_FULL_BRL",
+            "MA_INTERIOR_QUOTES_690_691_692_OVERRIDE_GENERIC_REDISPATCH",
         ],
         "routes": routes,
     }
@@ -126,7 +173,10 @@ def parse_cristal_blue_text(
             "sha256": content_hash,
             "page": 1,
         }],
-        "statistics": {"routes": 9, "weight_bands": 9},
+        "statistics": {
+            "routes": len(contract["routes"]),
+            "weight_bands": sum(len(route["weight_bands"]) for route in contract["routes"]),
+        },
     })
     return contract
 

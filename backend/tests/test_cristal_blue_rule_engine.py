@@ -138,3 +138,36 @@ def test_unapproved_redispatch_is_not_added(contract):
     with pytest.raises(RuleEngineError) as raised:
         calculate(contract, payload, on_date=date(2026, 10, 1))
     assert raised.value.code == "MANUAL_QUOTE"
+
+
+@pytest.mark.parametrize(("city", "weight", "invoice", "volume", "total", "days", "charges"), [
+    (
+        "Olinda Nova Maranhao", "19", "2243.20",
+        str((1.16 * .33 * .54) + (.32 * .26 * .45)),
+        "225.00", 12, {"TDE": "25.00"},
+    ),
+    (
+        "Esperantinopolis", "6", "1851.90",
+        str((.14 * .14 * 1.92) + (.43 * .53 * .08)),
+        "280.00", 17, {"DELIVERY_FEE": "60.00", "TDE": "20.00"},
+    ),
+    ("Timbiras", "3", "434.00", str(.20 * .35 * .50), "200.00", 17, {}),
+])
+def test_ma_interior_matches_carrier_quotes(
+    contract, city, weight, invoice, volume, total, days, charges,
+):
+    result = calculate(
+        contract,
+        quote(city=city, state="MA", weight=weight, invoice=invoice, volume=volume),
+        on_date=date(2026, 9, 24),
+    )
+
+    assert result["total"] == total
+    assert result["freight_base"] == "200.00"
+    assert result["icms_mode"] == "INCLUDED"
+    assert result["delivery_days"] == days
+    assert {
+        item["code"]: item["amount"]
+        for item in result["components"]
+        if item["code"] != "FREIGHT_BASE"
+    } == charges
