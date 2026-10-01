@@ -1,0 +1,119 @@
+{
+  "schema": "freight_rules_v3",
+  "version": "CRISTAL-BLUE-MODIAL-2026.1",
+  "carrier": {
+    "name": "Cristal Blue Cargos",
+    "legal_name": "Cristal Blue Cargos"
+  },
+  "validity": {
+    "start": "2026-06-16",
+    "end": "2027-06-16"
+  },
+  "origin": {
+    "city": "Guarulhos",
+    "state": "SP",
+    "cep": "07042180"
+  },
+  "service": {
+    "freight_term": "CIF",
+    "cargo_type": "CARGA_FRACIONADA",
+    "billing_terms": "15 DDL"
+  },
+  "cubage_factor_kg_m3": "300",
+  "weight_policy": "MAX_REAL_CUBED",
+  "expiry_warning_days": 30,
+  "warnings": [
+    "Equipamentos e taxas de descarga cobrados pelo destinatario nao estao inclusos no frete.",
+    "Tabela sujeita a reajuste durante a vigencia."
+  ],
+  "post_freight_events": [
+    {"code": "REDELIVERY", "rate_on_original_freight": "0.50"},
+    {"code": "RETURN", "rate_on_original_freight": "1.00"}
+  ],
+  "redispatch": {
+    "calculation": "SYSTEM_FREIGHT_PLUS_APPROVED_PARTNER_FREIGHT",
+    "approval_required": true
+  },
+  "charges": [
+    {
+      "code": "REDISPATCH_PARTNER",
+      "stage": "POST_TAX",
+      "when": {"op": "and", "conditions": [
+        {"field": "partner_freight_approved", "op": "eq", "value": true},
+        {"field": "partner_freight_amount", "op": "gt", "value": "0"}
+      ]},
+      "formula": {"type": "REQUEST_VALUE", "field": "partner_freight_amount"}
+    }
+  ],
+  "assumptions": [
+    "PERCENTUAL_NOTA_MAPPED_AS_AD_VALOREM",
+    "ICMS_SP_TO_TO_MA_PA_PI_GROSS_UP_7_PERCENT",
+    "GENERIC_STATE_ROUTE_IS_FALLBACK_AFTER_NAMED_CITIES"
+  ],
+  "routes": [
+    {
+      "id": "TO_01", "transit_days": 10,
+      "when": {"op": "and", "conditions": [
+        {"field": "origin_city", "op": "eq", "value": "Guarulhos"},
+        {"field": "origin_state", "op": "eq", "value": "SP"},
+        {"field": "destination_state", "op": "eq", "value": "TO"},
+        {"field": "destination_city", "op": "eq", "value": "Araguaina"}
+      ]},
+      "minimum_freight": "200.00", "minimum_scope": "SUBTOTAL",
+      "weight_bands": [{"id": "TO_01_ALL", "min_exclusive": "0", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.20"}}],
+      "charges": [
+        {"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}},
+        {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}
+      ],
+      "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    },
+    {
+      "id": "MA_01", "transit_days": 10,
+      "when": {"op": "and", "conditions": [{"field": "origin_city", "op": "eq", "value": "Guarulhos"}, {"field": "origin_state", "op": "eq", "value": "SP"}, {"field": "destination_state", "op": "eq", "value": "MA"}, {"field": "destination_city", "op": "eq", "value": "Balsas"}]},
+      "minimum_freight": "200.00", "minimum_scope": "SUBTOTAL", "weight_bands": [{"id": "MA_01_ALL", "min_exclusive": "0", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.20"}}],
+      "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}}, {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}], "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    },
+    {
+      "id": "MA_02", "transit_days": 15,
+      "when": {"op": "and", "conditions": [{"field": "origin_city", "op": "eq", "value": "Guarulhos"}, {"field": "origin_state", "op": "eq", "value": "SP"}, {"field": "destination_state", "op": "eq", "value": "MA"}, {"field": "destination_city", "op": "eq", "value": "Bacabal"}]},
+      "minimum_freight": "200.00", "minimum_scope": "SUBTOTAL", "weight_bands": [{"id": "MA_02_ALL", "min_exclusive": "0", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.30"}}],
+      "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}}, {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}], "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    },
+    {
+      "id": "MA_03", "transit_days": 15,
+      "when": {"op": "and", "conditions": [{"field": "origin_city", "op": "eq", "value": "Guarulhos"}, {"field": "origin_state", "op": "eq", "value": "SP"}, {"field": "destination_state", "op": "eq", "value": "MA"}, {"field": "destination_city", "op": "eq", "value": "Sao Luis"}]},
+      "minimum_freight": "200.00", "minimum_scope": "SUBTOTAL", "weight_bands": [{"id": "MA_03_ALL", "min_exclusive": "0", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.30"}}],
+      "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}}, {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}], "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    },
+    {
+      "id": "PA_01", "transit_days": 10,
+      "when": {"op": "and", "conditions": [{"field": "origin_city", "op": "eq", "value": "Guarulhos"}, {"field": "origin_state", "op": "eq", "value": "SP"}, {"field": "destination_state", "op": "eq", "value": "PA"}, {"field": "destination_city", "op": "eq", "value": "Maraba"}]},
+      "minimum_freight": "200.00", "minimum_scope": "SUBTOTAL", "weight_bands": [{"id": "PA_01_ALL", "min_exclusive": "0", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.20"}}],
+      "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}}, {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}], "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    },
+    {
+      "id": "PI_01", "transit_days": 10,
+      "when": {"op": "and", "conditions": [{"field": "origin_city", "op": "eq", "value": "Guarulhos"}, {"field": "origin_state", "op": "eq", "value": "SP"}, {"field": "destination_state", "op": "eq", "value": "PI"}, {"field": "destination_city", "op": "eq", "value": "Teresina"}]},
+      "minimum_freight": "200.00", "minimum_scope": "SUBTOTAL", "weight_bands": [{"id": "PI_01_ALL", "min_exclusive": "0", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.30"}}],
+      "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}}, {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}], "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    },
+    {
+      "id": "TO_02", "transit_days": 15,
+      "when": {"op": "and", "conditions": [{"field": "origin_city", "op": "eq", "value": "Guarulhos"}, {"field": "origin_state", "op": "eq", "value": "SP"}, {"field": "destination_state", "op": "eq", "value": "TO"}]},
+      "minimum_freight": "200.00", "minimum_scope": "SUBTOTAL", "weight_bands": [{"id": "TO_02_ALL", "min_exclusive": "0", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.25"}}],
+      "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}}, {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}], "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    },
+    {
+      "id": "PA_02", "transit_days": 12,
+      "when": {"op": "and", "conditions": [{"field": "origin_city", "op": "eq", "value": "Guarulhos"}, {"field": "origin_state", "op": "eq", "value": "SP"}, {"field": "destination_state", "op": "eq", "value": "PA"}]},
+      "minimum_freight": "200.00", "minimum_scope": "SUBTOTAL", "weight_bands": [{"id": "PA_02_ALL", "min_exclusive": "0", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.25"}}],
+      "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}}, {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}], "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    },
+    {
+      "id": "PI_02", "transit_days": 12,
+      "when": {"op": "and", "conditions": [{"field": "origin_city", "op": "eq", "value": "Guarulhos"}, {"field": "origin_state", "op": "eq", "value": "SP"}, {"field": "destination_state", "op": "eq", "value": "PI"}]},
+      "minimum_freight": "200.00", "minimum_scope": "SUBTOTAL", "weight_bands": [{"id": "PI_02_ALL", "min_exclusive": "0", "max_inclusive": null, "formula": {"type": "PER_KG", "rate_per_kg": "1.45"}}],
+      "charges": [{"code": "AD_VALOREM", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.06"}}, {"code": "RCTR_C", "formula": {"type": "PERCENTAGE", "base": "invoice_value", "rate": "0.01"}}], "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07"}}
+    }
+  ]
+}

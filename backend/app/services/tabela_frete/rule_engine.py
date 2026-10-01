@@ -56,8 +56,9 @@ def _condition(condition: dict | None, context: dict[str, Any]) -> bool:
         return True
     op = condition.get("op")
     if op in {"and", "or"}:
-        values = [_condition(item, context) for item in condition.get("conditions", [])]
-        return all(values) if op == "and" else any(values)
+        conditions = condition.get("conditions", [])
+        return (all(_condition(item, context) for item in conditions) if op == "and"
+                else any(_condition(item, context) for item in conditions))
     left = context.get(condition.get("field"))
     right = condition.get("value")
     if op == "in":
@@ -68,6 +69,8 @@ def _condition(condition: dict | None, context: dict[str, Any]) -> bool:
         value = re.sub(r"\D", "", str(left or ""))
         lower, upper = (re.sub(r"\D", "", str(item)) for item in right)
         return bool(value) and lower <= value <= upper
+    if left is None:
+        return False
     left_number, right_number = decimal(left, condition.get("field", "valor")), decimal(right, "limite")
     return {"gt": left_number > right_number, "gte": left_number >= right_number,
             "lt": left_number < right_number, "lte": left_number <= right_number}.get(op, False)
@@ -156,11 +159,15 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
     formula = band["formula"]
     freight_weight = (decimal(formula["amount"], "tarifa") if formula["type"] == "FIXED"
                       else charged * decimal(formula["rate_per_kg"], "tarifa por kg"))
-    freight_base = max(freight_weight, decimal(route.get("minimum_freight", 0), "frete minimo"))
+    route_minimum = Decimal("0") if route.get("minimum_scope") == "SUBTOTAL" else decimal(
+        route.get("minimum_freight", 0), "frete minimo"
+    )
+    freight_base = max(freight_weight, route_minimum)
     components: list[dict] = [{"code": "FREIGHT_BASE", "amount": freight_base,
                                "metadata": {"band_id": band["id"], "formula": formula}}]
     amounts = {"FREIGHT_BASE": freight_base}
-    for charge in [*route.get("charges", []), *band.get("charges", [])]:
+    all_charges = [*contract.get("charges", []), *route.get("charges", []), *band.get("charges", [])]
+    for charge in (item for item in all_charges if item.get("stage", "PRE_TAX") == "PRE_TAX"):
         if not _condition(charge.get("when"), context):
             continue
         kind = charge["formula"]["type"]
@@ -175,12 +182,25 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
             if charge["formula"].get("above") is not None:
                 base = max(Decimal("0"), base - decimal(charge["formula"]["above"], "limite"))
             amount = base * decimal(charge["formula"]["rate"], charge["code"])
+        elif kind == "REQUEST_VALUE":
+            field = charge["formula"].get("field")
+            if not field:
+                raise RuleEngineError("INVALID_CONTRACT", f"Campo ausente para {charge['code']}")
+            amount = decimal(context.get(field, 0), field)
+            if amount < 0:
+                raise RuleEngineError("INVALID_INPUT", f"{field} nao pode ser negativo")
         else:
             raise RuleEngineError("UNKNOWN_FORMULA", f"Formula nao suportada: {kind}")
         amounts[charge["code"]] = amount
         components.append({"code": charge["code"], "amount": amount})
 
     subtotal = sum((item["amount"] for item in components), Decimal("0"))
+    if route.get("minimum_scope") == "SUBTOTAL":
+        minimum = decimal(route.get("minimum_freight", 0), "frete minimo")
+        if subtotal < minimum:
+            adjustment = minimum - subtotal
+            components.append({"code": "FREIGHT_MINIMUM_ADJUSTMENT", "amount": adjustment})
+            subtotal = minimum
     tax_config = route.get("taxes", {}).get("icms", {})
     mode = tax_config.get("mode")
     if mode == "REQUIRED_PARAMETER":
@@ -201,6 +221,19 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
     else:
         raise RuleEngineError("INVALID_TAX_MODE", "Modo de ICMS invalido")
 
+    for charge in (item for item in all_charges if item.get("stage") == "POST_TAX"):
+        if not _condition(charge.get("when"), context):
+            continue
+        formula = charge.get("formula", {})
+        if formula.get("type") != "REQUEST_VALUE" or not formula.get("field"):
+            raise RuleEngineError("INVALID_CONTRACT", f"Formula pos-imposto invalida: {charge.get('code')}")
+        field = formula["field"]
+        amount = decimal(context.get(field, 0), field)
+        if amount < 0:
+            raise RuleEngineError("INVALID_INPUT", f"{field} nao pode ser negativo")
+        components.append({"code": charge["code"], "amount": amount})
+        total += amount
+
     warnings = list(contract.get("warnings", []))
     if 0 <= (end - today).days <= int(contract.get("expiry_warning_days", 30)):
         warnings.append(f"Tabela vence em {(end - today).days} dias")
@@ -217,6 +250,7 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
               "components": [{**item, "amount": rounded(item["amount"])} for item in components],
               "subtotal": rounded(subtotal), "icms_mode": mode, "icms_rate": rate,
               "icms": rounded(icms), "total": rounded(total), "informative_taxes": informative,
+              "delivery_days": route.get("transit_days"),
               "recoverable_credit": None, "warnings": warnings,
               "assumptions": contract.get("assumptions", [])}
     return json_value(result)

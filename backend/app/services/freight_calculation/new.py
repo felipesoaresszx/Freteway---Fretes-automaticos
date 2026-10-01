@@ -37,6 +37,7 @@ class NewFreightCalculator(FreightCalculator):
                 result = calculate_v3(imported.dados, request)
                 raw = {
                     "status": "success", "valor_total": result["total"],
+                    "prazo_dias": result.get("delivery_days"),
                     "frete_base": result["freight_base"],
                     "peso_real_kg": result["real_weight_kg"],
                     "peso_cubado_kg": result["cubed_weight_kg"],

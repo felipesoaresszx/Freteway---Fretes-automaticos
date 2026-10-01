@@ -173,6 +173,7 @@ class TabelaFreteCalculoService:
                 return {
                     **resultado,
                     "valor_total": resultado["total"],
+                    "prazo_dias": resultado.get("delivery_days"),
                     "peso_real_kg": resultado["real_weight_kg"],
                     "peso_cubado_kg": resultado["cubed_weight_kg"],
                     "peso_considerado_kg": resultado["charged_weight_kg"],
