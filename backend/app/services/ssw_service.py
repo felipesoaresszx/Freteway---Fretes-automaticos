@@ -33,7 +33,7 @@ class SSWIntegrationService:
     async def credentials(self, integration: CarrierIntegration) -> dict[str, str]:
         secret = await self.manager.credentials(integration)
         config = integration.configuration or {}
-        return {**secret, "dominio": config.get("dominio", ""), "cnpj_pagador": config.get("cnpj_pagador", ""),
+        return {**config, **secret, "dominio": config.get("dominio", ""), "cnpj_pagador": config.get("cnpj_pagador", ""),
             "mercadoria_padrao": str(config.get("mercadoria_padrao", 1))}
 
     async def save(self, carrier_id: str, data: SSWIntegrationInput, *, creating: bool) -> CarrierIntegration:
@@ -45,7 +45,8 @@ class SSWIntegrationService:
             integration = CarrierIntegration(carrier_id=carrier_id, integration_type="API", adapter_code="ssw", priority=100)
             self.db.add(integration)
             await self.db.flush()
-        integration.configuration = {"dominio": data.dominio, "cnpj_pagador": data.cnpj_pagador, "mercadoria_padrao": data.mercadoria_padrao}
+        integration.configuration = {**(integration.configuration or {}), "dominio": data.dominio,
+            "cnpj_pagador": data.cnpj_pagador, "mercadoria_padrao": data.mercadoria_padrao}
         integration.active = data.ativo
         integration.status = "configured" if data.ativo else "inactive"
         current = await self.manager.credentials(integration)

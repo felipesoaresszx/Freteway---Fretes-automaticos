@@ -26,7 +26,6 @@ class CotacaoCreate(BaseModel):
     peso: float = Field(gt=0)
     volumes: list[VolumeIn]
     documento_destinatario: str | None = None
-    destinatario_contribuinte_icms: bool = False
     transportadoras_ids: list[str] | None = None  # None = todas as ativas
     quote_id: str | None = Field(default=None, exclude=True)
 

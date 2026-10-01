@@ -193,8 +193,10 @@ async def _cotar_por_ssw(transportadora: Transportadora, payload: dict, credenci
             valor_nf=payload["valor_nf"], quantidade=payload["quantidade_volumes"],
             peso=payload["peso"], volume=payload["volume_total_m3"],
             mercadoria=int(credenciais.get("mercadoria_padrao", "1")),
-            cnpj_destinatario=payload.get("documento_destinatario"),
-            destinatario_contribuinte="S" if payload.get("destinatario_contribuinte_icms") else "N",
+            cnpj_destinatario=(payload.get("documento_destinatario")
+                if str(credenciais.get("enviar_cnpj_destinatario", "true")).lower() in {"true", "1", "s", "sim"}
+                else None),
+            destinatario_contribuinte="S" if str(credenciais.get("destinatario_contribuinte_padrao", "N")).upper() in {"S", "TRUE", "1"} else "N",
         ), credenciais)
         return ResultadoTransportadora(transportadora_id=transportadora.id, transportadora=transportadora.nome,
             status="success", valor_frete=float(result.valor_total), prazo_dias=result.prazo_dias,
@@ -221,7 +223,6 @@ async def _cotar_por_provider(
             cubage_m3=payload["volume_total_m3"],
             products=[{
                 "documento_destinatario": payload.get("documento_destinatario"),
-                "destinatario_contribuinte_icms": payload.get("destinatario_contribuinte_icms", False),
                 "volumes": payload.get("volumes", []),
             }],
         )
@@ -317,7 +318,6 @@ async def executar_cotacao(
             for volume in cotacao.volumes
         ),
         "documento_destinatario": cotacao.documento_destinatario,
-        "destinatario_contribuinte_icms": cotacao.destinatario_contribuinte_icms,
         "volumes": [volume.model_dump() for volume in cotacao.volumes],
     }
 

@@ -14,6 +14,14 @@ from app.schemas.carrier import FreightQuoteRequest, FreightQuoteResult
 logger = logging.getLogger(__name__)
 
 
+def _configuration_flag(value: object, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "s", "sim", "yes"}
+
+
 class SSWProvider(CarrierAdapter, FreightProvider):
     def __init__(self, client: SSWClient | None = None, parser: SSWParser | None = None):
         self.client, self.parser = client or SSWClient(), parser or SSWParser()
@@ -61,9 +69,10 @@ class SSWProvider(CarrierAdapter, FreightProvider):
     async def quote(self, request: FreightQuoteRequest, credentials: dict[str, str]) -> list[FreightQuoteResult]:
         product = request.products[0] if request.products else {}
         recipient_document = str(product.get("documento_destinatario") or "")
-        recipient_taxpayer = bool(product.get("destinatario_contribuinte_icms", False))
+        recipient_taxpayer = _configuration_flag(credentials.get("destinatario_contribuinte_padrao"), False)
+        send_recipient_document = _configuration_flag(credentials.get("enviar_cnpj_destinatario"), True)
         # O contrato SSW aceita CNPJ; CPF é omitido em vez de invalidar toda a cotação.
-        recipient_cnpj = recipient_document if len(recipient_document) == 14 else None
+        recipient_cnpj = recipient_document if send_recipient_document and len(recipient_document) == 14 else None
         quote_request = SSWQuoteRequest(
             cep_origem=request.origin_zipcode, cep_destino=request.destination_zipcode,
             valor_nf=request.total_value, quantidade=request.volumes, peso=request.weight_kg,

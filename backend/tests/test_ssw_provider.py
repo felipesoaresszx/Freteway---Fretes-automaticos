@@ -57,14 +57,14 @@ async def test_quote_aceita_configuracao_numerica_e_encaminha_cnpj_do_destinatar
     request = FreightQuoteRequest(
         origin_zipcode="87000000", destination_zipcode="01001000", weight_kg="10",
         volumes=1, total_value="100", cubage_m3="0.1",
-        products=[{"documento_destinatario": "11222333000181", "destinatario_contribuinte_icms": True}],
+        products=[{"documento_destinatario": "11222333000181"}],
     )
     result = await SSWProvider(client=client).quote(request, {**credentials(), "mercadoria_padrao": 2})
 
     assert result[0].price == Decimal("10")
     assert captured["mercadoria"] == 2
     assert captured["cnpj_destinatario"] == "11222333000181"
-    assert captured["destinatario_contribuinte"] == "S"
+    assert captured["destinatario_contribuinte"] == "N"
     assert result[0].metadata["memoria_calculo"]["total_frete"] == "10"
 
 
@@ -86,3 +86,28 @@ async def test_quote_omite_cpf_no_campo_cnpj_destinatario():
 
     assert captured["cnpj_destinatario"] is None
     assert captured["destinatario_contribuinte"] == "N"
+
+
+@pytest.mark.asyncio
+async def test_quote_respeita_regra_fiscal_configurada_por_transportadora():
+    client = Client("<cotacao><erro>0</erro><totalFrete>79.77</totalFrete></cotacao>")
+    captured = {}
+
+    async def cotar(**kwargs):
+        captured.update(kwargs)
+        return client.xml
+
+    client.cotar = cotar
+    freight_request = FreightQuoteRequest(
+        origin_zipcode="51180130", destination_zipcode="58085000", weight_kg="37",
+        volumes=3, total_value="703.64", cubage_m3="0.144812",
+        products=[{"documento_destinatario": "21111142000368"}],
+    )
+    configured = {**credentials(), "destinatario_contribuinte_padrao": True,
+                  "enviar_cnpj_destinatario": False}
+
+    result = await SSWProvider(client=client).quote(freight_request, configured)
+
+    assert result[0].price == Decimal("79.77")
+    assert captured["destinatario_contribuinte"] == "S"
+    assert captured["cnpj_destinatario"] is None
