@@ -196,14 +196,14 @@ def extract_generoso_proposal(path: Path) -> dict:
 
     words = read_pdf_words(path)
     if not words:
-        raise AnaliseDocumentoError("PDF Generoso sem texto legível")
+        return None
     text = "\n".join(
         " ".join(w.text for w in sorted(row, key=lambda item: item.x))
         for _, row in _lines(words, tolerance=1.6)
     )
     normalized = _key(text)
     if "PROPOSTA COMERCIAL" not in normalized or "FRETE MINIMO" not in normalized or "FRETE TONELADA" not in normalized:
-        raise AnaliseDocumentoError("Estrutura de proposta Generoso não reconhecida")
+        return None
 
     tariff_lines = _lines([w for w in words if w.page == 1 and 126 <= w.y <= 306], tolerance=1.6)
     state_names = {
@@ -255,7 +255,7 @@ def extract_generoso_proposal(path: Path) -> dict:
         region["source"]["coordinates"] = {"y": y}
 
     if len(regions) < 30:
-        raise AnaliseDocumentoError(f"Foram reconhecidas apenas {len(regions)} praças Generoso")
+        return None
 
     # The PDF's "por tonelada" values are unit rates per kg. Minimum applies
     # as a floor against the per-kg freight; invoice percentage is additive.
