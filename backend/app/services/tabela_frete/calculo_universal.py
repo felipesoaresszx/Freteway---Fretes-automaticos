@@ -154,6 +154,19 @@ def _destination(data: dict, quote: dict) -> dict:
         state = _state_from_cep(cep)
     matches = []
     destinations = data.get("destinations", [])
+    if (data.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1" or any(
+        item.get("proposal_model") == "generoso_minimum_kg_nf_v1" for item in destinations
+    ):
+        requested_level = quote.get("nivel_atendimento") or quote.get("service_level")
+        candidates = [item for item in destinations
+                      if key(_destination_state(item)) == key(state or "")
+                      and (not requested_level or key(item.get("service_level")) == key(requested_level))
+                      and (not city or not item.get("city") or key(item.get("city")) == key(city))]
+        if not candidates:
+            raise CalculoUniversalError("Destino sem tarifa na proposta Generoso")
+        if len(candidates) != 1:
+            raise CalculoUniversalError("Destino ambíguo na proposta Generoso; informe o nível de atendimento")
+        return candidates[0]
     eligible = []
     for item in destinations:
         item_state = _destination_state(item)
@@ -262,6 +275,9 @@ def _destination(data: dict, quote: dict) -> dict:
 
 def calcular_universal(data: dict, quote: dict) -> dict:
     data = _upgrade_legacy_maex(data)
+    generoso_proposal = ((data.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1"
+                         or any(item.get("service_level") == "CAPITAL" and item.get("minimum_freight") is not None
+                                and item.get("freight_percentage") is not None for item in data.get("destinations", [])))
     real = float(quote.get("peso") or quote.get("weight_kg") or 0)
     if real <= 0:
         raise CalculoUniversalError("Peso deve ser maior que zero")
@@ -273,6 +289,34 @@ def calcular_universal(data: dict, quote: dict) -> dict:
     cubed = volume * factor if factor > 0 else 0.0
     weight = max(real, cubed)
     invoice_value = float(quote.get("valor_nf") or quote.get("invoice_value") or 0)
+    if generoso_proposal:
+        value = max(float(destination.get("minimum_freight") or 0),
+                    weight * float(destination["weight_rates"][0]["price"]))
+        percent = float(destination.get("freight_percentage") or 0) * invoice_value
+        if (quote.get("nivel_atendimento") or quote.get("service_level")) is None and destination.get("service_level") != "CAPITAL":
+            raise CalculoUniversalError("Para destinos sem CEP/faixa, informe INTERIOR I ou INTERIOR II conforme praça Generoso")
+        documented = round(value + percent, 2)
+        pending = (data.get("metadata") or {}).get("commercial_pending_items", [])
+        return {
+            "status": "needs_review", "valor_total": None, "valor_total_documentado": documented,
+            "frete_base_documentado": round(value, 2), "componente_percentual_nf": round(percent, 2),
+            "cotacao_parcial": True,
+            "componentes_documentados": ["frete mínimo", "frete por kg", "percentual sobre NF"],
+            "pendencias": pending, "frete_base": round(value + percent, 2),
+            "prazo_dias": None, "peso_considerado_kg": round(weight, 3),
+            "peso_real_kg": real, "peso_cubado_kg": round(cubed, 3),
+            "destino_tabela": {"uf": destination.get("uf"), "cidade": destination.get("city"),
+                               "regiao": destination.get("region_code")},
+            "taxas_detalhadas": [
+                {"codigo": "FRETE_PESO", "descricao": "Máximo entre mínimo e R$/kg", "valor": round(value, 2)},
+                {"codigo": "PERCENTUAL_NF", "descricao": "Percentual sobre valor da NF", "valor": round(percent, 2)},
+            ],
+            "memoria_calculo": {"transportadora": data.get("carrier"), "tabela": data.get("table_code"),
+                                "regiao": destination.get("region_code"), "frete_base": round(value, 2),
+                                "frete_minimo": destination.get("minimum_freight"),
+                                "percentual_nf": destination.get("freight_percentage"),
+                                "valor_total": None, "valor_total_documentado": documented},
+        }
     bands = sorted(destination.get("weight_rates", []), key=lambda item: float(item.get("max_weight", 0)))
     band = next((
         item for item in bands
@@ -312,6 +356,8 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         total = max(total, invoice_value * float(percentage))
     if minimum_freight is not None:
         total = max(total, float(minimum_freight))
+    generoso_partial = ((data.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1"
+                        or any(item.get("proposal_model") == "generoso_minimum_kg_nf_v1" for item in data.get("destinations", [])))
     minimum_adjustment = round(total - calculated_base, 2)
     composition = [
         {"codigo": "FRETE_PESO", "descricao": description, "base": "peso_considerado", "valor": round(total, 2)},
@@ -477,9 +523,16 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         taxes.append({"codigo":"ARREDONDAMENTO_COMERCIAL","descricao":"Arredondamento comercial","base":"TOTAL","valor":adjustment})
     total_taxes = round(rounded_total - total, 2)
     composition.extend(taxes)
+    pending_items = (data.get("metadata", {}).get("commercial_pending_items")
+                     or data.get("general_rules", [{}])[0].get("commercial_pending_items", [])) if generoso_partial else []
     return {
-        "status": "success",
-        "valor_total": round(rounded_total, 2),
+        "status": "needs_review" if generoso_partial else "success",
+        "valor_total": None if generoso_partial else round(rounded_total, 2),
+        "cotacao_parcial": generoso_partial,
+        "frete_base_documentado": round(total, 2),
+        "componentes_documentados": ["frete mínimo", "frete por kg", "percentual sobre NF"] if generoso_partial else [],
+        "pendencias": pending_items,
+        "valor_total_documentado": round(rounded_total, 2),
         "frete_base": round(total, 2),
         "total_taxas": total_taxes,
         "subtotal_sem_icms": round(subtotal_without_tax, 2),
@@ -510,7 +563,7 @@ def calcular_universal(data: dict, quote: dict) -> dict:
             "pedagio": next((item["valor"] for item in taxes if item.get("codigo") == "PEDAGIO"), 0),
             "taxas": taxes, "ajustes": composition[1:],
             "prazo": destination.get("delivery_days", data.get("default_delivery_days")),
-            "valor_total": round(rounded_total, 2),
+            "valor_total": None if generoso_partial else round(rounded_total, 2),
             "versao_tabela": data.get("table_version"), "origem_regra": destination.get("source"),
         },
     }

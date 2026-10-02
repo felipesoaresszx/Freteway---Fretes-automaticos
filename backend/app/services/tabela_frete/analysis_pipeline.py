@@ -110,9 +110,22 @@ class TableAnalysisService:
             }]
             formats = ["rispar_freight_v1"]
         else:
-            deterministic_results = [
-                analisar_documento_local(document, table, storage) for document in documents
-            ]
+            deterministic_results = []
+            for document in documents:
+                parsed = analisar_documento_local(document, table, storage)
+                parsed_data = parsed.get("dados_extraidos", {})
+                if parsed_data.get("proposal_model") == "generoso_minimum_kg_nf_v1" or (
+                    parsed_data.get("formato") == "canonical_freight_v1"
+                    and any(region.get("proposal_model") == "generoso_minimum_kg_nf_v1"
+                            for region in parsed_data.get("regions", []))
+                ):
+                    # Retain the deterministic tariff parser's high confidence.
+                    parsed["confianca_extracao"] = 1.0
+                    parsed["avisos"] = ["Tarifa base Generoso extraída deterministicamente por praça."]
+                elif any(region.get("proposal_model") == "generoso_minimum_kg_nf_v1"
+                         for region in parsed_data.get("regions", [])):
+                    parsed["confianca_extracao"] = 1.0
+                deterministic_results.append(parsed)
             formats = [
                 item.get("dados_extraidos", {}).get("formato", "UNKNOWN")
                 for item in deterministic_results
@@ -129,21 +142,28 @@ class TableAnalysisService:
         extracted_line_count = 0
         if provider is not None and not is_rispar:
             inputs = []
+            is_deterministic_generoso = False
             per_document_limit = max(
                 1, self.settings.AI_MAX_DOCUMENT_CHARS // len(documents)
             )
             for document in documents:
                 path = (storage.resolve() / document.caminho_storage).resolve()
+                if document.tipo_arquivo == "pdf":
+                    from app.services.tabela_frete.pdf_tarifario import extract_generoso_proposal
+                    if extract_generoso_proposal(path):
+                        is_deterministic_generoso = True
+                        break
                 text = extract_document(path)
                 extracted_line_count += len(text.splitlines())
                 excerpt = text[:per_document_limit]
                 inputs.append({"document_ref": document.nome_arquivo, "content": excerpt})
-            provider_result = await provider.analyze_documents(inputs, {
-                "carrier_id": table.transportadora_id,
-                "table_name": table.nome,
-                "table_code": table.codigo,
-                "table_version": table.versao,
-            })
+            if not is_deterministic_generoso:
+                provider_result = await provider.analyze_documents(inputs, {
+                    "carrier_id": table.transportadora_id,
+                    "table_name": table.nome,
+                    "table_code": table.codigo,
+                    "table_version": table.versao,
+                })
 
         deterministic_data = combined.get("dados_extraidos") or {}
         use_ai_contract = provider_result is not None and (
@@ -209,6 +229,16 @@ class TableAnalysisService:
             blocking.append("Testes automáticos do motor canônico falharam")
         confidence = float(combined.get("confianca_extracao") or 0)
         approval_ready = not blocking and confidence >= self.settings.AI_MIN_CONFIDENCE
+        partial_commercial = (
+            (data.get("policy") or {}).get("quote_is_base_only") is True
+            or (data.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1"
+            or any(region.get("proposal_model") == "generoso_minimum_kg_nf_v1" for region in data.get("regions", []))
+        )
+        if partial_commercial:
+            approval_ready = False
+            blocking.extend((data.get("policy") or {}).get("commercial_pending_items")
+                            or (data.get("metadata") or {}).get("commercial_pending_items")
+                            or ["Componentes comerciais da proposta estão pendentes"])
         combined["approval_gate"] = {
             "ready": approval_ready,
             "minimum_confidence": self.settings.AI_MIN_CONFIDENCE,

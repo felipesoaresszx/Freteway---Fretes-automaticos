@@ -188,3 +188,109 @@ def extract_pdf_tariff(path: Path) -> dict:
             "documents": [{**provenance, "role": "tariff"}],
             "raw_generalities": [line for line in text.splitlines() if any(marker in _key(line) for marker in ("ICMS", "CUBAGEM", "REENTREGA", "AGENDAMENTO", "DEVOLUCAO", "TDE/", "ESTADIA", "ARMAZENAGEM"))],
             "statistics": {"regions": len(rows), "brackets": len(rows)*5, "pages": len({word.page for word in words})}}
+
+
+def extract_generoso_proposal(path: Path) -> dict:
+    """Parse Generoso's minimum + per-kg + invoice percentage city-pricing table."""
+    from app.services.document_intelligence.reader import read_pdf_words
+
+    words = read_pdf_words(path)
+    if not words:
+        raise AnaliseDocumentoError("PDF Generoso sem texto legível")
+    text = "\n".join(
+        " ".join(w.text for w in sorted(row, key=lambda item: item.x))
+        for _, row in _lines(words, tolerance=1.6)
+    )
+    normalized = _key(text)
+    if "PROPOSTA COMERCIAL" not in normalized or "FRETE MINIMO" not in normalized or "FRETE TONELADA" not in normalized:
+        raise AnaliseDocumentoError("Estrutura de proposta Generoso não reconhecida")
+
+    tariff_lines = _lines([w for w in words if w.page == 1 and 126 <= w.y <= 306], tolerance=1.6)
+    state_names = {
+        "RJ": "RIO DE JANEIRO", "ES": "ESPIRITO SANTO", "SP": "SAO PAULO",
+        "MG": "MINAS GERAIS", "PR": "PARANA", "SC": "SANTA CATARINA",
+        "RS": "RIO GRANDE DO SUL", "DF": "DISTRITO FEDERAL", "GO": "GOIAS",
+        "MS": "MATO GROSSO DO SUL", "MT": "MATO GROSSO", "RO": "RONDONIA", "AC": "ACRE",
+    }
+    classifications = {"CAPITAL": "CAPITAL", "INTERIOR 1": "INTERIOR I",
+                       "INTERIOR 2": "INTERIOR II", "INTERIOR": "INTERIOR"}
+    state_anchors = sorted(
+        (word.y, word.text.upper())
+        for word in words
+        if word.page == 1 and word.x < 58 and word.text.upper() in state_names
+    )
+    regions = {}
+    pending_state = None
+    for y, row in tariff_lines:
+        ordered = sorted(row, key=lambda item: item.x)
+        if state_anchors:
+            current_state = min(state_anchors, key=lambda item: abs(item[0] - y))[1]
+        else:
+            current_state = None
+        left = [w for w in ordered if w.x < 58]
+        if left and any(w.text.upper() == "DF" for w in left):
+            current_state = "DF"
+        groups = [w.text.upper() for w in ordered if w.text.upper() in {"SUDESTE", "SUL", "CENTRO-OESTE", "NORTE"}]
+        label_words = [w for w in ordered if 58 <= w.x < 100]
+        label = _key(" ".join(w.text for w in label_words))
+        classification = next((value for marker, value in classifications.items() if marker in label), None)
+        values = [w for w in ordered if w.x >= 100]
+        numbers = []
+        for word in values:
+            raw = word.text.strip().replace("%", "")
+            try:
+                numbers.append((word.x, float(raw.replace(",", "."))))
+            except ValueError:
+                continue
+        if not current_state or not classification or len(numbers) < 3:
+            continue
+        minimum, percentage, per_kg = numbers[0][1], numbers[1][1] / 100, numbers[2][1]
+        region_id = f"{current_state}|{classification}"
+        region = regions.setdefault(region_id, {
+            "id": region_id, "state": current_state, "classification": classification,
+            "proposal_model": "generoso_minimum_kg_nf_v1",
+            "brackets": [], "minimum_freight": minimum, "freight_percentage": percentage,
+            "rate_per_kg": per_kg, "source": {"source_document": path.name, "page": 1, "confidence": 1.0},
+        })
+        region.update({"minimum_freight": minimum, "freight_percentage": percentage,
+                       "rate_per_kg": per_kg})
+        region["source"]["coordinates"] = {"y": y}
+
+    if len(regions) < 30:
+        raise AnaliseDocumentoError(f"Foram reconhecidas apenas {len(regions)} praças Generoso")
+
+    # The PDF's "por tonelada" values are unit rates per kg. Minimum applies
+    # as a floor against the per-kg freight; invoice percentage is additive.
+    for region in regions.values():
+        region["brackets"] = [{"from_kg": 0, "to_kg": 10000000, "rate": region["rate_per_kg"],
+                               "source": {**region["source"], "field": "rate_per_kg"}}]
+        region["excess_rate"] = 0
+        region["gris"] = 0
+        region["ad_valorem"] = region["freight_percentage"]
+        region["toll"] = 0
+        region["tas"] = 0
+
+    provenance = {"source_document": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "page": 1}
+    rules = [
+        {"type": "cubage", "status": "resolved", "factor_kg_m3": 300,
+         "source": {**provenance, "field": "cubage", "confidence": 1.0}},
+        {"type": "minimum_freight", "status": "resolved", "calculation": "max_per_kg", "base": "freight_weight",
+         "source": {**provenance, "field": "minimum_freight", "confidence": 1.0}},
+        {"type": "gris", "status": "resolved", "calculation": "percentage", "base": "invoice_value", "minimum": 0},
+        {"type": "ad_valorem", "status": "resolved", "calculation": "percentage", "base": "invoice_value"},
+        {"type": "toll", "status": "resolved", "calculation": "fixed", "amount": 0},
+        {"type": "tas", "status": "resolved", "calculation": "fixed", "amount": 0},
+        {"type": "icms", "status": "unresolved", "critical": False,
+         "original_text": "ICMS/ISS conforme legislação vigente; não incluso"},
+    ]
+    return {
+        "formato": FORMATO, "role": "tariff", "proposal_model": "generoso_minimum_kg_nf_v1",
+        "origin": {"city": "Guarulhos", "state": "SP"},
+        "regions": list(regions.values()), "rules": rules,
+        "documents": [{**provenance, "role": "tariff"}],
+        "weight_policy": "max_real_cubed", "excess_policy": "base_plus_exact_kg",
+        "statistics": {"regions": len(regions), "brackets": len(regions), "pages": 1},
+        "raw_generalities": [line for line in text.splitlines() if any(marker in _key(line) for marker in (
+            "EMEX", "AREA DE RISCO", "SEC-CAT", "REENTREGA", "DEVOLUCAO", "TSO", "TEC", "COLETA", "ICMS"
+        ))],
+    }

@@ -60,6 +60,8 @@ def normalizar_preview(dados: dict) -> dict:
         }
     if dados.get("formato") == "canonical_freight_v1":
         validation = dados.get("validation") or {}
+        generoso = any(region.get("proposal_model") == "generoso_minimum_kg_nf_v1"
+                       for region in dados.get("regions", []))
         return {
             "formato": dados["formato"],
             "origin": dados.get("origin", {}),
@@ -69,7 +71,9 @@ def normalizar_preview(dados: dict) -> dict:
             "documents": dados.get("documents", []),
             "validation": validation,
             "estatisticas": validation.get("statistics", {}),
-            "requer_mapeamento_tarifario": validation.get("status") != "TABLE_VALIDATED",
+            "requer_mapeamento_tarifario": validation.get("status") not in {"TABLE_VALIDATED", "TABLE_VALIDATED_WITH_COMMERCIAL_PENDING_ITEMS"},
+            "cotacao_parcial": generoso,
+            "quote_components": dados.get("policy", {}).get("quote_components", []) if generoso else [],
             "fonte": {"parser": "canonical_freight_v1"},
         }
     if dados.get("formato") == "tabela_frete_universal_v1":

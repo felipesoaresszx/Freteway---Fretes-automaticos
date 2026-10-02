@@ -25,6 +25,36 @@ class DocumentWord:
     confidence: float
 
 
+def _pymupdf_words(path: Path) -> list[DocumentWord]:
+    """Extract text and coordinates from PDFs that pypdf cannot interpret."""
+    try:
+        import pymupdf
+    except ImportError:
+        # Older PyMuPDF releases expose the module as ``fitz``.
+        try:
+            import fitz as pymupdf
+        except ImportError as exc:
+            raise RuntimeError("PyMuPDF is required to read this PDF") from exc
+
+    words: list[DocumentWord] = []
+    with pymupdf.open(str(path)) as pdf:
+        for page_number, page in enumerate(pdf, 1):
+            page_words = [DocumentWord(page_number, str(item[4]), float(item[0]), float(item[1]),
+                                       float(item[2] - item[0]), float(item[3] - item[1]), 1.0)
+                           for item in page.get_text("words") if str(item[4]).strip()]
+            if page_words:
+                words.extend(page_words)
+                continue
+            # Text-free pages may be scans. Render the page rather than
+            # relying on pypdf to decode embedded image XObjects.
+            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(2, 2), alpha=False)
+            from PIL import Image
+            import io
+            image = Image.open(io.BytesIO(pixmap.tobytes("png"))).convert("RGB")
+            words.extend(_ocr_image(image, page_number))
+    return words
+
+
 def _ocr_image(image, page: int) -> list[DocumentWord]:
     import pytesseract
     try:
@@ -52,8 +82,21 @@ def read_pdf_words(path: Path) -> list[DocumentWord]:
     from pypdf import PdfReader
     all_words = []
     markers = ("ORIGEM", "FORMATO", "GRIS", "ADV", "PED", "GENERAL")
-    for page_number, page in enumerate(PdfReader(str(path)).pages, 1):
+    try:
+        pages = PdfReader(str(path)).pages
+    except Exception:
+        return _pymupdf_words(path)
+    for page_number, page in enumerate(pages, 1):
         page_best, best_score = [], -1
+        try:
+            # Prefer embedded text and its coordinates when available. This
+            # also avoids OCR on decorative images embedded in digital PDFs.
+            page_text_words = _pymupdf_page_words(path, page_number)
+            if page_text_words:
+                all_words.extend(page_text_words)
+                continue
+        except Exception:
+            pass
         for source in page.images:
             original = source.image.convert("RGB")
             for angle in (0, 90, 270):
@@ -73,25 +116,56 @@ def read_pdf_words(path: Path) -> list[DocumentWord]:
     return all_words
 
 
+def _pymupdf_page_words(path: Path, page_number: int) -> list[DocumentWord]:
+    try:
+        import pymupdf
+    except ImportError:
+        import fitz as pymupdf
+    with pymupdf.open(str(path)) as pdf:
+        page = pdf[page_number - 1]
+        return [DocumentWord(page_number, str(item[4]), float(item[0]), float(item[1]),
+                             float(item[2] - item[0]), float(item[3] - item[1]), 1.0)
+                for item in page.get_text("words") if str(item[4]).strip()]
+
+
 def read_pdf(path: Path) -> list[DocumentPage]:
     from pypdf import PdfReader
-    reader = PdfReader(str(path))
-    scanned_words = None
-    pages = []
-    for number, page in enumerate(reader.pages, start=1):
-        text = page.extract_text(extraction_mode="layout") or ""
-        method = "pdf_layout"
-        if not text.strip() and page.images:
-            scanned_words = scanned_words if scanned_words is not None else read_pdf_words(path)
-            words = [word for word in scanned_words if word.page == number]
-            rows = []
-            for word in sorted(words, key=lambda item: (item.y, item.x)):
-                row = next((item for item in rows if abs(item[0] - word.y) <= max(8, word.height * .65)), None)
+    try:
+        reader = PdfReader(str(path))
+        scanned_words = None
+        pages: list[DocumentPage] = []
+        for number, page in enumerate(reader.pages, start=1):
+            text = page.extract_text(extraction_mode="layout") or ""
+            method = "pdf_layout"
+            if not text.strip() and page.images:
+                scanned_words = scanned_words if scanned_words is not None else read_pdf_words(path)
+                words = [word for word in scanned_words if word.page == number]
+                rows: list[list[DocumentWord]] = []
+                for word in sorted(words, key=lambda item: (item.y, item.x)):
+                    row = next((item for item in rows if abs(item[0].y - word.y) <= max(8, word.height * .65)), None)
+                    if row is None:
+                        row = []
+                        rows.append(row)
+                    row.append(word)
+                text = "\n".join(" ".join(w.text for w in sorted(row, key=lambda item: item.x)) for row in rows)
+                method = "ocr"
+            pages.append(DocumentPage(number, text, method))
+        return pages
+    except Exception:
+        words = _pymupdf_words(path)
+        if not words:
+            raise ValueError("PDF não contém texto legível")
+        pages = []
+        for number in sorted({word.page for word in words}):
+            page_words = sorted((word for word in words if word.page == number), key=lambda item: (item.y, item.x))
+            rows: list[list[DocumentWord]] = []
+            for word in page_words:
+                row = next((item for item in rows if abs(item[0].y - word.y) <= max(2, word.height * .65)), None)
                 if row is None:
-                    row = [word.y, []]
+                    row = []
                     rows.append(row)
-                row[1].append(word)
-            text = "\n".join(" ".join(w.text for w in sorted(row[1], key=lambda item: item.x)) for row in rows)
-            method = "ocr"
-        pages.append(DocumentPage(number, text, method))
+                row.append(word)
+            text = "\n".join(" ".join(w.text for w in sorted(row, key=lambda item: item.x)) for row in rows)
+            pages.append(DocumentPage(number, text, "pymupdf"))
+        return pages
     return pages

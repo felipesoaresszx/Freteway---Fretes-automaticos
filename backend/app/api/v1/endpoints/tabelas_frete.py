@@ -64,7 +64,7 @@ async def simular_tabela_frete(
         ).order_by(DocumentoFrete.created_at.desc()))
         if documento:
             dados = carregar_revisao(documento).get("dados_extraidos")
-    if not dados or dados.get("formato") not in {"canonical_freight_v1", "freight_rules_v3", "rispar_freight_v1"}:
+    if not dados or dados.get("formato") not in {"canonical_freight_v1", "freight_rules_v3", "rispar_freight_v1", "tabela_frete_universal_v1"}:
         raise HTTPException(status_code=422, detail="A tabela ainda não possui contrato canônico para simulação")
     if dados.get("formato") == "rispar_freight_v1":
         from app.services.tabela_frete.rispar import RisparError, calculate as calculate_rispar
@@ -92,6 +92,12 @@ async def simular_tabela_frete(
             resultado = calculate_v3(dados, request)
         except RuleEngineError as exc:
             raise HTTPException(status_code=422, detail={"code": exc.code, "message": str(exc)}) from exc
+    elif dados.get("formato") == "tabela_frete_universal_v1":
+        from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
+        try:
+            resultado = calcular_universal(dados, entrada.model_dump())
+        except CalculoUniversalError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     else:
         from app.services.tabela_frete.contrato_calculo import ContractError, calculate
         try:
@@ -536,6 +542,16 @@ async def obter_dados_revisao(
     # aliases obsoletos quando o normalizador evolui após a análise original.
     from app.services.tabela_frete.tabela_import import normalizar_preview
     revisao["preview_estruturado"] = normalizar_preview(revisao.get("dados_extraidos") or {})
+    reviewed_data = revisao.get("dados_extraidos") or {}
+    is_partial_proposal = any(
+        region.get("proposal_model") == "generoso_minimum_kg_nf_v1"
+        for region in reviewed_data.get("regions", [])
+    ) or (reviewed_data.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1"
+    if is_partial_proposal:
+        pending = (reviewed_data.get("policy") or {}).get("commercial_pending_items") or (reviewed_data.get("metadata") or {}).get("commercial_pending_items") or []
+        revisao["approval_gate"] = {"ready": False, "minimum_confidence": 0.95,
+                                    "blocking_reasons": pending or ["Componentes comerciais da proposta estão pendentes"]}
+        revisao["commercial_quote_mode"] = "partial_base_only"
     ids_revisao = revisao.get("documento_ids") or [documento.id]
     encontrados = (await db.scalars(
         select(DocumentoFrete).where(DocumentoFrete.id.in_(ids_revisao))
@@ -745,6 +761,16 @@ async def aprovar_e_publicar_tabela(
         raise HTTPException(status_code=409, detail="A tabela precisa estar aguardando revisão")
 
     dados_revisados = dados.dados_extraidos
+    generoso_partial = (
+        (dados_revisados.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1"
+        or any(region.get("proposal_model") == "generoso_minimum_kg_nf_v1"
+               for region in dados_revisados.get("regions", []))
+    )
+    if generoso_partial:
+        raise HTTPException(
+            status_code=422,
+            detail="Esta proposta permite apenas cotações parciais. Complete os pendentes comerciais antes de publicar como tabela ativa.",
+        )
     tests = None
     validation = dados_revisados.get("validation") or {}
     if dados_revisados.get("formato") in {"tabela_frete_universal_v1", "freight_rules_v3"} and dados_revisados.get("ai_analysis"):

@@ -32,6 +32,8 @@ class DestinationResolver:
             matches = [r for r in data.get('localities', []) if r.get('cep_start') and r['cep_start'] <= cep <= r['cep_end']]
         else:
             matches = [r for r in data.get('localities', []) if city and state and key(r['city']) == key(city) and key(r['state']) == key(state)]
+        if not matches and data.get("policy", {}).get("cep_mode") == "city_state" and not cep and city and state:
+            matches = [r for r in data.get('localities', []) if key(r['city']) == key(city) and key(r['state']) == key(state)]
         if not matches:
             raise ContractError("Destino sem correspondência na malha")
         if len(matches) != 1:
@@ -64,7 +66,7 @@ def calculate(data, request, *, preview=False):
         raise ContractError("Informe a origem contratada ou seu CEP")
     regions = [r for r in data['regions'] if r['id'] == destination['region_id']]
     if len(regions) != 1:
-        raise ContractError("Região inexistente ou ambígua")
+        raise ContractError("Destino listado sem tarifa na proposta Generoso")
     region = regions[0]
     rules = {r['type']: r for r in data.get('rules', [])}
     if 'cubage' not in rules:
@@ -105,6 +107,11 @@ def calculate(data, request, *, preview=False):
             extra_weight = extra_weight.to_integral_value(rounding=ROUND_CEILING)
         excess = extra_weight * number(region['excess_rate'])
     base = number(bracket['rate'])
+    if rules.get('minimum_freight', {}).get('status') == 'resolved':
+        minimum = number(region.get('minimum_freight', 0))
+        base = max(minimum, base * weight)
+    if region.get("proposal_model") == "generoso_minimum_kg_nf_v1":
+        base = max(number(region["minimum_freight"]), number(region["rate_per_kg"]) * weight)
     lines = [{"tipo": "FRETE_PESO", "valor": money(base), "source": region['source']}, {"tipo": "EXCEDENTE", "valor": money(excess), "source": region['source']}]
     bases = {'invoice_value': nf, 'freight_weight': base + excess, 'charged_weight': weight}
     for name in ('gris', 'ad_valorem', 'toll', 'tas'):
@@ -119,7 +126,7 @@ def calculate(data, request, *, preview=False):
         elif rule['calculation'] == 'weight_fraction':
             value = (weight / number(rule['fraction_kg'])).to_integral_value(rounding=ROUND_CEILING) * number(region[name])
         elif rule['calculation'] == 'fixed':
-            value = number(region[name])
+            value = number(rule.get('amount', region.get(name, 0)))
         else:
             raise ContractError(f"Fórmula desconhecida: {name}")
         lines.append({"tipo": name.upper(), "valor": money(max(value, number(rule.get('minimum', 0)))), "source": rule.get('source')})
@@ -146,19 +153,29 @@ def calculate(data, request, *, preview=False):
         lines.append({"tipo": "ICMS", "valor": money(amount), "source": tax.get('source')})
     total = sum(number(l['valor']) for l in lines if l['valor'] is not None)
     charge_values = {line["tipo"]: line["valor"] for line in lines if line.get("valor") is not None}
+    pending_components = data.get("policy", {}).get("quote_is_base_only") is True
+    if pending_components:
+        pending.extend(data.get("policy", {}).get("commercial_pending_items", []))
+        pending.extend(["Prazo de entrega não informado", "Frete-valor não anexado",
+                        "Adicionais de área de risco/Sec-Cat não parametrizados", "ICMS/ISS não calculados"])
+    pending = list(dict.fromkeys(pending))
     memory = {
         "transportadora": data.get("carrier"), "tabela": data.get("table_code"),
         "regra_aplicada": region["id"], "origem": origin,
         "destino": {"cep": request.get("destino_cep"), "cidade": destination.get("city"), "uf": destination.get("state")},
         "regiao": region["id"], "peso_real": float(real), "peso_cubado": float(cubed),
         "peso_tarifavel": float(weight), "valor_mercadoria": float(nf),
-        "frete_base": money(base), "frete_minimo": None,
+        "frete_base": money(base), "frete_minimo": money(number(region.get('minimum_freight', 0))) if region.get('minimum_freight') is not None else None,
+        "percentual_nf": float(region.get("freight_percentage", 0)) if region.get("proposal_model") == "generoso_minimum_kg_nf_v1" else None,
         "ad_valorem": charge_values.get("AD_VALOREM", 0), "gris": charge_values.get("GRIS", 0),
         "pedagio": charge_values.get("TOLL", 0), "taxas": lines,
         "ajustes": {"excedente": money(excess)}, "prazo": destination["days"],
         "valor_total": None if pending else money(total),
     }
-    return {"status": "needs_review" if pending else "success", "valor_total": None if pending else money(total), "subtotal_documentado": money(total), "pendencias": pending,
+    return {"status": "needs_review" if pending else "success", "valor_total": None if pending else money(total),
+            "subtotal_documentado": money(total), "frete_base_documentado": money(base), "cotacao_parcial": pending_components,
+            "componentes_documentados": ["frete mínimo", "frete por kg", "percentual sobre NF"] if pending_components else [],
+            "pendencias": pending,
             "frete_base": money(base), "excedente": money(excess), "taxas_detalhadas": lines, "prazo_dias": destination['days'],
             "peso_real_kg": float(real), "peso_cubado_kg": float(cubed), "peso_considerado_kg": float(weight),
             "faixa": bracket, "cobertura": destination, "origem": origin, "regiao_tarifaria": region['id'],

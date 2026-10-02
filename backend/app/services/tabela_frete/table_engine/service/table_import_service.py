@@ -24,6 +24,45 @@ class TableImportService:
 
     def import_document(self, path: str | Path, *, carrier: str | None = None, origin: dict[str, str] | None = None) -> dict[str, object]:
         file_path = Path(path)
+        from app.services.tabela_frete.pdf_tarifario import extract_generoso_proposal
+        generoso = extract_generoso_proposal(file_path) if file_path.suffix.lower() == ".pdf" else None
+        if generoso:
+            destinations = []
+            for region in generoso["regions"]:
+                destinations.append({
+                    "uf": region["state"], "city": None,
+                    "region_code": region["classification"],
+                    "service_level": region["classification"],
+                    "weight_rates": [{"min_weight": 0, "max_weight": 10000000,
+                                      "price": region["rate_per_kg"],
+                                      "minimum_freight": region["minimum_freight"],
+                                      "freight_percentage": region["freight_percentage"]}],
+                    "minimum_freight": region["minimum_freight"],
+                    "freight_percentage": region["freight_percentage"],
+                    "source": region["source"],
+                })
+            pending = ["Frete-valor sem tabela/anexo", "Prazo por destino não informado",
+                       "Área de risco/Sec-Cat depende de faixas/listas ausentes",
+                       "Taxa de coleta tem incidência ambígua", "ICMS/ISS sem cálculo validado"]
+            return {
+                "formato": "tabela_frete_universal_v1", "canonical_schema": "canonical_tariff_v2",
+                "schema_version": 2, "table_code": None, "table_version": None,
+                "carrier": carrier, "origin": generoso["origin"], "validity": {"source": file_path.name},
+                "currency": "BRL", "weight_bands": [], "destinations": destinations,
+                "pracas": destinations, "faixas_tarifarias": [], "surcharges": [],
+                "delivery_rules": [], "collection_rules": [], "tax_rules": [],
+                "pricing_rules": {"commercial_rounding_increment": .01},
+                "optional_services": {"redelivery_rate": .5, "return_rate": 1.0},
+                "general_rules": [{"kind": "commercial_pending", "commercial_pending_items": pending}],
+                "metadata": {"source_document": file_path.name, "parser": "generoso_minimum_kg_nf_v1",
+                             "commercial_pending_items": pending},
+                "fator_cubagem": 300, "peso_limite_kg": None,
+                "validation": {"status": "TABLE_VALIDATED_WITH_COMMERCIAL_PENDING_ITEMS",
+                               "issues": [], "warnings": pending,
+                               "statistics": {"destinations": len(destinations), "weight_bands": len(destinations),
+                                              "surcharges": 0}},
+                "pipeline": [{"stage": "deterministic_generoso_parse", "status": "completed"}],
+            }
         raw_text = extract_document(file_path)
         format_name = detect_format(file_path, file_type=file_path.suffix.lstrip("."))
         structure = detect_structure(raw_text)
