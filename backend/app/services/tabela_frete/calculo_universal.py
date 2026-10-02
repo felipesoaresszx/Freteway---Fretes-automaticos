@@ -62,7 +62,14 @@ def _destination_state(item: dict) -> str | None:
 
 def _upgrade_legacy_maex(data: dict) -> dict:
     """Completa regras ausentes em importações MAEX feitas por versões antigas."""
-    if "maex" not in str(data.get("source_document") or "").casefold():
+    destination_codes = {
+        item.get("destination_code") for item in data.get("destinations", [])
+    }
+    is_maex = (
+        "maex" in str(data.get("source_document") or "").casefold()
+        or destination_codes == {"GYN", "BSB", "TOC", "CWB", "CMP", "RBP"}
+    )
+    if not is_maex:
         return data
     upgraded = {**data}
     surcharges = list(data.get("surcharges") or [])
@@ -77,6 +84,21 @@ def _upgrade_legacy_maex(data: dict) -> dict:
             "rates_by_destination":MAEX_INTERSTATE_RATES,"default_rate":.12,"rounding_mode":"UP",
             "source":{"label":"ICMS - conforme legislação vigente"}}]
     upgraded["pricing_rules"] = {**(data.get("pricing_rules") or {}), "commercial_rounding_increment":.01}
+    upgraded["optional_services"] = {
+        "rural_area": 5.50,
+        "zmrc": 85.00,
+        "tde": 287.50,
+        "palletization_per_pallet": 75.00,
+        "storage_per_m2_day": 5.50,
+        "storage_grace_days": 6,
+        "redelivery_rate": .50,
+        "return_rate": 1.00,
+        "dedicated_vehicles": {
+            "CARRETA": 2100.00, "TRUCK": 1400.00, "TOCO": 1100.00,
+            "3/4": 850.00, "VAN": 680.00,
+        },
+        **(data.get("optional_services") or {}),
+    }
     destinations = []
     for item in data.get("destinations", []):
         destination = dict(item)
@@ -153,6 +175,10 @@ def _destination(data: dict, quote: dict) -> dict:
         if conditions.get("min_invoice_value") is not None and invoice < float(conditions["min_invoice_value"]):
             continue
         if conditions.get("max_invoice_value") is not None and invoice > float(conditions["max_invoice_value"]):
+            continue
+        if requested_code and requested_level:
+            matches.append(item)
+            eligible.append(item)
             continue
         combined_ce_interior = (
             (data.get("metadata") or {}).get("parser") == "tabela_combinada_pdf_v1"
@@ -342,7 +368,68 @@ def calcular_universal(data: dict, quote: dict) -> dict:
             amount = round(float(value), 2)
             taxes.append({"codigo": code, "descricao": name, "base": "FIXO", "valor": amount})
             applied_codes.append(code)
+    services = quote.get("servicos") or {}
+    service_rules = data.get("optional_services") or {}
+    service_taxes = []
+
+    def add_service(code: str, description: str, amount: float, basis: str) -> None:
+        if amount < 0:
+            raise CalculoUniversalError(f"Valor invalido para {description}")
+        rounded_amount = round(amount, 2)
+        if rounded_amount:
+            service_taxes.append({
+                "codigo": code, "descricao": description, "base": basis,
+                "valor": rounded_amount,
+            })
+            applied_codes.append(code)
+
+    if services.get("zona_rural"):
+        add_service("RURAL_AREA", "Zona rural", float(service_rules.get("rural_area") or 0), "FIXO")
+    if services.get("zmrc"):
+        add_service("ZMRC", "Coleta ZMRC", float(service_rules.get("zmrc") or 0), "FIXO")
+    if services.get("tde"):
+        add_service("TDE", "Entrega em redes/supermercados", float(service_rules.get("tde") or 0), "FIXO")
+    pallets = int(services.get("paletizacao") or 0)
+    if pallets < 0:
+        raise CalculoUniversalError("Quantidade de pallets nao pode ser negativa")
+    add_service(
+        "PALLETIZATION", "Paletizacao",
+        pallets * float(service_rules.get("palletization_per_pallet") or 0), "PALLET",
+    )
+    storage_days = int(services.get("armazenagem_dias") or 0)
+    storage_m2 = float(services.get("armazenagem_m2") or 0)
+    if storage_days < 0 or storage_m2 < 0:
+        raise CalculoUniversalError("Armazenagem nao pode ter dias ou area negativos")
+    grace_days = int(service_rules.get("storage_grace_days") or 0)
+    if storage_days > grace_days:
+        add_service(
+            "STORAGE", "Armazenagem",
+            (storage_days - grace_days) * storage_m2
+            * float(service_rules.get("storage_per_m2_day") or 0),
+            "M2_DIA",
+        )
+    vehicle = key(services.get("veiculo_dedicado"))
+    if vehicle:
+        vehicle_rates = service_rules.get("dedicated_vehicles") or {}
+        if vehicle not in vehicle_rates:
+            raise CalculoUniversalError("Veiculo dedicado invalido ou sem tarifa")
+        add_service(
+            "DEDICATED_VEHICLE", f"Veiculo dedicado {vehicle}",
+            float(vehicle_rates[vehicle]), "VEICULO",
+        )
+    if services.get("reentrega"):
+        add_service(
+            "REDELIVERY", "Reentrega",
+            total * float(service_rules.get("redelivery_rate") or 0), "FRETE_ORIGINAL",
+        )
+    if services.get("devolucao"):
+        add_service(
+            "RETURN", "Devolucao",
+            total * float(service_rules.get("return_rate") or 0), "FRETE_ORIGINAL",
+        )
+    taxes.extend(service_taxes)
     subtotal = total + sum(item["valor"] for item in taxes)
+    subtotal_without_tax = subtotal
     for tax_rule in data.get("tax_rules", []):
         if tax_rule.get("type") != "GROSS_UP":
             continue
@@ -384,6 +471,7 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         "valor_total": round(rounded_total, 2),
         "frete_base": round(total, 2),
         "total_taxas": total_taxes,
+        "subtotal_sem_icms": round(subtotal_without_tax, 2),
         "taxas_detalhadas": taxes,
         "composicao": composition,
         "prazo_dias": destination.get("delivery_days", data.get("default_delivery_days")),

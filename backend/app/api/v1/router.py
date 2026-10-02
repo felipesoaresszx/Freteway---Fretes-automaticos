@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, carriers, configuracoes, cotacoes, dashboard, enderecos, enrichment, freight_simulation, health, sankhya, ssw, transportadoras, tabelas_frete
+from app.api.v1.endpoints import auth, carriers, configuracoes, cotacoes, dashboard, enderecos, enrichment, freight_simulation, health, modial, sankhya, ssw, transportadoras, tabelas_frete
 from app.api.v1.endpoints import alfa_setup
 
 api_router = APIRouter()
@@ -17,4 +17,5 @@ api_router.include_router(configuracoes.router)
 api_router.include_router(sankhya.router)
 api_router.include_router(enderecos.router)
 api_router.include_router(freight_simulation.router, tags=["freight-simulation"])
+api_router.include_router(modial.router)
 api_router.include_router(alfa_setup.router, tags=["alfa", "setup"])

@@ -20,6 +20,17 @@ export interface CotacaoCreate {
   volumes: VolumeIn[];
   documento_destinatario?: string | null;
   transportadoras_ids?: string[] | null;
+  servicos?: {
+    zona_rural?: boolean;
+    zmrc?: boolean;
+    tde?: boolean;
+    paletizacao?: number;
+    armazenagem_dias?: number;
+    armazenagem_m2?: number;
+    veiculo_dedicado?: "CARRETA" | "TRUCK" | "TOCO" | "3/4" | "VAN" | null;
+    reentrega?: boolean;
+    devolucao?: boolean;
+  };
 }
 
 export interface ErroResultado {

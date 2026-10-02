@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -19,6 +20,18 @@ class VolumeIn(BaseModel):
     peso_kg: float = Field(gt=0)
 
 
+class ServicosAdicionaisFrete(BaseModel):
+    zona_rural: bool = False
+    zmrc: bool = False
+    tde: bool = False
+    paletizacao: int = Field(default=0, ge=0)
+    armazenagem_dias: int = Field(default=0, ge=0)
+    armazenagem_m2: float = Field(default=0, ge=0)
+    veiculo_dedicado: Literal["CARRETA", "TRUCK", "TOCO", "3/4", "VAN"] | None = None
+    reentrega: bool = False
+    devolucao: bool = False
+
+
 class CotacaoCreate(BaseModel):
     origem: Endereco
     destino: Endereco
@@ -27,6 +40,7 @@ class CotacaoCreate(BaseModel):
     volumes: list[VolumeIn]
     documento_destinatario: str | None = None
     transportadoras_ids: list[str] | None = None  # None = todas as ativas
+    servicos: ServicosAdicionaisFrete = Field(default_factory=ServicosAdicionaisFrete)
     quote_id: str | None = Field(default=None, exclude=True)
 
     @field_validator("documento_destinatario")

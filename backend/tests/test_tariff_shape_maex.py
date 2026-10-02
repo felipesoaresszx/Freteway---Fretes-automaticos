@@ -33,6 +33,20 @@ def test_maex_reconhece_codigo_legenda_e_base_mais_excedente():
     assert len(preview["faixas_tarifarias"]) == 12
     assert len(preview["regras"]) == 3
     assert set(preview["zonas_especiais"]) == {"INTERIOR", "POLE"}
+    assert data["optional_services"] == {
+        "dedicated_vehicles": {
+            "CARRETA": 2100.0, "TRUCK": 1400.0, "TOCO": 1100.0,
+            "3/4": 850.0, "VAN": 680.0,
+        },
+        "zmrc": 85.0,
+        "storage_per_m2_day": 5.5,
+        "storage_grace_days": 6,
+        "redelivery_rate": .5,
+        "return_rate": 1.0,
+        "palletization_per_pallet": 75.0,
+        "rural_area": 5.5,
+        "tde": 287.5,
+    }
     quote = calcular_universal(data, {"destino_cidade": "GOIANIA", "destino_uf": "GO", "peso": 150})
     assert quote["frete_base"] == pytest.approx(69 + 50 * .667, abs=.01)
 
@@ -137,3 +151,117 @@ def test_codigo_sem_legenda_gera_impeditivo_especifico(tmp_path):
     assert reason["campo"] == "destination_code_legend"
     assert "legenda" in reason["titulo"].lower()
     assert reason["impeditivo"] is True
+
+
+def test_maex_extrai_servicos_opcionais_da_planilha(tmp_path):
+    rows = [("Plan1", [
+        ["Destino", "Regiao", "KG excedente", "", "Frete ate 100 kg", "Prazo"],
+        ["GYN", "POLO", .667, "", 69, "2/3 dias"],
+        [],
+        ["TAXA DE COLETA ZMRC", "", 85, "POR CTE"],
+        ["*ARMAZENAGEM", "", 5.5, "O M2 POR DIA"],
+        ["REENTREGA", "", .5, "SOBRE O FRETE ORIGINAL"],
+        ["DEVOLUCAO", "", 1, "SOBRE O FRETE ORIGINAL"],
+        ["PALETIZACAO", "", 75, "POR PALLET"],
+        ["ZONA RURAL", "", 5.5, "IDA E VOLTA"],
+        ["***TDE", "", 287.5, "ENTREGAS REDES/SUPER."],
+        ["", "", "", "", "", "", "TIPO", "", "PESO", "", "VALOR"],
+        ["", "", "", "", "", "", "VAN", "", 1500, "", 680],
+        ["", "", "", "", "", "", "SIGLAS DAS UNIDADES"],
+        ["", "", "", "", "", "", "GYN", "GOIANIA"],
+    ])]
+    path = tmp_path / "Tabela maex.xls"
+    path.touch()
+    with patch("app.services.tabela_frete.tariff_shapes._workbook_rows", return_value=rows):
+        match = PlaceCodeLegendParser().parse(path, carrier="maex")
+
+    assert match is not None
+    assert match.data["optional_services"] == {
+        "dedicated_vehicles": {"VAN": 680.0},
+        "zmrc": 85.0,
+        "storage_per_m2_day": 5.5,
+        "storage_grace_days": 6,
+        "redelivery_rate": .5,
+        "return_rate": 1.0,
+        "palletization_per_pallet": 75.0,
+        "rural_area": 5.5,
+        "tde": 287.5,
+    }
+
+
+def _maex_contract_for_calculation():
+    def destination(code, region, base, excess, days):
+        return {
+            "destination_code": code,
+            "uf": "GO" if code == "GYN" else "DF",
+            "city": None,
+            "region_code": region,
+            "service_level": "POLE" if region == "POLO" else "INTERIOR",
+            "delivery_days": days,
+            "weight_rates": [{"max_weight": 100, "price": base}],
+            "tariff_rule": {
+                "type": "BASE_PLUS_EXCESS", "base_weight_kg": 100,
+                "base_price": base, "excess_rate_per_kg": excess,
+            },
+        }
+
+    return {
+        "source_document": "Tabela maex.xls",
+        "fator_cubagem": 300,
+        "destinations": [
+            destination("GYN", "POLO", 69, .667, 3),
+            destination("BSB", "INTERIOR", 74.75, .69, 3),
+        ],
+        "surcharges": [
+            {"code": "DISPATCH", "name": "Despacho", "type": "FIXED", "value": 17.25},
+            {"code": "GRIS", "name": "GRIS", "type": "PERCENTAGE", "value": .003,
+             "basis": "INVOICE_VALUE"},
+        ],
+    }
+
+
+@pytest.mark.parametrize(("code", "region", "weight", "invoice", "subtotal"), [
+    ("GYN", "POLE", 150, 1000, 138.26),
+    ("BSB", "INTERIOR", 250, 2000, 226.49),
+])
+def test_maex_reproduz_exemplos_do_guia(code, region, weight, invoice, subtotal):
+    result = calcular_universal(_maex_contract_for_calculation(), {
+        "destino_codigo": code,
+        "nivel_atendimento": region,
+        "peso": weight,
+        "valor_nf": invoice,
+    })
+
+    assert result["subtotal_sem_icms"] == subtotal
+
+
+def test_maex_calcula_servicos_adicionais_da_proposta():
+    result = calcular_universal(_maex_contract_for_calculation(), {
+        "destino_codigo": "GYN",
+        "nivel_atendimento": "POLE",
+        "peso": 150,
+        "valor_nf": 1000,
+        "servicos": {
+            "zona_rural": True,
+            "zmrc": True,
+            "tde": True,
+            "paletizacao": 2,
+            "armazenagem_dias": 8,
+            "armazenagem_m2": 2,
+            "veiculo_dedicado": "VAN",
+            "reentrega": True,
+            "devolucao": True,
+        },
+    })
+
+    components = {item["codigo"]: item["valor"] for item in result["taxas_detalhadas"]}
+    assert {
+        "RURAL_AREA": 5.5,
+        "ZMRC": 85.0,
+        "TDE": 287.5,
+        "PALLETIZATION": 150.0,
+        "STORAGE": 22.0,
+        "DEDICATED_VEHICLE": 680.0,
+        "REDELIVERY": 51.17,
+        "RETURN": 102.35,
+    }.items() <= components.items()

@@ -318,6 +318,7 @@ async def executar_cotacao(
             for volume in cotacao.volumes
         ),
         "documento_destinatario": cotacao.documento_destinatario,
+        "servicos": cotacao.servicos.model_dump(),
         "volumes": [volume.model_dump() for volume in cotacao.volumes],
     }
 
