@@ -44,11 +44,21 @@ referência do pedido.
 - Despacho de R$ 17,25 por CT-e.
 - Pedágio de R$ 6,33 por fração iniciada de 100 kg.
 - GRIS e seguro de 0,3% cada sobre o valor da nota.
+- ICMS por dentro sobre o subtotal tributável, com alíquota de rota: a proposta tem
+  origem em São Paulo; 7% para DF/GO/TO e demais destinos no Norte, Nordeste,
+  Centro-Oeste e ES, e 12% para destinos no Sul/Sudeste. A alíquota precisa ser
+  reavaliada se origem, modalidade, destinatário ou regime fiscal forem diferentes.
 - Armazenagem de R$ 5,50/m²/dia a partir do 7º dia.
 - Paletização de R$ 75,00 por pallet.
 - Reentrega de 50% e devolução de 100% do frete original.
 - Veículos dedicados: carreta R$ 2.100, truck R$ 1.400, toco R$ 1.100,
   3/4 R$ 850 e van R$ 680.
+
+Não há no documento cobrança adicional de ISS, PIS/COFINS ou DIFAL por cotação.
+Isso não significa que não componham os custos fiscais internos da transportadora;
+não devem ser acrescentados como taxas separadas sem previsão contratual e validação
+tributária. O próprio ICMS pode variar conforme início da prestação, regime e
+características da operação.
 
 ## TDE e TDA
 
@@ -58,3 +68,15 @@ portanto não recebe automaticamente o valor fixo de R$ 287,50.
 
 O endpoint não envia e-mails automaticamente. A confirmação comercial continua sendo
 um processo externo, evitando disparos sem autorização e sem credenciais configuradas.
+
+## Divergência com o portal SSW
+
+Reprocessamos as cotações 28603, 28324 e 28647 a partir dos pesos, dimensões, valores
+de nota e tarifas desta proposta. O cálculo reproduz R$ 141,73, R$ 174,37 e R$ 196,08,
+respectivamente, que são os totais registrados no FreteWay. A planilha não permite
+explicar os totais do portal de R$ 153,03, R$ 188,31 e R$ 502,09; os acréscimos de
+R$ 11,30, R$ 13,94 e R$ 306,01 não correspondem, com a informação disponível, a uma
+regra comprovada deste contrato. Em particular, não aplicamos automaticamente a TDE
+de R$ 287,50, pois ela é restrita a entregas em redes/supermercados. Para paridade,
+é necessária a memória detalhada dessas cotações no portal ou confirmação escrita da
+MAEX sobre os componentes e respectivos gatilhos.

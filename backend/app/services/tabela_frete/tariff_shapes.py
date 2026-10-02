@@ -79,6 +79,7 @@ class PlaceCodeLegendParser:
         price_rows, legend, surcharges = [], {}, []
         optional_services: dict[str, object] = {"dedicated_vehicles": {}}
         cubage_factor = 0.0
+        origin_city = origin_uf = None
         headers_matched = numeric_cells = numeric_valid = region_valid = 0
         for sheet_name, rows in _workbook_rows(path):
             for index, row in enumerate(rows):
@@ -86,6 +87,11 @@ class PlaceCodeLegendParser:
                 label = keys[0] if keys else ""
                 value = _number(row[2] if len(row) > 2 else None)
                 basis = keys[3] if len(keys) > 3 else ""
+                if label == "ORIGEM" and len(row) > 1:
+                    origin_label = _key(row[1])
+                    state_match = re.search(r"\b([A-Z]{2})$", origin_label)
+                    origin_uf = state_match.group(1) if state_match else None
+                    origin_city = origin_label[:-3].strip() if origin_uf else origin_label
                 if label == "CUBAGEM" and len(row) > 2:
                     factor_match = re.search(r"\d+(?:[.,]\d+)?", str(row[2]))
                     if factor_match:
@@ -159,7 +165,11 @@ class PlaceCodeLegendParser:
             destinations.append({"destination_code":row["code"],"legend_label":label,"uf":state,"city":city,"city_group":None,"cep_start":None,"cep_end":None,"region_code":row["region"],"service_level":row["service_level"],"delivery_days":row["delivery_days"],"weight_rates":[{"max_weight":row["base_weight_kg"],"price":row["base_price"],"raw":{}}] if row["base_price"] is not None else [],"tariff_rule":{"type":"BASE_PLUS_EXCESS","base_weight_kg":row["base_weight_kg"],"base_price":row["base_price"],"excess_rate_per_kg":row["excess_rate"]},"excess_weight_rate":row["excess_rate"],"fixed_surcharges":[],"percentage_surcharges":[],"regional_surcharges":regional_surcharges,"cities":[city] if city else [],"source":row["source"]})
         confidence = .45 + .05*headers_matched + .15*(1-len(missing)/max(1,len(codes))) + .08*(region_valid/len(price_rows)) + .07*(numeric_valid/max(1,numeric_cells))
         resolved = sum(d["legend_label"] is not None and d["uf"] is not None for d in destinations)
-        data = {"formato":"tabela_frete_universal_v1","shape":self.code,"carrier":carrier,"currency":"BRL","fator_cubagem":cubage_factor or 300.0,"weight_bands":[],"destinations":destinations,"pracas":destinations,"faixas_tarifarias":[d["tariff_rule"] for d in destinations],"surcharges":surcharges,"optional_services":optional_services,"tax_rules":[{"code":"ICMS","name":"ICMS por dentro","type":"GROSS_UP","rates_by_destination":ICMS_INTERSTATE_RATES_FROM_SOUTH_SOUTHEAST,"default_rate":.12,"rounding_mode":"UP","source":{"sheet":"Plan1","label":"ICMS - conforme legislação vigente"}}],"pricing_rules":{"commercial_rounding_increment":.01},"delivery_rules":[],"collection_rules":[],"general_rules":[],"destination_legend":{c:{"label":l,"scope":"TABLE"} for c,l in legend.items()},"region_level_aliases":REGION_LEVEL_ALIASES,"source_document":path.name,"estatisticas":{"pracas":len(destinations),"codigos":len(codes),"codigos_resolvidos":resolved,"taxas":len(surcharges)+1}}
+        route_rates = {
+            f"{origin_uf}>{state}": rate
+            for state, rate in ICMS_INTERSTATE_RATES_FROM_SOUTH_SOUTHEAST.items()
+        } if origin_uf in {"SP", "MG", "RJ", "ES", "PR", "SC", "RS"} else {}
+        data = {"formato":"tabela_frete_universal_v1","shape":self.code,"carrier":carrier,"currency":"BRL","origem_cidade":origin_city,"origem_uf":origin_uf,"fator_cubagem":cubage_factor or 300.0,"weight_bands":[],"destinations":destinations,"pracas":destinations,"faixas_tarifarias":[d["tariff_rule"] for d in destinations],"surcharges":surcharges,"optional_services":optional_services,"tax_rules":[{"code":"ICMS","name":"ICMS por dentro","type":"GROSS_UP","rates_by_route":route_rates,"rates_by_destination":ICMS_INTERSTATE_RATES_FROM_SOUTH_SOUTHEAST,"default_rate":.12,"rounding_mode":"UP","source":{"sheet":"Plan1","label":"ICMS - conforme legislação vigente"}}],"pricing_rules":{"commercial_rounding_increment":.01},"delivery_rules":[],"collection_rules":[],"general_rules":[],"destination_legend":{c:{"label":l,"scope":"TABLE"} for c,l in legend.items()},"region_level_aliases":REGION_LEVEL_ALIASES,"source_document":path.name,"estatisticas":{"pracas":len(destinations),"codigos":len(codes),"codigos_resolvidos":resolved,"taxas":len(surcharges)+1}}
         return ShapeMatch(self.code, min(confidence,.99), data, ("destination_code_legend",) if missing or not legend else ())
 
 

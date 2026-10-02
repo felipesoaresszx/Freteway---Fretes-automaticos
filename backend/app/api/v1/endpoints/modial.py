@@ -90,6 +90,8 @@ async def cotar_modial(
         })
     try:
         result = calcular_universal(table.dados_importados.dados, {
+            "origem_cidade": "SAO PAULO",
+            "origem_uf": "SP",
             "peso": payload.peso,
             "valor_nf": payload.valor_nf,
             "volume_total_m3": payload.volume_m3 or 0,

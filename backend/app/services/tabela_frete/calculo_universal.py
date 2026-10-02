@@ -72,6 +72,11 @@ def _upgrade_legacy_maex(data: dict) -> dict:
     if not is_maex:
         return data
     upgraded = {**data}
+    # A proposta MAEX explicita origem São Paulo/SP. Mantém isso também para
+    # contratos legados que foram importados antes de o parser extrair a origem.
+    if is_maex and not upgraded.get("origem_uf"):
+        upgraded["origem_cidade"] = upgraded.get("origem_cidade") or "SAO PAULO"
+        upgraded["origem_uf"] = "SP"
     surcharges = list(data.get("surcharges") or [])
     codes = {item.get("code") for item in surcharges}
     if "INSURANCE" not in codes:
@@ -81,6 +86,7 @@ def _upgrade_legacy_maex(data: dict) -> dict:
     upgraded["surcharges"] = surcharges
     if not data.get("tax_rules"):
         upgraded["tax_rules"] = [{"code":"ICMS","name":"ICMS por dentro","type":"GROSS_UP",
+            "rates_by_route": {f"SP>{uf}": rate for uf, rate in MAEX_INTERSTATE_RATES.items()},
             "rates_by_destination":MAEX_INTERSTATE_RATES,"default_rate":.12,"rounding_mode":"UP",
             "source":{"label":"ICMS - conforme legislação vigente"}}]
     upgraded["pricing_rules"] = {**(data.get("pricing_rules") or {}), "commercial_rounding_increment":.01}
@@ -435,13 +441,18 @@ def calcular_universal(data: dict, quote: dict) -> dict:
             continue
         rates = tax_rule.get("rates_by_destination") or {}
         route_rates = tax_rule.get("rates_by_route") or {}
-        route_key = f"{key(quote.get('origem_uf'))}>{key(destination.get('uf'))}"
-        rate = float(
-            route_rates.get(
-                route_key,
-                rates.get(destination.get("uf"), rates.get("*", tax_rule.get("default_rate", 0))),
+        configured_origin = key(data.get("origem_uf"))
+        quoted_origin = key(quote.get("origem_uf"))
+        if configured_origin and quoted_origin and configured_origin != quoted_origin:
+            raise CalculoUniversalError(
+                f"Origem da cotacao ({quoted_origin}) difere da origem da tabela ({configured_origin})"
             )
-        )
+        effective_origin = quoted_origin or configured_origin
+        route_key = f"{effective_origin}>{key(destination.get('uf'))}"
+        rate = float(route_rates.get(
+            route_key,
+            rates.get(destination.get("uf"), rates.get("*", tax_rule.get("default_rate", 0))),
+        ))
         if not 0 < rate < 1:
             continue
         raw_amount = Decimal(str(subtotal)) / (Decimal("1") - Decimal(str(rate))) - Decimal(str(subtotal))

@@ -113,6 +113,26 @@ def test_maex_corrige_importacao_antiga_com_uf_ausente():
     assert quote["destino_tabela"]["uf"] == "GO"
 
 
+def test_maex_importacao_antiga_usa_origem_sp_e_icms_da_rota():
+    data = {
+        "source_document": "Tabela maex.xls",
+        "fator_cubagem": 300,
+        "destinations": [{
+            "destination_code": "GYN", "legend_label": "GOIANIA", "uf": "GO", "city": None,
+            "region_code": "POLO", "service_level": "POLE", "delivery_days": 3,
+            "weight_rates": [{"max_weight": 100, "price": 69}],
+            "tariff_rule": {"type": "BASE_PLUS_EXCESS", "base_weight_kg": 100,
+                "base_price": 69, "excess_rate_per_kg": .667},
+        }],
+    }
+    quote = calcular_universal(data, {
+        "destino_codigo": "GYN", "nivel_atendimento": "POLE", "peso": 150, "valor_nf": 0,
+    })
+
+    assert quote["taxas_detalhadas"][-1]["percentual"] == .07
+    assert data.get("origem_uf") is None  # a atualização legada não muta o documento salvo
+
+
 @pytest.mark.skipif(not MAEX.exists(), reason="fixture real Tabela maex.xls não disponível")
 def test_maex_atualiza_regras_de_preco_persistidas_por_versao_antiga():
     match = PlaceCodeLegendParser().parse(MAEX, carrier="maex")
@@ -187,6 +207,40 @@ def test_maex_extrai_servicos_opcionais_da_planilha(tmp_path):
         "rural_area": 5.5,
         "tde": 287.5,
     }
+
+
+def test_maex_captura_origem_da_proposta_e_icms_da_rota(tmp_path):
+    rows = [("Plan1", [
+        ["ORIGEM", "SÃO PAULO SP"],
+        ["Destino", "Regiao", "KG excedente", "", "Frete ate 100 kg", "Prazo"],
+        ["GYN", "POLO", .667, "", 69, "2/3 dias"],
+        ["", "", "", "", "", ""],
+        ["SIGLAS DAS UNIDADES", ""],
+        ["GYN", "GOIANIA"],
+    ])]
+    path = tmp_path / "Tabela maex.xls"
+    path.touch()
+    with patch("app.services.tabela_frete.tariff_shapes._workbook_rows", return_value=rows):
+        match = PlaceCodeLegendParser().parse(path, carrier="maex")
+
+    assert match is not None
+    assert (match.data["origem_cidade"], match.data["origem_uf"]) == ("SAO PAULO", "SP")
+    quote = calcular_universal(match.data, {
+        "destino_codigo": "GYN", "nivel_atendimento": "POLE", "origem_uf": "SP",
+        "peso": 150, "valor_nf": 1000,
+    })
+    assert next(item for item in quote["taxas_detalhadas"] if item["codigo"] == "ICMS")["percentual"] == .07
+    tax = match.data["tax_rules"][0]
+    assert tax["rates_by_route"]["SP>GO"] == .07
+    assert tax["rates_by_route"]["SP>PR"] == .12
+
+
+def test_maex_rejeita_origem_divergente_da_tabela():
+    with pytest.raises(ValueError, match="difere da origem da tabela"):
+        calcular_universal(_maex_contract_for_calculation() | {"origem_uf": "SP"}, {
+            "destino_codigo": "GYN", "nivel_atendimento": "POLE", "origem_uf": "RJ",
+            "peso": 150, "valor_nf": 1000,
+        })
 
 
 def _maex_contract_for_calculation():
