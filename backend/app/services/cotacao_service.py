@@ -3,11 +3,12 @@ import json
 import logging
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, time as datetime_time
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
+from fastapi import HTTPException
 
 from app.core.config import get_settings
 from app.core.observability import log_event
@@ -26,11 +27,14 @@ from app.models.models import (
     TabelaFrete,
     Transportadora,
     TransportadoraConfiguracaoApi,
+    GenerosoTariffVersion,
 )
 from app.schemas.carrier import FreightQuoteRequest
 from app.services.credenciais import descriptografar
 from app.services.freight_calculation.orchestrator import FreightCalculationOrchestrator
 from app.schemas.cotacao import CotacaoCreate, ErroResultado, ResultadoTransportadora
+from app.services.tabela_frete.generoso import GenerosoError, norm, quote as quote_generoso
+from app.api.v1.endpoints.generoso import ensure_active, local_today
 
 settings = get_settings()
 logger = logging.getLogger("freteway.quote")
@@ -86,7 +90,6 @@ async def _cotar_uma(transportadora_id: str, nome: str, payload: dict) -> Result
         request_id=request_id,
     )
 
-
 async def _cotar_por_tabela(
     transportadora: Transportadora,
     tabela: TabelaFrete,
@@ -98,6 +101,8 @@ async def _cotar_por_tabela(
     calculation = await FreightCalculationOrchestrator(db_session).calculate(
         quote=payload, table=tabela, config=calculation_config, quote_id=quote_id
     )
+
+
     request_id = str(uuid.uuid4())
     if calculation.status == "success":
         detalhe = dict(calculation.raw_result)
@@ -130,6 +135,74 @@ async def _cotar_por_tabela(
             mensagem=calculation.error_message or "Erro no cálculo da tabela de frete",
         ),
         request_id=request_id,
+    )
+
+
+async def _cotar_generoso(
+    transportadora: Transportadora, payload: dict, db_session: AsyncSession
+) -> ResultadoTransportadora:
+    request_id = str(uuid.uuid4())
+    if (payload["origem_uf"].upper(), norm(payload["origem_cidade"])) != ("SP", "GUARULHOS"):
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", request_id=request_id,
+            erro=ErroResultado(codigo="ORIGEM_FORA_DA_PROPOSTA", mensagem="Proposta Generoso válida para origem Guarulhos/SP."),
+        )
+    if payload["destino_uf"].upper() == "SP" and norm(payload["destino_cidade"]) == "GUARULHOS":
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", request_id=request_id,
+            erro=ErroResultado(codigo="ISS_NAO_CONFIGURADO", mensagem="Transporte municipal requer alíquota de ISS confirmada."),
+        )
+    servicos = payload.get("servicos") or {}
+    if servicos.get("veiculo_dedicado") or servicos.get("armazenagem_dias") or servicos.get("zona_rural") or servicos.get("zmrc"):
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", request_id=request_id,
+            erro=ErroResultado(codigo="SERVICO_SEM_REGRA", mensagem="Serviço adicional sem regra completa na cotação Generoso."),
+        )
+    row = (await db_session.execute(
+        select(GenerosoTariffVersion)
+        .where(GenerosoTariffVersion.effective_on <= datetime.combine(local_today(), datetime_time.max))
+        .order_by(GenerosoTariffVersion.effective_on.desc(), GenerosoTariffVersion.created_at.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+    if row is None:
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", request_id=request_id,
+            erro=ErroResultado(codigo="TABELA_ATIVA_NAO_ENCONTRADA", mensagem="Contrato Generoso ainda não importado."),
+        )
+    try:
+        await ensure_active(db_session, row.contract, local_today())
+        result = quote_generoso(row.contract, {
+            "city": payload["destino_cidade"], "uf": payload["destino_uf"],
+            "real_weight_kg": str(payload["peso"]), "volume_m3": str(payload["volume_total_m3"]),
+            "invoice_value": str(payload["valor_nf"]), "cep": payload["destino_cep"],
+            "recipient_id": payload.get("documento_destinatario"),
+            "flags": {"tde": servicos.get("tde", False), "re_delivery": servicos.get("reentrega", False),
+                      "return": servicos.get("devolucao", False), "pallets": servicos.get("paletizacao", 0)},
+        })
+    except GenerosoError as exc:
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", request_id=request_id,
+            erro=ErroResultado(codigo=exc.code, mensagem=str(exc)),
+        )
+    except HTTPException as exc:
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", request_id=request_id,
+            erro=ErroResultado(codigo="PROPOSTA_FORA_DA_VIGENCIA", mensagem=str(exc.detail)),
+        )
+    return ResultadoTransportadora(
+        transportadora_id=transportadora.id, transportadora=transportadora.nome,
+        status="success", valor_frete=float(result["total"]), prazo_dias=None,
+        request_id=request_id, provider="generoso", calculation_engine="generoso_contract",
+        calculation_version=row.content_sha256, rate_table_id=row.id,
+        detalhamento={**result, "rate_table_id": row.id, "source": "Proposta Generoso; origem Guarulhos/SP"},
+        memoria_calculo={"componentes": result["components"], "subtotal": result["subtotal"],
+                         "icms": result["icms"], "total": result["total"], "avisos": result["warnings"]},
     )
 
 
@@ -430,7 +503,13 @@ async def executar_cotacao(
     resultados_tabela: list[ResultadoTransportadora] = []
     for transportadora in transportadoras:
         tabela = tabelas_por_transportadora.get(transportadora.id)
-        if tabela and transportadora.metodo_calculo == "tabela_propria":
+        if "generoso" in norm(transportadora.nome).lower() and transportadora.metodo_calculo == "tabela_propria":
+            resultados_tabela.append(await _observar_provider(
+                _cotar_generoso(transportadora, payload, db_session),
+                carrier_id=transportadora.id, provider="generoso", quote_id=quote_id,
+                job_id=job_id, attempt=attempt,
+            ))
+        elif tabela and transportadora.metodo_calculo == "tabela_propria":
             # AsyncSession não suporta operações concorrentes na mesma instância.
             resultados_tabela.append(await _observar_provider(
                 _cotar_por_tabela(
