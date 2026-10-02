@@ -220,7 +220,6 @@ def extract_generoso_proposal(path: Path) -> dict:
         if word.page == 1 and word.x < 58 and word.text.upper() in state_names
     )
     regions = {}
-    pending_state = None
     for y, row in tariff_lines:
         ordered = sorted(row, key=lambda item: item.x)
         if state_anchors:
@@ -230,7 +229,6 @@ def extract_generoso_proposal(path: Path) -> dict:
         left = [w for w in ordered if w.x < 58]
         if left and any(w.text.upper() == "DF" for w in left):
             current_state = "DF"
-        groups = [w.text.upper() for w in ordered if w.text.upper() in {"SUDESTE", "SUL", "CENTRO-OESTE", "NORTE"}]
         label_words = [w for w in ordered if 58 <= w.x < 100]
         label = _key(" ".join(w.text for w in label_words))
         classification = next((value for marker, value in classifications.items() if marker in label), None)
