@@ -13,6 +13,7 @@ const Configuracoes = lazy(() => routeModules["/configuracoes"]().then((m) => ({
 const Integracoes = lazy(() => routeModules["/integracoes"]().then((m) => ({ default: m.Integracoes })));
 const NovaCotacao = lazy(() => routeModules["/cotacoes/nova"]().then((m) => ({ default: m.NovaCotacao })));
 const Transportadoras = lazy(() => routeModules["/transportadoras"]().then((m) => ({ default: m.Transportadoras })));
+const Generoso = lazy(() => routeModules["/generoso"]().then((m) => ({ default: m.Generoso })));
 
 export function AppRoutes() {
   return (
@@ -32,6 +33,7 @@ export function AppRoutes() {
         <Route path="/cotacoes/nova" element={<NovaCotacao />} />
         <Route path="/historico" element={<Cotacoes />} />
         <Route path="/transportadoras" element={<Transportadoras />} />
+        <Route path="/generoso" element={<PermissionRoute permission="cotacoes.manage"><Generoso /></PermissionRoute>} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/configuracoes" element={<PermissionRoute permission="settings.view"><Configuracoes /></PermissionRoute>} />
       </Route>

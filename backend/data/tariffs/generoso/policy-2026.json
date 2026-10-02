@@ -1,0 +1,41 @@
+{
+  "validity": {"starts_on": null, "ends_on": null, "expires_after_inactive_days": 30},
+  "parameters": {
+    "cubage_factor": "300", "gris_percent_nf": "0", "gris_minimum": "0",
+    "dispatch": "0", "toll_per_fraction": "0", "toll_fraction_kg": "100", "tas": "0",
+    "minimum_scope": "FRETE_PESO", "tec_percent": "0.0693", "tec_base": "FRETE_PESO_E_VALOR",
+    "tso_percent_nf": "0.001", "tso_minimum": "2.80",
+    "emex_fixed": "23.71", "emex_sao_goncalo_fixed": "38.24", "emex_percent_nf": "0.0015",
+    "risk_area_fixed": "50.88", "seccat_amount": null,
+    "collection_states": ["MG", "PR", "SC", "RS", "DF", "GO"],
+    "collection_percent_nf": "0.002", "collection_fixed": "12.00", "collection_fixed_default": false,
+    "tde_percent": "0.50", "tde_minimum": "338.38",
+    "redelivery_percent": "0.50", "return_percent": "1.00",
+    "appointment_percent": "0.20", "appointment_minimum": "29.25",
+    "pallet_price": "71.92", "permanence_per_kg_day": "0.29", "permanence_percent_nf": "0.002",
+    "dedicated_included_km": "50",
+    "dedicated_vehicles": {
+      "FIORINO_HR_VAN": {"base": "629.20", "extra_km": "2.48"},
+      "VUC": {"base": "763.40", "extra_km": "3.03"},
+      "TOCO": {"base": "931.70", "extra_km": "3.85"},
+      "RAMPA": {"base": "930.00", "extra_km": "3.84"},
+      "TRUCK": {"base": "1103.30", "extra_km": "4.40"},
+      "CARRETA": {"base": "1438.80", "extra_km": "5.50"}
+    },
+    "diesel_trigger_percent": "10", "diesel_weight": "0.35", "adjustment_fields": ["minimum", "per_kg"],
+    "states_without_tariff": ["PA"],
+    "unconfirmed_assumptions": ["Confirmar mínimo somente no frete peso", "Confirmar base da TEC", "Confirmar cobrança adicional de coleta fixa", "Confirmar alíquotas de ICMS com contador", "Confirmar regime tributário da transportadora"]
+  },
+  "taxes": {
+    "icms_by_uf": {"SP": "0.12", "MG": "0.12", "RJ": "0.12", "PR": "0.12", "SC": "0.12", "RS": "0.12", "ES": "0.07", "DF": "0.07", "GO": "0.07", "MS": "0.07", "MT": "0.07", "RO": "0.07", "AC": "0.07", "PA": "0.07"},
+    "ibs_cbs_by_year": {"2026": {"CBS": "0.009", "IBS": "0.001"}},
+    "validation_activation": null,
+    "recoverable_credit_enabled": false,
+    "recoverable_credit_percent": null,
+    "difal_enabled": false,
+    "difal_by_uf": {},
+    "difal_formula": null,
+    "cte_group": {"cst": null, "cclass_trib": null}
+  },
+  "lists": {"risk_ceps": [], "seccat_cities": [], "tde_recipients": []}
+}

@@ -1,7 +1,14 @@
 import axios, { type AxiosError } from "axios";
 import { runtimeConfig } from "../config/runtime";
 
-export type ApiErrorBody = { detail?: string; error?: { code: string; message: string } };
+export type ApiErrorBody = { detail?: string | { code?: string; message?: string; suggestions?: string[] }; error?: { code: string; message: string } };
+
+function detailMessage(detail: ApiErrorBody["detail"]): string | undefined {
+  if (!detail) return undefined;
+  if (typeof detail === "string") return detail;
+  const suggestions = detail.suggestions?.length ? ` Sugestões: ${detail.suggestions.join(", ")}.` : "";
+  return `${detail.message ?? detail.code ?? "Erro na solicitação."}${suggestions}`;
+}
 
 export function normalizeApiError(error: AxiosError<ApiErrorBody>): Error | AxiosError<ApiErrorBody> {
   // O 401 precisa manter status e metadados para que os consumidores decidam
@@ -10,7 +17,7 @@ export function normalizeApiError(error: AxiosError<ApiErrorBody>): Error | Axio
   if (!error.response) return new Error("Backend indisponível. Verifique sua conexão.");
   const apiError = error.response.data?.error;
   const normalized = new Error(
-    apiError?.message || error.response.data?.detail || "Ocorreu um erro inesperado."
+    apiError?.message || detailMessage(error.response.data?.detail) || "Ocorreu um erro inesperado."
   ) as Error & { status?: number };
   normalized.status = error.response.status;
   return normalized;
@@ -18,7 +25,7 @@ export function normalizeApiError(error: AxiosError<ApiErrorBody>): Error | Axio
 
 export function getErrorMessage(error: unknown, fallback = "Ocorreu um erro inesperado."): string {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
-    return error.response?.data?.error?.message || error.response?.data?.detail || error.message || fallback;
+    return error.response?.data?.error?.message || detailMessage(error.response?.data?.detail) || error.message || fallback;
   }
   return error instanceof Error && error.message ? error.message : fallback;
 }

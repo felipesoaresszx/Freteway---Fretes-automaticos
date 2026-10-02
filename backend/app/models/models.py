@@ -180,6 +180,29 @@ class Transportadora(Base):
     source_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GenerosoTariffVersion(Base):
+    """Immutable commercial contract; a new row is created for each import or adjustment."""
+    __tablename__ = "generoso_tariff_versions"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    content_sha256: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    effective_on: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_by_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    contract: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class GenerosoOperation(Base):
+    """Confirmed carrier operation used to determine proposal inactivity."""
+    __tablename__ = "generoso_operations"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=gen_uuid)
+    reference: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    occurred_on: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    recorded_by_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     configuracao_api: Mapped["TransportadoraConfiguracaoApi | None"] = relationship(
         back_populates="transportadora", cascade="all, delete-orphan", uselist=False
     )

@@ -12,6 +12,7 @@ const NAV_ITEMS: Array<{ to: AppRoute; label: string; icon: typeof LayoutDashboa
   { to: "/cotacoes/nova", label: "Nova cotação", icon: PlusCircle },
   { to: "/cotacoes", label: "Cotações", icon: ListChecks },
   { to: "/transportadoras", label: "Transportadoras", icon: Truck },
+  { to: "/generoso", label: "Generoso", icon: Truck, permission: "cotacoes.manage" },
   { to: "/historico", label: "Histórico", icon: HistoryIcon },
   { to: "/integracoes", label: "Integrações", icon: Plug },
   { to: "/configuracoes", label: "Configurações", icon: Settings, permission: "settings.view" },
