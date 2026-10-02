@@ -1,4 +1,4 @@
-﻿"""ExtraÃ§Ã£o determinÃ­stica e persistÃªncia da revisÃ£o de tabelas de frete."""
+"""Extração determinística e persistência da revisão de tabelas de frete."""
 
 from __future__ import annotations
 
@@ -21,88 +21,83 @@ class AnaliseDocumentoError(ValueError):
 
 MOTIVOS_DUVIDA = {
     "mapeamento_zonas": {
-        "titulo": "CEPs/cidades das regiÃµes nÃ£o cadastrados",
-        "explicacao": "O arquivo informa nomes como Interior I e Interior II, mas nÃ£o diz quais cidades ou faixas de CEP pertencem a cada regiÃ£o.",
-        "impacto": "Sem esse mapa, o sistema nÃ£o consegue escolher a tarifa correta para o CEP de destino.",
-        "como_resolver": "Anexe ou informe a relaÃ§Ã£o de cidades/CEPs de cada regiÃ£o.",
+        "titulo": "CEPs/cidades das regiões não cadastrados",
+        "explicacao": "O arquivo informa nomes como Interior I e Interior II, mas não diz quais cidades ou faixas de CEP pertencem a cada região.",
+        "impacto": "Sem esse mapa, o sistema não consegue escolher a tarifa correta para o CEP de destino.",
+        "como_resolver": "Anexe ou informe a relação de cidades/CEPs de cada região.",
         "impeditivo": True,
     },
     "prazos_entrega": {
-        "titulo": "Prazos de entrega nÃ£o informados",
-        "explicacao": "NÃ£o hÃ¡ prazo de entrega por regiÃ£o no documento.",
-        "impacto": "A cotaÃ§Ã£o nÃ£o conseguiria retornar a quantidade correta de dias Ãºteis.",
-        "como_resolver": "Informe o prazo de entrega de cada regiÃ£o.",
+        "titulo": "Prazos de entrega não informados",
+        "explicacao": "Não há prazo de entrega por região no documento.",
+        "impacto": "A cotação não conseguiria retornar a quantidade correta de dias úteis.",
+        "como_resolver": "Informe o prazo de entrega de cada região.",
         "impeditivo": True,
     },
     "icms": {
         "titulo": "Regra de ICMS incompleta",
-        "explicacao": "O documento diz apenas 'conforme legislaÃ§Ã£o', sem informar alÃ­quota nem se o cÃ¡lculo Ã© por dentro.",
+        "explicacao": "O documento diz apenas 'conforme legislação', sem informar alíquota nem se o cálculo é por dentro.",
         "impacto": "O valor final pode ficar diferente do valor cobrado pela transportadora.",
-        "como_resolver": "Confirme com a transportadora as alÃ­quotas e a regra de cÃ¡lculo do ICMS.",
+        "como_resolver": "Confirme com a transportadora as alíquotas e a regra de cálculo do ICMS.",
         "impeditivo": True,
     },
     "taxas_externas": {
-        "titulo": "Taxas externas nÃ£o incluÃ­das",
-        "explicacao": "TDE/TDA/TEP/TRT dependem de uma relaÃ§Ã£o citada no documento, mas essa relaÃ§Ã£o nÃ£o estÃ¡ anexada.",
-        "impacto": "Alguns destinos podem receber taxas adicionais que nÃ£o seriam calculadas.",
-        "como_resolver": "Anexe a relaÃ§Ã£o atualizada de taxas ou confirme quando elas nÃ£o se aplicam.",
+        "titulo": "Taxas externas não incluídas",
+        "explicacao": "TDE/TDA/TEP/TRT dependem de uma relação citada no documento, mas essa relação não está anexada.",
+        "impacto": "Alguns destinos podem receber taxas adicionais que não seriam calculadas.",
+        "como_resolver": "Anexe a relação atualizada de taxas ou confirme quando elas não se aplicam.",
         "impeditivo": True,
     },
     "mapeamento_tarifario": {
-        "titulo": "Estrutura tarifÃ¡ria nÃ£o reconhecida automaticamente",
-        "explicacao": "O conteÃºdo foi lido, mas colunas e valores nÃ£o puderam ser ligados com seguranÃ§a a faixas de peso e Ã¡reas de atendimento.",
+        "titulo": "Estrutura tarifária não reconhecida automaticamente",
+        "explicacao": "O conteúdo foi lido, mas colunas e valores não puderam ser ligados com segurança a faixas de peso e áreas de atendimento.",
         "impacto": "Confirmar agora poderia cadastrar valores na regra errada.",
-        "como_resolver": "Mapeie as faixas tarifÃ¡rias e as praÃ§as/CEPs ou use um modelo de importaÃ§Ã£o jÃ¡ reconhecido.",
+        "como_resolver": "Mapeie as faixas tarifárias e as praças/CEPs ou use um modelo de importação já reconhecido.",
         "impeditivo": True,
     },
     "destination_code_legend": {
-        "titulo": "CÃ³digos de destino sem legenda associada",
-        "explicacao": "A coluna Destino contÃ©m cÃ³digos que nÃ£o puderam ser ligados a uma legenda no arquivo.",
-        "impacto": "Sem cidade/UF, o sistema nÃ£o consegue determinar a praÃ§a atendida com seguranÃ§a.",
-        "como_resolver": "Anexe a legenda ou mapeie manualmente cada cÃ³digo para cidade/UF; o mapa ficarÃ¡ escopado Ã  transportadora/tabela.",
+        "titulo": "Códigos de destino sem legenda associada",
+        "explicacao": "A coluna Destino contém códigos que não puderam ser ligados a uma legenda no arquivo.",
+        "impacto": "Sem cidade/UF, o sistema não consegue determinar a praça atendida com segurança.",
+        "como_resolver": "Anexe a legenda ou mapeie manualmente cada código para cidade/UF; o mapa ficará escopado à transportadora/tabela.",
         "impeditivo": True,
     },
     "prazo_dias": {
         "titulo": "Prazo ausente em uma ou mais linhas",
-        "explicacao": "HÃ¡ tarifas vÃ¡lidas sem o respectivo prazo de entrega.",
-        "impacto": "O valor pode ser calculado, mas a previsÃ£o de entrega ficarÃ¡ incompleta.",
+        "explicacao": "Há tarifas válidas sem o respectivo prazo de entrega.",
+        "impacto": "O valor pode ser calculado, mas a previsão de entrega ficará incompleta.",
         "como_resolver": "Preencha a coluna prazo_dias nas linhas indicadas.",
         "impeditivo": False,
     },
     "data_fim_vigencia": {
-        "titulo": "Fim da vigÃªncia nÃ£o localizado",
-        "explicacao": "O documento nÃ£o apresenta uma data final explÃ­cita de validade.",
-        "impacto": "A vigÃªncia precisa ser revisada para evitar usar uma tabela vencida.",
+        "titulo": "Fim da vigência não localizado",
+        "explicacao": "O documento não apresenta uma data final explícita de validade.",
+        "impacto": "A vigência precisa ser revisada para evitar usar uma tabela vencida.",
         "como_resolver": "Confirme a data final informada no cadastro da tabela.",
         "impeditivo": False,
     },
     "faixas_cep_capital": {
-        "titulo": "Faixas de CEP de capital estÃ£o em documento complementar",
-        "explicacao": "A matriz tarifÃ¡ria foi extraÃ­da, mas o prÃ³prio PDF orienta consultar a aba de CEP Capital, que nÃ£o estÃ¡ anexada.",
-        "impacto": "Os valores ficam cadastrados e rastreÃ¡veis; a seleÃ§Ã£o automÃ¡tica entre capital e interior aguarda o documento complementar.",
-        "como_resolver": "Anexe a aba de CEP Capital quando quiser habilitar o cÃ¡lculo automÃ¡tico por CEP.",
+        "titulo": "Faixas de CEP de capital estão em documento complementar",
+        "explicacao": "A matriz tarifária foi extraída, mas o próprio PDF orienta consultar a aba de CEP Capital, que não está anexada.",
+        "impacto": "Os valores ficam cadastrados e rastreáveis; a seleção automática entre capital e interior aguarda o documento complementar.",
+        "como_resolver": "Anexe a aba de CEP Capital quando quiser habilitar o cálculo automático por CEP.",
         "impeditivo": False,
     },
 }
 
 
 def adicionar_diagnostico_confianca(resultado: dict) -> dict:
-    """Explica de forma operacional qualquer confianÃ§a menor que 100%."""
+    """Explica de forma operacional qualquer confiança menor que 100%."""
     confianca = float(resultado.get("confianca_extracao", 0))
     campos = list(dict.fromkeys(resultado.get("campos_com_duvida") or []))
     dados = resultado.get("dados_extraidos") or {}
-    partial_commercial = (
-        (dados.get("policy") or {}).get("quote_is_base_only") is True
-        or (dados.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1"
-        or any(region.get("proposal_model") == "generoso_minimum_kg_nf_v1" for region in dados.get("regions", []))
-    )
     motivos = []
     for campo in campos:
         motivo = dict(MOTIVOS_DUVIDA.get(campo, {
             "titulo": f"Campo pendente: {campo}",
-            "explicacao": "O analisador nÃ£o conseguiu validar este campo com seguranÃ§a.",
-            "impacto": "O cadastro pode produzir uma cotaÃ§Ã£o incompleta ou incorreta.",
-            "como_resolver": "Revise e complete a informaÃ§Ã£o antes de confirmar.",
+            "explicacao": "O analisador não conseguiu validar este campo com segurança.",
+            "impacto": "O cadastro pode produzir uma cotação incompleta ou incorreta.",
+            "como_resolver": "Revise e complete a informação antes de confirmar.",
             "impeditivo": True,
         }))
         motivo["campo"] = campo
@@ -112,36 +107,29 @@ def adicionar_diagnostico_confianca(resultado: dict) -> dict:
         if not dados.get("ceps_detectados"):
             motivos.insert(0, {
                 "campo": "ceps",
-                "titulo": "Nenhum CEP ou praÃ§a de atendimento encontrado",
-                "explicacao": "O arquivo nÃ£o contÃ©m faixas de CEP reconhecÃ­veis.",
-                "impacto": "O sistema nÃ£o consegue saber se a transportadora atende o destino.",
+                "titulo": "Nenhum CEP ou praça de atendimento encontrado",
+                "explicacao": "O arquivo não contém faixas de CEP reconhecíveis.",
+                "impacto": "O sistema não consegue saber se a transportadora atende o destino.",
                 "como_resolver": "Inclua ou anexe a malha de cidades/CEPs atendidos.",
                 "impeditivo": True,
             })
 
     impeditivos = [item for item in motivos if item["impeditivo"]]
     pode_confirmar = not impeditivos and not resultado.get("erros_validacao")
-    if partial_commercial:
-        motivos.extend({"campo": "componentes_comerciais", "titulo": "SÃ³ cotaÃ§Ã£o parcial disponÃ­vel",
-                        "explicacao": "A proposta nÃ£o inclui dados para formar o preÃ§o final completo.",
-                        "impacto": "O sistema pode mostrar os componentes base sem tratÃ¡-los como preÃ§o final.",
-                        "como_resolver": "Anexe frete-valor, prazos, listas de adicionais e confirme a regra fiscal e a coleta.",
-                        "impeditivo": True} for _ in range(1))
-        pode_confirmar = False
     resultado["diagnostico_confianca"] = {
         "nivel": "pronto" if confianca >= 1 else "revisao" if pode_confirmar else "bloqueado",
         "arquivo_recebido": True,
         "arquivo_lido": bool(dados),
         "aceito_para_cadastro": pode_confirmar,
-        "titulo": "AnÃ¡lise concluÃ­da" if confianca >= 1 and pode_confirmar else "AnÃ¡lise concluÃ­da com cotaÃ§Ã£o parcial" if partial_commercial else "AnÃ¡lise concluÃ­da com pendÃªncias opcionais" if pode_confirmar else "AnÃ¡lise incompleta: tabela nÃ£o aceita para cÃ¡lculo",
+        "titulo": "Análise concluída" if confianca >= 1 else "Análise concluída com pendências opcionais" if pode_confirmar else "Análise incompleta: tabela não aceita para cálculo",
         "resumo": (
-            "O arquivo foi recebido e lido, mas a tabela nÃ£o foi confirmada porque faltam dados necessÃ¡rios para calcular o frete com seguranÃ§a."
+            "O arquivo foi recebido e lido, mas a tabela não foi confirmada porque faltam dados necessários para calcular o frete com segurança."
             if impeditivos else
-            "Os dados reconhecidos podem ser cadastrados. Campos ausentes continuam explÃ­citos e nÃ£o serÃ£o inventados."
+            "Os dados reconhecidos podem ser cadastrados. Campos ausentes continuam explícitos e não serão inventados."
         ),
         "motivos": motivos,
         "dados_detectados": resultado.get("resumo") or {},
-        "proximo_passo": "Resolva os itens impeditivos abaixo e reanalise ou complete a revisÃ£o.",
+        "proximo_passo": "Resolva os itens impeditivos abaixo e reanalise ou complete a revisão.",
     }
     return resultado
 
@@ -156,7 +144,7 @@ def _numero(valor: str | None) -> float | None:
 
 
 def analisar_csv(caminho: Path, tabela: TabelaFrete) -> dict:
-    """LÃª o modelo CSV canÃ´nico: uf,tipo_tarifa,valor,prazo_dias."""
+    """Lê o modelo CSV canônico: uf,tipo_tarifa,valor,prazo_dias."""
     texto = caminho.read_text(encoding="utf-8-sig")
     try:
         dialect = csv.Sniffer().sniff(texto[:2048], delimiters=",;")
@@ -164,13 +152,13 @@ def analisar_csv(caminho: Path, tabela: TabelaFrete) -> dict:
         dialect = csv.excel
     linhas = list(csv.DictReader(texto.splitlines(), dialect=dialect))
     if not linhas:
-        raise AnaliseDocumentoError("O CSV nÃ£o contÃ©m linhas de tarifa")
+        raise AnaliseDocumentoError("O CSV não contém linhas de tarifa")
 
     obrigatorias = {"uf", "tipo_tarifa", "valor"}
     colunas = {str(c).strip().lower() for c in (linhas[0].keys() if linhas else [])}
     faltantes = obrigatorias - colunas
     if faltantes:
-        raise AnaliseDocumentoError(f"Colunas obrigatÃ³rias ausentes: {', '.join(sorted(faltantes))}")
+        raise AnaliseDocumentoError(f"Colunas obrigatórias ausentes: {', '.join(sorted(faltantes))}")
 
     abrangencias: list[dict] = []
     tarifas: list[dict] = []
@@ -180,13 +168,13 @@ def analisar_csv(caminho: Path, tabela: TabelaFrete) -> dict:
         linha = {str(chave).strip().lower(): (valor or "").strip() for chave, valor in linha_original.items()}
         uf = linha["uf"].upper()
         if len(uf) != 2:
-            raise AnaliseDocumentoError(f"UF invÃ¡lida na linha {indice}: {uf}")
+            raise AnaliseDocumentoError(f"UF inválida na linha {indice}: {uf}")
         try:
             valor = _numero(linha["valor"])
         except ValueError as exc:
-            raise AnaliseDocumentoError(f"Valor invÃ¡lido na linha {indice}") from exc
+            raise AnaliseDocumentoError(f"Valor inválido na linha {indice}") from exc
         if valor is None or valor < 0:
-            raise AnaliseDocumentoError(f"Valor invÃ¡lido na linha {indice}")
+            raise AnaliseDocumentoError(f"Valor inválido na linha {indice}")
 
         abrangencia_indice = len(abrangencias)
         abrangencias.append({"tipo": "UF", "uf": uf, "prioridade": indice - 2})
@@ -200,10 +188,10 @@ def analisar_csv(caminho: Path, tabela: TabelaFrete) -> dict:
             try:
                 dias = int(linha["prazo_dias"])
             except ValueError as exc:
-                raise AnaliseDocumentoError(f"Prazo invÃ¡lido na linha {indice}") from exc
+                raise AnaliseDocumentoError(f"Prazo inválido na linha {indice}") from exc
             prazos.append({"dias": dias, "tipo_dia": "UTEIS", "abrangencia_indice": abrangencia_indice})
         else:
-            avisos.append(f"Prazo nÃ£o informado para {uf}")
+            avisos.append(f"Prazo não informado para {uf}")
 
     dados = {
         "transportadora": tabela.transportadora_id,
@@ -227,29 +215,9 @@ def analisar_csv(caminho: Path, tabela: TabelaFrete) -> dict:
 def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, storage_dir: Path) -> dict:
     caminho = (storage_dir.resolve() / documento.caminho_storage).resolve()
     if storage_dir.resolve() not in caminho.parents or not caminho.is_file():
-        raise AnaliseDocumentoError("Documento nÃ£o encontrado no armazenamento")
+        raise AnaliseDocumentoError("Documento não encontrado no armazenamento")
     if documento.tipo_arquivo in {"xlsx", "xlsm", "xls"}:
         if documento.tipo_arquivo in {"xlsx", "xlsm"}:
-            from app.services.tabela_frete.contrato import is_generoso_locality_workbook, read_generoso_localities
-            if is_generoso_locality_workbook(caminho):
-                dados = read_generoso_localities(caminho, tariff_path=caminho)
-                return {
-                    "dados_extraidos": dados, "confianca_extracao": 1.0,
-                    "erros_validacao": [], "avisos": dados.get("warnings", []),
-                    "campos_com_duvida": ["prazos", "faixas_cep"],
-                    "resumo": {"localidades": len(dados.get("localities", []))},
-                }
-            from app.services.tabela_frete.pdf_tarifario import extract_generoso_proposal
-            generoso_shape = extract_generoso_proposal(caminho)
-            if generoso_shape and generoso_shape.get("proposal_model") == "generoso_minimum_kg_nf_v1":
-                return {
-                    "dados_extraidos": generoso_shape,
-                    "confianca_extracao": 1.0,
-                    "erros_validacao": [],
-                    "avisos": ["Tarifa base Generoso identificada para revisÃƒÂ£o; tabela total tem componentes comerciais pendentes."],
-                    "campos_com_duvida": ["frete_valor", "prazos", "adicionais_cep", "tributos"],
-                    "resumo": generoso_shape.get("statistics", {}),
-                }
             from app.services.tabela_frete.patrus_excel import extract_patrus_excel, is_patrus_workbook
             if is_patrus_workbook(caminho):
                 dados = extract_patrus_excel(caminho)
@@ -257,7 +225,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                     "dados_extraidos": dados,
                     "confianca_extracao": 0.99,
                     "erros_validacao": [],
-                    "avisos": ["Tabela Patrus normalizada pelo motor canÃ´nico com proveniÃªncia por aba e linha."],
+                    "avisos": ["Tabela Patrus normalizada pelo motor canônico com proveniência por aba e linha."],
                     "campos_com_duvida": [item["code"] for item in dados.get("unresolved_rules", [])],
                     "resumo": dados["estatisticas"],
                 }
@@ -267,7 +235,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
             return {
                 "dados_extraidos": shape.data, "confianca_extracao": shape.confidence,
                 "erros_validacao": [],
-                "avisos": [f"Formato tarifÃ¡rio reconhecido: {shape.parser}. RevisÃ£o humana permanece obrigatÃ³ria."],
+                "avisos": [f"Formato tarifário reconhecido: {shape.parser}. Revisão humana permanece obrigatória."],
                 "campos_com_duvida": list(shape.issues), "resumo": shape.data["estatisticas"],
             }
         if documento.tipo_arquivo == "xls":
@@ -275,7 +243,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
             dados = extrair_documento_generico(caminho, documento.tipo_arquivo)
             return {
                 "dados_extraidos": dados, "confianca_extracao": 0.65, "erros_validacao": [],
-                "avisos": ["Documento extraÃ­do. Revise e mapeie as tarifas antes de aprovar."],
+                "avisos": ["Documento extraído. Revise e mapeie as tarifas antes de aprovar."],
                 "campos_com_duvida": ["mapeamento_tarifario"],
                 "resumo": {"valores": len(dados["valores_detectados"]), "ceps": len(dados["ceps_detectados"]), "prazos": len(dados["prazos_detectados"])},
             }
@@ -288,9 +256,9 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 "confianca_extracao": 0.98,
                 "erros_validacao": [],
                 "avisos": [
-                    "Tarifas e taxas extraÃ­das automaticamente.",
-                    "Malha de cidades/CEPs e prazos extraÃ­da automaticamente quando presente.",
-                    "O prazo de 7 dias do documento pertence Ã  armazenagem, nÃ£o ao prazo de entrega.",
+                    "Tarifas e taxas extraídas automaticamente.",
+                    "Malha de cidades/CEPs e prazos extraída automaticamente quando presente.",
+                    "O prazo de 7 dias do documento pertence à armazenagem, não ao prazo de entrega.",
                 ],
                 "campos_com_duvida": ["icms"],
                 "resumo": dados["estatisticas"],
@@ -308,7 +276,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 "dados_extraidos": localidades,
                 "confianca_extracao": 0.95,
                 "erros_validacao": [],
-                "avisos": ["Documento de localidades e prazos identificado por cabeÃ§alho semÃ¢ntico."],
+                "avisos": ["Documento de localidades e prazos identificado por cabeçalho semântico."],
                 "campos_com_duvida": [],
                 "resumo": {"localidades": len(localidades.get("localities", []))},
             }
@@ -321,7 +289,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
             return {
                 "dados_extraidos": dados, "confianca_extracao": 0.65,
                 "erros_validacao": [],
-                "avisos": ["Documento extraÃ­do. Revise e mapeie as tarifas antes de aprovar."],
+                "avisos": ["Documento extraído. Revise e mapeie as tarifas antes de aprovar."],
                 "campos_com_duvida": ["mapeamento_tarifario"],
                 "resumo": {"valores": len(dados["valores_detectados"]), "ceps": len(dados["ceps_detectados"]), "prazos": len(dados["prazos_detectados"])},
             }
@@ -331,9 +299,9 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
             "confianca_extracao": 1.0,
             "erros_validacao": [],
             "avisos": [
-                "Prazo calculado pelo campo PJ, em dias Ãºteis.",
-                "ICMS/ISS nÃ£o estÃ£o inclusos nos valores da proposta.",
-                "A proposta nÃ£o informa uma data final explÃ­cita de vigÃªncia.",
+                "Prazo calculado pelo campo PJ, em dias úteis.",
+                "ICMS/ISS não estão inclusos nos valores da proposta.",
+                "A proposta não informa uma data final explícita de vigência.",
             ],
             "campos_com_duvida": ["data_fim_vigencia"],
             "resumo": estatisticas,
@@ -341,18 +309,6 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
     if documento.tipo_arquivo == "csv":
         return analisar_csv(caminho, tabela)
     if documento.tipo_arquivo == "pdf":
-        from app.services.tabela_frete.pdf_tarifario import extract_generoso_proposal
-
-        dados_generoso = extract_generoso_proposal(caminho)
-        if dados_generoso:
-            return {
-                "dados_extraidos": dados_generoso,
-                "confianca_extracao": 1.0,
-                "erros_validacao": [],
-                "avisos": ["Tarifas base Generoso extraÃ­das por praÃ§a, frete mÃ­nimo, valor/kg e percentual sobre NF."],
-                "campos_com_duvida": ["prazos", "frete_valor", "icms", "adicionais_cep"],
-                "resumo": dados_generoso["statistics"],
-            }
         from app.services.tabela_frete.cristal_blue_2026 import extract_cristal_blue_pdf
 
         dados_cristal_blue = extract_cristal_blue_pdf(caminho)
@@ -363,7 +319,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 "erros_validacao": [],
                 "avisos": [
                     "Tabela Cristal Blue 2026 reconhecida deterministicamente e convertida para freight_rules_v3.",
-                    "PraÃ§as genÃ©ricas de TO, PA e PI sÃ£o aplicadas como fallback estadual.",
+                    "Praças genéricas de TO, PA e PI são aplicadas como fallback estadual.",
                 ],
                 "campos_com_duvida": [],
                 "resumo": dados_cristal_blue["statistics"],
@@ -407,8 +363,8 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 "confianca_extracao": 1.0,
                 "erros_validacao": [],
                 "avisos": [
-                    "Tabela Unificada reconhecida: tarifas por kg, mÃ­nimos, adicionais e cobertura por CEP foram normalizados.",
-                    "O ICMS nÃ£o foi calculado porque o documento nÃ£o informa a alÃ­quota aplicÃ¡vel.",
+                    "Tabela Unificada reconhecida: tarifas por kg, mínimos, adicionais e cobertura por CEP foram normalizados.",
+                    "O ICMS não foi calculado porque o documento não informa a alíquota aplicável.",
                 ],
                 "campos_com_duvida": ["aliquota_icms"],
                 "resumo": dados_unificados["estatisticas"],
@@ -422,7 +378,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 "confianca_extracao": 1.0,
                 "erros_validacao": [],
                 "avisos": [
-                    "Tabela Combinada reconhecida: rotas, praÃ§as, faixas de peso e adicionais foram normalizados.",
+                    "Tabela Combinada reconhecida: rotas, praças, faixas de peso e adicionais foram normalizados.",
                     "ICMS por dentro aplicado por sentido da rota: 7% de SP para CE e 12% de CE para SP.",
                 ],
                 "campos_com_duvida": [],
@@ -444,8 +400,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 )
             except (OSError, ValueError):
                 contrato = None
-            if contrato:
-                validation = contrato.get("validation") or {}
+            if contrato and (contrato.get("validation") or {}).get("status") == "TABLE_VALIDATED":
                 dados = {
                     "formato": "tabela_frete_universal_v1",
                     "carrier": contrato.get("carrier"),
@@ -457,15 +412,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                     "surcharges": contrato.get("surcharges", []),
                     "delivery_rules": contrato.get("delivery_rules", []),
                     "collection_rules": contrato.get("collection_rules", []),
-                    "general_rules": [{**item, **({"commercial_pending_items": contrato["metadata"]["commercial_pending_items"]}
-                                                     if contrato.get("metadata", {}).get("parser") == "generoso_minimum_kg_nf_v1" else {})}
-                                      for item in contrato.get("general_rules", [])],
-                    "optional_services": contrato.get("optional_services", {}),
-                    "tax_rules": contrato.get("tax_rules", []),
-                    "pricing_rules": contrato.get("pricing_rules", {}),
-                    "metadata": contrato.get("metadata", {}),
-                    "origem_cidade": contrato.get("origem_cidade"),
-                    "origem_uf": contrato.get("origem_uf"),
+                    "general_rules": contrato.get("general_rules", []),
                     "fator_cubagem": 300,
                     "peso_limite_kg": max(
                         (
@@ -487,26 +434,21 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                         "faixas": len(contrato.get("weight_bands", [])),
                         "pracas": len(contrato.get("destinations", [])),
                     },
-                    "validation": validation,
                     "source_document": documento.nome_arquivo,
                 }
                 return {
                     "dados_extraidos": dados,
-                    "confianca_extracao": 0.98 if validation.get("status") == "TABLE_VALIDATED" else 0.65,
-                    "erros_validacao": validation.get("issues", []),
-                    "avisos": [
-                        "Matriz tarifaria PDF identificada pelo motor universal de tabelas."
-                        if validation.get("status") == "TABLE_VALIDATED"
-                        else "PDF lido, mas a estrutura da tabela exige mapeamento/revisao manual antes da aprovacao."
-                    ],
-                    "campos_com_duvida": [] if validation.get("status") == "TABLE_VALIDATED" else ["mapeamento_tarifario"],
+                    "confianca_extracao": 0.98,
+                    "erros_validacao": [],
+                    "avisos": ["Matriz tarifária PDF identificada pelo motor universal de tabelas."],
+                    "campos_com_duvida": [],
                     "resumo": dados["estatisticas"],
                 }
         else:
             return {
                 "dados_extraidos": dados, "confianca_extracao": 0.98,
                 "erros_validacao": [],
-                "avisos": ["Matriz tarifÃ¡ria PDF identificada por conteÃºdo e preservada com proveniÃªncia."],
+                "avisos": ["Matriz tarifária PDF identificada por conteúdo e preservada com proveniência."],
                 "campos_com_duvida": [], "resumo": dados.get("statistics", {}),
             }
     if documento.tipo_arquivo == "docx":
@@ -540,8 +482,8 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 "confianca_extracao": 0.92 if campos_com_duvida else 0.98,
                 "erros_validacao": [],
                 "avisos": [
-                    "Proposta CIF reconhecida: frete-peso, frete-valor, frete mÃ­nimo, cidades e prazos foram normalizados.",
-                    "Linhas identificadas apenas como RegiÃ£o permanecem pendentes atÃ© a inclusÃ£o da malha de cidades/CEPs.",
+                    "Proposta CIF reconhecida: frete-peso, frete-valor, frete mínimo, cidades e prazos foram normalizados.",
+                    "Linhas identificadas apenas como Região permanecem pendentes até a inclusão da malha de cidades/CEPs.",
                 ],
                 "campos_com_duvida": campos_com_duvida,
                 "resumo": dados["estatisticas"],
@@ -553,11 +495,11 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
         raise AnaliseDocumentoError(str(exc)) from exc
     if dados.get("formato") in {"transwells_tabela_v1", "transwells_pracas_v1"}:
         dados["source_document"] = documento.nome_arquivo
-        complementar = "relaÃ§Ã£o de praÃ§as" if dados["formato"] == "transwells_tabela_v1" else "tabela tarifÃ¡ria"
+        complementar = "relação de praças" if dados["formato"] == "transwells_tabela_v1" else "tabela tarifária"
         return {
             "dados_extraidos": dados, "confianca_extracao": 0.92,
             "erros_validacao": [],
-            "avisos": [f"Documento reconhecido. Anexe tambÃ©m a {complementar} para consolidar o cÃ¡lculo."],
+            "avisos": [f"Documento reconhecido. Anexe também a {complementar} para consolidar o cálculo."],
             "campos_com_duvida": ["documento_complementar"],
             "resumo": dados.get("estatisticas", {}),
         }
@@ -566,13 +508,13 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
         return {
             "dados_extraidos":dados,"confianca_extracao":.98 if not errors else .80,
             "erros_validacao":[],
-            "avisos":["Matriz completa de tarifas por UF e peso extraÃ­da por layout.","Valores ausentes nÃ£o foram inferidos."],
+            "avisos":["Matriz completa de tarifas por UF e peso extraída por layout.","Valores ausentes não foram inferidos."],
             "campos_com_duvida":dados.get("missing_fields",[]),"resumo":dados.get("estatisticas",{}),
         }
     return {
         "dados_extraidos": dados, "confianca_extracao": 0.65,
         "erros_validacao": [],
-        "avisos": ["ConteÃºdo extraÃ­do por OCR/texto. Revise e mapeie as regras comerciais antes de aprovar."],
+        "avisos": ["Conteúdo extraído por OCR/texto. Revise e mapeie as regras comerciais antes de aprovar."],
         "campos_com_duvida": ["mapeamento_tarifario"],
         "resumo": {"valores": len(dados["valores_detectados"]), "ceps": len(dados["ceps_detectados"]), "prazos": len(dados["prazos_detectados"])},
     }
@@ -581,7 +523,7 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
 def _analisar_csv_strategy(documento: DocumentoFrete, tabela: TabelaFrete, storage_dir: Path) -> dict:
     caminho = (storage_dir.resolve() / documento.caminho_storage).resolve()
     if storage_dir.resolve() not in caminho.parents or not caminho.is_file():
-        raise AnaliseDocumentoError("Documento nÃ£o encontrado no armazenamento")
+        raise AnaliseDocumentoError("Documento não encontrado no armazenamento")
     return analisar_csv(caminho, tabela)
 
 
@@ -596,9 +538,9 @@ def analisar_documento_local(documento: DocumentoFrete, tabela: TabelaFrete, sto
 
 
 def combinar_resultados_documentos(resultados: list[dict]) -> dict:
-    """Combina atÃ© duas extraÃ§Ãµes complementares sem descartar dados reconhecidos."""
+    """Combina até duas extrações complementares sem descartar dados reconhecidos."""
     if not resultados:
-        raise AnaliseDocumentoError("Nenhum documento foi informado para anÃ¡lise")
+        raise AnaliseDocumentoError("Nenhum documento foi informado para análise")
     if len(resultados) == 1:
         return resultados[0]
 
@@ -608,55 +550,12 @@ def combinar_resultados_documentos(resultados: list[dict]) -> dict:
     }
     tariff = next((item.get("dados_extraidos", {}) for item in resultados if item.get("dados_extraidos", {}).get("formato") == "tariff_matrix_v1"), None)
     locality = next((item.get("dados_extraidos", {}) for item in resultados if item.get("dados_extraidos", {}).get("formato") == "localities"), None)
-    if tariff and locality and tariff.get("proposal_model") != "generoso_minimum_kg_nf_v1":
+    if tariff and locality:
         from app.services.tabela_frete.contrato import analysis_result, canonical_from_tariff_and_localities, TableDocumentConsolidator
         canonical = TableDocumentConsolidator().consolidate([canonical_from_tariff_and_localities(tariff, locality)])
         result = analysis_result(canonical)
         result["quantidade_documentos"] = len(resultados)
-        result["avisos"].append("PDF tarifÃ¡rio e documento de prazos consolidados por papel semÃ¢ntico.")
-        return result
-    generoso_tariff = next((item.get("dados_extraidos", {}) for item in resultados
-                            if item.get("dados_extraidos", {}).get("proposal_model") == "generoso_minimum_kg_nf_v1"), None)
-    generoso_locality = next((item.get("dados_extraidos", {}) for item in resultados
-                              if item.get("dados_extraidos", {}).get("formato") == "localities"
-                              and len(item.get("dados_extraidos", {}).get("localities", [])) > 0), None)
-    if generoso_tariff and generoso_locality:
-        from app.services.tabela_frete.contrato import analysis_result, canonical_from_tariff_and_localities, TableDocumentConsolidator
-        canonical = canonical_from_tariff_and_localities(generoso_tariff, generoso_locality)
-        for region in canonical["regions"]:
-            region["proposal_model"] = "generoso_minimum_kg_nf_v1"
-            parsed = next((item for item in generoso_tariff.get("regions", []) if item.get("id") == region.get("id")), None)
-            if parsed:
-                region.update({
-                    "minimum_freight": parsed["minimum_freight"],
-                    "freight_percentage": parsed["freight_percentage"],
-                    "rate_per_kg": parsed["rate_per_kg"],
-                    "brackets": parsed["brackets"],
-                    "source": parsed["source"],
-                })
-        canonical["policy"] = {**canonical.get("policy", {}), "allow_missing_days": True,
-                               "allow_unmapped_regions": True,
-                               "quote_components": ["freight_minimum", "freight_per_kg", "invoice_percentage"],
-                               "quote_is_base_only": True,
-                               "commercial_pending_items": [
-                                   "Frete-valor sem anexo de cÃ¡lculo", "Prazos por destino ausentes",
-                                   "Ãrea de risco sem faixa CEP e Sec-Cat sem tabela",
-                                   "Taxa de coleta com incidÃªncia nÃ£o definida", "ICMS/ISS sem cÃ¡lculo validado",
-                               ]}
-        canonical["metadata"] = {
-            "parser": "generoso_minimum_kg_nf_v1",
-            "commercial_pending_items": canonical["policy"]["commercial_pending_items"],
-        }
-        canonical["documents"] = list(generoso_tariff.get("documents", [])) + list(generoso_locality.get("documents", []))
-        canonical = TableDocumentConsolidator().consolidate([canonical])
-        result = analysis_result(canonical)
-        result["quantidade_documentos"] = len(resultados)
-        result["avisos"].append("Generoso: tarifa base calculÃ¡vel; prazo e adicionais externos permanecem fora do subtotal.")
-        result["approval_gate"] = {
-            "ready": False,
-            "minimum_confidence": 0.95,
-            "blocking_reasons": list(canonical.get("policy", {}).get("commercial_pending_items", [])),
-        }
+        result["avisos"].append("PDF tarifário e documento de prazos consolidados por papel semântico.")
         return result
     uf_zona = por_formato.get("uf_zona_peso_v1")
     if uf_zona and len(resultados) >= 2:
@@ -680,7 +579,7 @@ def combinar_resultados_documentos(resultados: list[dict]) -> dict:
             canonical = TableDocumentConsolidator().consolidate([canonical])
             result = analysis_result(canonical)
             result["quantidade_documentos"] = len(resultados)
-            result["avisos"].append("Documentos de formatos diferentes consolidados por papel semÃ¢ntico.")
+            result["avisos"].append("Documentos de formatos diferentes consolidados por papel semântico.")
             return result
     if "transwells_tabela_v1" in por_formato and "transwells_pracas_v1" in por_formato:
         from app.services.tabela_frete.transwells_pdf import consolidar
@@ -691,7 +590,7 @@ def combinar_resultados_documentos(resultados: list[dict]) -> dict:
             "dados_extraidos": dados,
             "confianca_extracao": 1.0 if not pendencias else 0.9,
             "erros_validacao": [],
-            "avisos": ["Tabela tarifÃ¡ria e relaÃ§Ã£o de praÃ§as extraÃ­das e consolidadas."],
+            "avisos": ["Tabela tarifária e relação de praças extraídas e consolidadas."],
             "campos_com_duvida": [item["campo"] for item in pendencias],
             "resumo": dados["estatisticas"], "quantidade_documentos": len(resultados),
         }
@@ -741,7 +640,7 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
     if dados.get("formato") == "rispar_freight_v1":
         counts = dados.get("counts") or {}
         if counts != {"tariffs": 81, "cep_ranges": 5786, "cities": 5016, "collection": 26}:
-            raise AnaliseDocumentoError("Contagens da tabela Rispar nÃ£o correspondem aos quatro CSVs oficiais")
+            raise AnaliseDocumentoError("Contagens da tabela Rispar não correspondem aos quatro CSVs oficiais")
         await db.execute(
             delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
         )
@@ -800,14 +699,9 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
         from app.services.tabela_frete.contrato import validate
         validation = validate(dados)
         dados["validation"] = validation
-        generoso = any(region.get("proposal_model") == "generoso_minimum_kg_nf_v1"
-                       for region in dados.get("regions", []))
-        if validation.get("status") != "TABLE_VALIDATED" and not (
-            generoso and not validation.get("errors")
-            and dados.get("policy", {}).get("quote_is_base_only") is True
-        ):
+        if validation.get("status") != "TABLE_VALIDATED":
             raise AnaliseDocumentoError(
-                "Contrato tarifÃ¡rio invÃ¡lido: " + "; ".join(validation.get("errors") or ["revisÃ£o necessÃ¡ria"])
+                "Contrato tarifário inválido: " + "; ".join(validation.get("errors") or ["revisão necessária"])
             )
         await db.execute(
             delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
@@ -818,8 +712,7 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
             formato=dados["formato"],
             canonical_schema="canonical_tariff_v2",
             schema_version=2,
-            validation_status=("TABLE_VALIDATED_WITH_COMMERCIAL_PENDING_ITEMS" if generoso
-                               else validation.get("status")),
+            validation_status=validation.get("status"),
             dados=dados,
             quantidade_coberturas=int(statistics.get("cep_ranges", 0)),
             quantidade_tarifas=int(statistics.get("brackets", 0)),
@@ -829,21 +722,21 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
             if rule.get("type") == "cubage" and rule.get("status") == "resolved"
         ), None)
         if factor is None:
-            raise AnaliseDocumentoError("Fator de cubagem nÃ£o determinado")
+            raise AnaliseDocumentoError("Fator de cubagem não determinado")
         tabela.fator_cubagem = float(factor)
         return
     if dados.get("formato") == "correios_uf_peso_v1":
         if not dados.get("matrizes"):
-            raise AnaliseDocumentoError("Nenhuma matriz tarifÃ¡ria dos Correios foi extraÃ­da")
+            raise AnaliseDocumentoError("Nenhuma matriz tarifária dos Correios foi extraída")
         await db.execute(delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id==tabela.id))
         stats=dados.get("estatisticas") or {}
         db.add(TabelaFreteDadosImportados(tabela_frete_id=tabela.id,formato=dados["formato"],dados=dados,quantidade_coberturas=int(stats.get("origens",0))*27,quantidade_tarifas=int(stats.get("tarifas",0))))
         return
     if dados.get("formato") == "transwells_pracas_peso_v1":
         if dados.get("itens_para_revisao"):
-            raise AnaliseDocumentoError("Resolva os itens pendentes da consolidaÃ§Ã£o antes de confirmar")
+            raise AnaliseDocumentoError("Resolva os itens pendentes da consolidação antes de confirmar")
         if not dados.get("rotas") or not dados.get("consolidacao"):
-            raise AnaliseDocumentoError("Tabela consolidada precisa conter rotas e praÃ§as")
+            raise AnaliseDocumentoError("Tabela consolidada precisa conter rotas e praças")
         await db.execute(
             delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
         )
@@ -885,7 +778,7 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
         return
     if dados.get("formato") == "tabela_frete_universal_v1":
         if not dados.get("destinations"):
-            raise AnaliseDocumentoError("Informe ao menos uma faixa tarifÃ¡ria e uma praÃ§a/CEP")
+            raise AnaliseDocumentoError("Informe ao menos uma faixa tarifária e uma praça/CEP")
         await db.execute(
             delete(TabelaFreteDadosImportados).where(TabelaFreteDadosImportados.tabela_frete_id == tabela.id)
         )
@@ -923,7 +816,7 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
     abrangencias = dados.get("abrangencias") or []
     tarifas = dados.get("tarifas") or []
     if not abrangencias or not tarifas:
-        raise AnaliseDocumentoError("Informe ao menos uma abrangÃªncia e uma tarifa")
+        raise AnaliseDocumentoError("Informe ao menos uma abrangência e uma tarifa")
 
     await db.execute(delete(RegraPrazo).where(RegraPrazo.tabela_frete_id == tabela.id))
     await db.execute(delete(TarifaFrete).where(TarifaFrete.tabela_frete_id == tabela.id))
@@ -936,13 +829,13 @@ async def persistir_revisao(db: AsyncSession, tabela: TabelaFrete, dados: dict) 
         item = dict(tarifa)
         indice = int(item.pop("abrangencia_indice", 0))
         if indice < 0 or indice >= len(objetos_abrangencia):
-            raise AnaliseDocumentoError("ReferÃªncia de abrangÃªncia invÃ¡lida em tarifa")
+            raise AnaliseDocumentoError("Referência de abrangência inválida em tarifa")
         db.add(TarifaFrete(tabela_frete_id=tabela.id, abrangencia_id=objetos_abrangencia[indice].id, **item))
     for prazo in dados.get("prazos") or []:
         item = dict(prazo)
         indice = int(item.pop("abrangencia_indice", 0))
         if indice < 0 or indice >= len(objetos_abrangencia):
-            raise AnaliseDocumentoError("ReferÃªncia de abrangÃªncia invÃ¡lida em prazo")
+            raise AnaliseDocumentoError("Referência de abrangência inválida em prazo")
         db.add(RegraPrazo(tabela_frete_id=tabela.id, abrangencia_id=objetos_abrangencia[indice].id, **item))
 
 
@@ -952,5 +845,5 @@ def metadados_revisao(resultado: dict) -> str:
 
 def carregar_revisao(documento: DocumentoFrete) -> dict:
     if not documento.metadata_json:
-        raise AnaliseDocumentoError("O documento ainda nÃ£o foi analisado")
+        raise AnaliseDocumentoError("O documento ainda não foi analisado")
     return adicionar_diagnostico_confianca(json.loads(documento.metadata_json))
