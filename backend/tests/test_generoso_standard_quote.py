@@ -28,7 +28,10 @@ async def test_standard_quote_uses_versioned_generoso_contract():
     assert result.status == "success"
     assert result.valor_frete == 146.50
     assert result.prazo_dias is None
-    assert result.rate_table_id == "version-1"
+    assert result.rate_table_id is None
+    assert result.detalhamento["contract_version_id"] == "version-1"
+    assert result.provider == "tabela_frete"
+    assert result.detalhamento["memoria_calculo"]["total_frete"] == "146.50"
     assert "COLETA_FIXA" not in result.detalhamento["components"]
 
 

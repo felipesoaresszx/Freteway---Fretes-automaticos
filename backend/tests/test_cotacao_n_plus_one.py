@@ -95,3 +95,23 @@ async def test_cotacao_sem_transportadoras_faz_apenas_consulta_inicial():
     assert await executar_cotacao(_quote_request(), db) == []
     assert db.execute.await_count == 1
     assert db.scalar.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_generoso_aparece_na_cotacao_padrao_sem_tabela_documental_publicada():
+    carrier = _carrier("00000000-0000-0000-0000-000000000004", "tabela_propria")
+    carrier.nome = "Transporte Generoso Ltda"
+    db = AsyncMock()
+    db.execute.side_effect = [
+        _result([carrier]), _result([]), _result([]), _result([]), _result([]), _result([]),
+    ]
+    successful = ResultadoTransportadora(
+        transportadora_id=carrier.id, transportadora=carrier.nome,
+        status="success", valor_frete=146.50, request_id="generoso-quote",
+    )
+    with patch("app.services.cotacao_service._cotar_generoso", AsyncMock(return_value=successful)) as quote:
+        results = await executar_cotacao(_quote_request(), db)
+
+    quote.assert_awaited_once()
+    assert len(results) == 1
+    assert results[0].valor_frete == 146.50

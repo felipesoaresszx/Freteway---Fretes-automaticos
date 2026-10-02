@@ -195,14 +195,27 @@ async def _cotar_generoso(
             status="error", request_id=request_id,
             erro=ErroResultado(codigo="PROPOSTA_FORA_DA_VIGENCIA", mensagem=str(exc.detail)),
         )
+    memoria = {
+        "regiao_tarifaria": f'{payload["destino_uf"].upper()}|{result["destination"]["classification"]}',
+        "peso_real_kg": result["real_weight_kg"],
+        "peso_cubado_kg": result["cubed_weight_kg"],
+        "peso_considerado_kg": result["taxable_weight_kg"],
+        "prazo_dias": None,
+        "taxas_detalhadas": [
+            {"tipo": code, "valor": value} for code, value in result["components"].items()
+        ],
+        "total_frete": result["total"],
+        "avisos": result["warnings"],
+        "contract_version_id": row.id,
+    }
     return ResultadoTransportadora(
         transportadora_id=transportadora.id, transportadora=transportadora.nome,
         status="success", valor_frete=float(result["total"]), prazo_dias=None,
-        request_id=request_id, provider="generoso", calculation_engine="generoso_contract",
-        calculation_version=row.content_sha256, rate_table_id=row.id,
-        detalhamento={**result, "rate_table_id": row.id, "source": "Proposta Generoso; origem Guarulhos/SP"},
-        memoria_calculo={"componentes": result["components"], "subtotal": result["subtotal"],
-                         "icms": result["icms"], "total": result["total"], "avisos": result["warnings"]},
+        request_id=request_id, provider="tabela_frete", calculation_engine="generoso_contract",
+        calculation_version=row.content_sha256,
+        detalhamento={**result, "contract_version_id": row.id,
+                      "source": "Proposta Generoso; origem Guarulhos/SP", "memoria_calculo": memoria},
+        memoria_calculo=memoria,
     )
 
 
@@ -506,7 +519,7 @@ async def executar_cotacao(
         if "generoso" in norm(transportadora.nome).lower() and transportadora.metodo_calculo == "tabela_propria":
             resultados_tabela.append(await _observar_provider(
                 _cotar_generoso(transportadora, payload, db_session),
-                carrier_id=transportadora.id, provider="generoso", quote_id=quote_id,
+                carrier_id=transportadora.id, provider="tabela_frete", quote_id=quote_id,
                 job_id=job_id, attempt=attempt,
             ))
         elif tabela and transportadora.metodo_calculo == "tabela_propria":
