@@ -102,6 +102,19 @@ def canonical_from_tariff_and_localities(tariff: dict, locality: dict) -> dict:
     localities = copy.deepcopy(locality.get("localities", []))
     for item in localities:
         item["region_id"] = f"{key(item.get('state'))}|{key(item.get('classification'))}"
+    policy = copy.deepcopy(locality.get("policy", {}))
+    if tariff.get("proposal_model") == "generoso_minimum_kg_nf_v1":
+        priced_regions = {region["id"] for region in regions}
+        excluded_localities = [item for item in localities if item["region_id"] not in priced_regions]
+        localities = [item for item in localities if item["region_id"] in priced_regions]
+        policy["excluded_unpriced_localities"] = len(excluded_localities)
+        policy["excluded_unpriced_states"] = sorted({item["state"] for item in excluded_localities})
+        policy["quote_is_base_only"] = True
+        policy["commercial_pending_items"] = [
+            "Prazos de entrega ausentes",
+            "CEPs de área de risco e Sec-Cat ausentes",
+            "Incidência das taxas de coleta indefinida", "ICMS/ISS pendente",
+        ]
     return {
         "formato": FORMAT,
         "origin": copy.deepcopy(tariff.get("origin") or {}),
@@ -111,7 +124,7 @@ def canonical_from_tariff_and_localities(tariff: dict, locality: dict) -> dict:
         "documents": list(tariff.get("documents", [])) + list(locality.get("documents", [])),
         "weight_policy": "max_real_cubed",
         "excess_policy": "base_plus_exact_kg",
-        "policy": copy.deepcopy(locality.get("policy", {})),
+        "policy": policy,
     }
 
 

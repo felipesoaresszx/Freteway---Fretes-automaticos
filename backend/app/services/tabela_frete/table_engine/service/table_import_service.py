@@ -41,7 +41,7 @@ class TableImportService:
                     "freight_percentage": region["freight_percentage"],
                     "source": region["source"],
                 })
-            pending = ["Frete-valor sem tabela/anexo", "Prazo por destino não informado",
+            pending = ["Prazo por destino não informado",
                        "Área de risco/Sec-Cat depende de faixas/listas ausentes",
                        "Taxa de coleta tem incidência ambígua", "ICMS/ISS sem cálculo validado"]
             return {

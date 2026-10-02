@@ -218,6 +218,15 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
         raise AnaliseDocumentoError("Documento não encontrado no armazenamento")
     if documento.tipo_arquivo in {"xlsx", "xlsm", "xls"}:
         if documento.tipo_arquivo in {"xlsx", "xlsm"}:
+            from app.services.tabela_frete.contrato import is_generoso_locality_workbook, read_generoso_localities
+            if is_generoso_locality_workbook(caminho):
+                dados = read_generoso_localities(caminho, tariff_path=caminho)
+                return {
+                    "dados_extraidos": dados, "confianca_extracao": 1.0,
+                    "erros_validacao": [], "avisos": dados["warnings"],
+                    "campos_com_duvida": ["prazo_dias", "faixas_cep"],
+                    "resumo": {"localidades": len(dados["localities"])},
+                }
             from app.services.tabela_frete.patrus_excel import extract_patrus_excel, is_patrus_workbook
             if is_patrus_workbook(caminho):
                 dados = extract_patrus_excel(caminho)
@@ -309,6 +318,16 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
     if documento.tipo_arquivo == "csv":
         return analisar_csv(caminho, tabela)
     if documento.tipo_arquivo == "pdf":
+        from app.services.tabela_frete.pdf_tarifario import extract_generoso_proposal
+        dados_generoso = extract_generoso_proposal(caminho)
+        if dados_generoso:
+            return {
+                "dados_extraidos": dados_generoso, "confianca_extracao": 1.0,
+                "erros_validacao": [],
+                "avisos": ["Tarifas base Generoso extraídas; adicionais comerciais pendentes."],
+                "campos_com_duvida": ["frete_valor", "prazo_dias", "taxas", "icms_iss"],
+                "resumo": dados_generoso["statistics"],
+            }
         from app.services.tabela_frete.cristal_blue_2026 import extract_cristal_blue_pdf
 
         dados_cristal_blue = extract_cristal_blue_pdf(caminho)

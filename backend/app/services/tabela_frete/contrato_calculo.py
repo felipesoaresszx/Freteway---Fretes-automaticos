@@ -32,7 +32,9 @@ class DestinationResolver:
             matches = [r for r in data.get('localities', []) if r.get('cep_start') and r['cep_start'] <= cep <= r['cep_end']]
         else:
             matches = [r for r in data.get('localities', []) if city and state and key(r['city']) == key(city) and key(r['state']) == key(state)]
-        if not matches and data.get("policy", {}).get("cep_mode") == "city_state" and not cep and city and state:
+        if (not matches and data.get("policy", {}).get("cep_mode") == "city_state"
+                and city and state
+                and not any(item.get("cep_start") for item in data.get('localities', []))):
             matches = [r for r in data.get('localities', []) if key(r['city']) == key(city) and key(r['state']) == key(state)]
         if not matches:
             raise ContractError("Destino sem correspondência na malha")
@@ -57,7 +59,9 @@ def calculate(data, request, *, preview=False):
         raise ContractError("Localidade bloqueada para entrega")
     origin = data.get('origin', {})
     if request.get('origem_cep'):
-        pickup = DestinationResolver().resolve(data, request['origem_cep'])
+        pickup = DestinationResolver().resolve(
+            data, request['origem_cep'], request.get('origem_cidade'), request.get('origem_uf')
+        )
         if pickup.get('blocked_pickup'):
             raise ContractError("Localidade bloqueada para coleta")
         if key(pickup['city']) != key(origin.get('city')) or key(pickup['state']) != key(origin.get('state')):
@@ -156,7 +160,7 @@ def calculate(data, request, *, preview=False):
     pending_components = data.get("policy", {}).get("quote_is_base_only") is True
     if pending_components:
         pending.extend(data.get("policy", {}).get("commercial_pending_items", []))
-        pending.extend(["Prazo de entrega não informado", "Frete-valor não anexado",
+        pending.extend(["Prazo de entrega não informado",
                         "Adicionais de área de risco/Sec-Cat não parametrizados", "ICMS/ISS não calculados"])
     pending = list(dict.fromkeys(pending))
     memory = {
