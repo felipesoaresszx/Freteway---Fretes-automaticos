@@ -181,6 +181,14 @@ class Transportadora(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    configuracao_api: Mapped["TransportadoraConfiguracaoApi | None"] = relationship(
+        back_populates="transportadora", cascade="all, delete-orphan", uselist=False
+    )
+
+    calculation_config: Mapped["CarrierCalculationConfig | None"] = relationship(
+        back_populates="carrier", cascade="all, delete-orphan", uselist=False
+    )
+
 
 class GenerosoTariffVersion(Base):
     """Immutable commercial contract; a new row is created for each import or adjustment."""
@@ -203,13 +211,6 @@ class GenerosoOperation(Base):
     occurred_on: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     recorded_by_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    configuracao_api: Mapped["TransportadoraConfiguracaoApi | None"] = relationship(
-        back_populates="transportadora", cascade="all, delete-orphan", uselist=False
-    )
-
-    calculation_config: Mapped["CarrierCalculationConfig | None"] = relationship(
-        back_populates="carrier", cascade="all, delete-orphan", uselist=False
-    )
 
 
 class CarrierCalculationConfig(Base):
