@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     SANKHYA_RETRY_ATTEMPTS: int = 3
     SANKHYA_COTACAO_MODO: str = "anexar"
 
+    # Só liberar preço automático após conferir o contrato com cotações do portal.
+    GENEROSO_PORTAL_PRICE_VALIDATED: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

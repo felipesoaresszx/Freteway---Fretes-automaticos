@@ -142,6 +142,26 @@ async def _cotar_generoso(
     transportadora: Transportadora, payload: dict, db_session: AsyncSession
 ) -> ResultadoTransportadora:
     request_id = str(uuid.uuid4())
+    # A proposta importada não reproduz as cotações 2701722 e 2701731 do portal.
+    if not settings.GENEROSO_PORTAL_PRICE_VALIDATED:
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", request_id=request_id,
+            erro=ErroResultado(
+                codigo="TARIFA_GENEROSO_NAO_VALIDADA",
+                mensagem="Preço Generoso não validado com o portal; consulte a transportadora.",
+            ),
+        )
+    origin_cep = "".join(char for char in str(payload.get("origem_cep", "")) if char.isdigit())
+    if origin_cep != "07042180":
+        return ResultadoTransportadora(
+            transportadora_id=transportadora.id, transportadora=transportadora.nome,
+            status="error", request_id=request_id,
+            erro=ErroResultado(
+                codigo="ORIGEM_CEP_NAO_VALIDADO",
+                mensagem="Cotação Generoso validada somente para coleta no CEP 07042-180.",
+            ),
+        )
     if (payload["origem_uf"].upper(), norm(payload["origem_cidade"])) != ("SP", "GUARULHOS"):
         return ResultadoTransportadora(
             transportadora_id=transportadora.id, transportadora=transportadora.nome,
@@ -176,6 +196,7 @@ async def _cotar_generoso(
     try:
         await ensure_active(db_session, row.contract, local_today())
         result = quote_generoso(row.contract, {
+            "pricing_profile": "PORTAL",
             "city": payload["destino_cidade"], "uf": payload["destino_uf"],
             "real_weight_kg": str(payload["peso"]), "volume_m3": str(payload["volume_total_m3"]),
             "invoice_value": str(payload["valor_nf"]), "cep": payload["destino_cep"],
@@ -212,7 +233,7 @@ async def _cotar_generoso(
         transportadora_id=transportadora.id, transportadora=transportadora.nome,
         status="success", valor_frete=float(result["total"]), prazo_dias=None,
         request_id=request_id, provider="tabela_frete", calculation_engine="generoso_contract",
-        calculation_version=row.content_sha256,
+        calculation_version=f"{row.content_sha256}:portal_v1",
         detalhamento={**result, "contract_version_id": row.id,
                       "source": "Proposta Generoso; origem Guarulhos/SP", "memoria_calculo": memoria},
         memoria_calculo=memoria,

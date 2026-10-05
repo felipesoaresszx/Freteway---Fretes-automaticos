@@ -75,3 +75,24 @@ def test_adjustment_creates_new_contract(contract):
     assert revised["tariffs"]["SP|CAPITAL"]["minimum"] == "44.78"
     assert contract["tariffs"]["SP|CAPITAL"]["minimum"] == "43.27"
     assert revised["adjustments"][0]["applied_percent"] == "3.50"
+
+
+@pytest.mark.parametrize(("city", "uf", "weight", "nf", "volume", "portal_total"), [
+    ("Vitoria", "ES", "11", "1702.70", "0.056202", "67.31"),
+    ("Vitoria", "ES", "11", "1000", "0.056202", "67.31"),
+    ("Vitoria", "ES", "75", "1702.70", "0.056202", "104.75"),
+    ("Vitoria", "ES", "75", "10000", "0.056202", "140.27"),
+    ("Marataizes", "ES", "75", "1815.10", "0.185823", "104.75"),
+    ("Paraty", "RJ", "4", "452", "0.0207", "120.50"),
+    ("Pouso Alegre", "MG", "168", "3916.20", "0.5206", "395.13"),
+    ("Jales", "SP", "46", "1356", "0.7944", "481.48"),
+])
+def test_portal_profile_against_observed_quotes(contract, city, uf, weight, nf, volume, portal_total):
+    from decimal import Decimal
+
+    result = quote(contract, {
+        "city": city, "uf": uf, "real_weight_kg": weight,
+        "volume_m3": volume, "invoice_value": nf,
+        "pricing_profile": "PORTAL", "year": 2026,
+    })
+    assert abs(Decimal(result["total"]) - Decimal(portal_total)) <= Decimal("0.15")

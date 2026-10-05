@@ -172,6 +172,7 @@ def quote(data: dict, request: dict) -> dict:
         message = "Sem tarifa, consultar transportadora" if code == "NO_TARIFF" else "Classificação sem tarifa configurada"
         raise GenerosoError(code, message)
     p = data["parameters"]
+    portal_profile = request.get("pricing_profile") == "PORTAL"
     real = decimal(request.get("real_weight_kg"), "Peso real", positive=True)
     volume = decimal(request.get("volume_m3", "0"), "Volume")
     nf = decimal(request.get("invoice_value"), "Valor NF")
@@ -185,13 +186,19 @@ def quote(data: dict, request: dict) -> dict:
     freight_value = nf * decimal(tariff["percent_nf"], "% NF")
     minimum = decimal(tariff["minimum"], "Frete mínimo")
     calculated_weight = taxable * decimal(tariff["per_kg"], "Tarifa por kg")
-    freight_weight = (max(minimum, calculated_weight) if p["minimum_scope"] == "FRETE_PESO"
-                      else max(calculated_weight, minimum - freight_value))
+    if portal_profile:
+        freight_weight = money(max(minimum, calculated_weight))
+        freight_base = money(max(minimum, calculated_weight, freight_value))
+        freight_value = freight_base - freight_weight
+    else:
+        freight_weight = (max(minimum, calculated_weight) if p["minimum_scope"] == "FRETE_PESO"
+                          else max(calculated_weight, minimum - freight_value))
+        freight_base = money(freight_weight) + money(freight_value)
     add("FRETE_PESO", freight_weight)
     add("FRETE_VALOR", freight_value)
-    freight_base = money(freight_weight) + money(freight_value)
-    tec_base = freight_base if p["tec_base"] == "FRETE_PESO_E_VALOR" else money(freight_weight)
-    add("TEC", tec_base * decimal(p["tec_percent"], "TEC"))
+    if not portal_profile:
+        tec_base = freight_base if p["tec_base"] == "FRETE_PESO_E_VALOR" else money(freight_weight)
+        add("TEC", tec_base * decimal(p["tec_percent"], "TEC"))
     add("TSO", max(decimal(p["tso_minimum"], "TSO mínimo"), nf * decimal(p["tso_percent_nf"], "TSO")))
     add("GRIS", max(decimal(p["gris_minimum"], "GRIS mínimo"), nf * decimal(p["gris_percent_nf"], "GRIS")))
     add("DESPACHO", decimal(p["dispatch"], "Despacho"))
@@ -201,10 +208,10 @@ def quote(data: dict, request: dict) -> dict:
     if search_key in data["emex"]:
         amount = p["emex_sao_goncalo_fixed"] if city == "SAO GONCALO" else p["emex_fixed"]
         add("EMEX", decimal(amount, "Emex") + nf * decimal(p["emex_percent_nf"], "Emex %"))
-    if (uf in p["collection_states"] or (uf == "SP" and destination["classification"] == "INTERIOR II")):
+    if not portal_profile and (uf in p["collection_states"] or (uf == "SP" and destination["classification"] == "INTERIOR II")):
         add("COLETA_PERCENTUAL", nf * decimal(p["collection_percent_nf"], "Coleta %"))
     flags = request.get("flags") or {}
-    if flags.get("collection_fixed", p["collection_fixed_default"]):
+    if portal_profile or flags.get("collection_fixed", p["collection_fixed_default"]):
         add("COLETA_FIXA", decimal(p["collection_fixed"], "Coleta fixa"))
     if flags.get("risk_area") or (request.get("cep") and re.sub(r"\D", "", str(request["cep"])) in data["lists"]["risk_ceps"]):
         add("AREA_RISCO", decimal(p["risk_area_fixed"], "Área de risco"))
@@ -231,6 +238,8 @@ def quote(data: dict, request: dict) -> dict:
             raise GenerosoError("INVALID_VEHICLE", "Veículo dedicado inválido")
         km = decimal(flags.get("dedicated_distance_km", "0"), "Distância")
         add("VEICULO_DEDICADO", decimal(vehicle["base"], "Veículo") + max(Decimal(0), km - decimal(p["dedicated_included_km"], "Km incluído")) * decimal(vehicle["extra_km"], "Km excedente"))
+    if portal_profile:
+        add("TEC", sum((Decimal(v) for v in components.values()), Decimal(0)) * decimal(p["tec_percent"], "TEC"))
     subtotal = sum((Decimal(v) for v in components.values()), Decimal(0))
     icms_rate = decimal(data["taxes"]["icms_by_uf"][uf], "ICMS")
     if icms_rate >= 1:
@@ -265,7 +274,8 @@ def quote(data: dict, request: dict) -> dict:
         warnings.append("Crédito recuperável: validar com contador")
         if data["taxes"]["recoverable_credit_enabled"] and data["taxes"]["recoverable_credit_percent"] is not None:
             credit = str(money(total * decimal(data["taxes"]["recoverable_credit_percent"], "Crédito recuperável")))
-    return {"status": "quoted", "destination": destination, "tariff": tariff, "real_weight_kg": str(real),
+    return {"status": "quoted", "pricing_profile": "PORTAL" if portal_profile else "CONTRACT",
+            "destination": destination, "tariff": tariff, "real_weight_kg": str(real),
             "cubed_weight_kg": str(cubed), "taxable_weight_kg": str(taxable), "components": components,
             "subtotal": str(subtotal), "icms_rate": str(icms_rate), "icms": str(icms), "total": str(total),
             "informational_taxes": informational, "recoverable_credit": credit,
