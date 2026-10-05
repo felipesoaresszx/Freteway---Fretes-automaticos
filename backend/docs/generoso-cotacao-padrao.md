@@ -26,4 +26,6 @@ A cotação 2701863 para Jales/SP (46 kg reais, 0,7944 m³, NF de R$ 1.356,00) r
 
 A cotação padrão exige origem no CEP 07042-180 e usa o perfil em todas as UFs com tarifa no contrato, inclusive cidades EMEX. O perfil foi comparado com ES, RJ sem EMEX, MG e SP; as outras UFs e adicionais seguem a mesma fórmula, mas ainda não têm comparação direta com o portal. O cliente fará validação progressiva e informará divergências. Não há tarifa para PA na proposta, e serviços sem regra completa continuam indisponíveis.
 
+Em 05/10/2026, as cotações 2701974 e 2702015 para Ecoporanga/ES, CEP 29850-000, mostraram que o portal acrescenta R$ 110,00 fixos antes da TEC e do ICMS, independentemente do peso testado. O componente `ADICIONAL_PORTAL_VERIFICADO` reproduz exatamente R$ 382,28 e R$ 237,28. O portal não identifica o nome comercial do adicional. A pedido do cliente, a cobrança aplica-se ao destino Ecoporanga/ES, CEP 29850-000, independentemente do CNPJ do destinatário; outros CEPs não recebem esse adicional.
+
 O contrato versionado precisa estar importado pela migration `041_generoso_tariff_versions`. O código precisa ser implantado para que o fluxo de cotação padrão use esse contrato. Não marcar a tabela documental parcial como ativa, pois ela não contém todos os componentes necessários para preço final.

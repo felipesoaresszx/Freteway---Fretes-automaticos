@@ -233,7 +233,7 @@ async def _cotar_generoso(
         transportadora_id=transportadora.id, transportadora=transportadora.nome,
         status="success", valor_frete=float(result["total"]), prazo_dias=None,
         request_id=request_id, provider="tabela_frete", calculation_engine="generoso_contract",
-        calculation_version=f"{row.content_sha256}:portal_v1",
+        calculation_version=f"{row.content_sha256}:portal_v2",
         detalhamento={**result, "contract_version_id": row.id,
                       "source": "Proposta Generoso; origem Guarulhos/SP", "memoria_calculo": memoria},
         memoria_calculo=memoria,

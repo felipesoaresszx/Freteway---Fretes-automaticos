@@ -96,3 +96,24 @@ def test_portal_profile_against_observed_quotes(contract, city, uf, weight, nf, 
         "pricing_profile": "PORTAL", "year": 2026,
     })
     assert abs(Decimal(result["total"]) - Decimal(portal_total)) <= Decimal("0.15")
+
+
+@pytest.mark.parametrize(("weight", "volume", "portal_total"), [
+    ("29", "0.590670", "382.28"),
+    ("9", "0.1488", "237.28"),
+])
+def test_portal_ecoporanga_verified_fixed_surcharge(contract, weight, volume, portal_total):
+    request = {
+        "city": "Ecoporanga", "uf": "ES", "real_weight_kg": weight,
+        "volume_m3": volume, "invoice_value": "2488.10", "year": 2026,
+        "cep": "29850000", "recipient_id": "09.161.117/0001-21",
+        "pricing_profile": "PORTAL",
+    }
+    result = quote(contract, request)
+    assert result["total"] == portal_total
+    assert result["components"]["ADICIONAL_PORTAL_VERIFICADO"] == "110.00"
+
+    other_recipient = quote(contract, {**request, "recipient_id": "24996717000101"})
+    assert other_recipient["components"]["ADICIONAL_PORTAL_VERIFICADO"] == "110.00"
+    other_cep = quote(contract, {**request, "cep": "29850999"})
+    assert "ADICIONAL_PORTAL_VERIFICADO" not in other_cep["components"]

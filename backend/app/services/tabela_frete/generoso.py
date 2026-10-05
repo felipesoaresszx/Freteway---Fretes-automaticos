@@ -20,6 +20,10 @@ from app.services.tabela_frete.pdf_tarifario import extract_generoso_proposal
 
 
 CENT = Decimal("0.01")
+PORTAL_VERIFIED_FIXED_SURCHARGES = {
+    # Cotações 2701974 e 2702015: adicional fixo antes de TEC e ICMS.
+    ("ES", "ECOPORANGA", "29850000"): Decimal("110.00"),
+}
 
 
 class GenerosoError(ValueError):
@@ -213,6 +217,11 @@ def quote(data: dict, request: dict) -> dict:
     flags = request.get("flags") or {}
     if portal_profile or flags.get("collection_fixed", p["collection_fixed_default"]):
         add("COLETA_FIXA", decimal(p["collection_fixed"], "Coleta fixa"))
+    if portal_profile:
+        destination_cep = re.sub(r"\D", "", str(request.get("cep") or ""))
+        verified_fee = PORTAL_VERIFIED_FIXED_SURCHARGES.get((uf, city, destination_cep))
+        if verified_fee is not None:
+            add("ADICIONAL_PORTAL_VERIFICADO", verified_fee)
     if flags.get("risk_area") or (request.get("cep") and re.sub(r"\D", "", str(request["cep"])) in data["lists"]["risk_ceps"]):
         add("AREA_RISCO", decimal(p["risk_area_fixed"], "Área de risco"))
     if flags.get("seccat") or search_key in data["lists"]["seccat_cities"]:
