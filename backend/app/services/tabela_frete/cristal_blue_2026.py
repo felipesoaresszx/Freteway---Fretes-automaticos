@@ -16,7 +16,10 @@ ROUTES = (
     ("MA_02", "MA", "Bacabal", "1.30", 15),
     ("MA_03", "MA", "Sao Luis", "1.30", 15),
     ("PA_01", "PA", "Maraba", "1.20", 10),
+    ("PA_SAO_GERALDO_ARAGUAIA", "PA", "Sao Geraldo do Araguaia", "1.20", 12),
     ("PI_01", "PI", "Teresina", "1.30", 12),
+    ("PI_PARNAIBA", "PI", "Parnaiba", "1.30", 15),
+    ("PI_SAO_JOAO", "PI", "Sao Joao do Piaui", "1.45", 15),
     ("TO_02", "TO", None, "1.25", 15),
     ("PA_02", "PA", None, "1.25", 12),
     ("PI_02", "PI", None, "1.45", 12),
@@ -85,6 +88,7 @@ def build_contract() -> dict:
             "when": {"op": "and", "conditions": conditions},
             "minimum_freight": "230.00",
             "minimum_scope": "POST_TAX",
+            "freight_value_rate": "0.06",
             "weight_bands": [{
                 "id": f"{route_id}_ALL", "min_exclusive": "0", "max_inclusive": None,
                 "formula": {"type": "PER_KG", "rate_per_kg": rate},
@@ -96,20 +100,29 @@ def build_contract() -> dict:
                     "rounding": "CEILING_UNIT",
                 },
             }],
-            "taxes": {"icms": {"mode": "GROSS_UP", "rate": "0.07", "rounding": "TRUNCATE_CENT"}},
+            "taxes": {"icms": {
+                "mode": "GROSS_UP", "rate": "0.07", "rounding": "TRUNCATE_CENT",
+                "report_on_final_total": True,
+            }},
         })
-        if city is None:
-            routes[-1]["requires_approved_partner_freight"] = True
+        if city is None or route_id in {"PI_PARNAIBA", "PI_SAO_JOAO"}:
+            routes[-1]["charges"].append({
+                "code": "REDISPATCH", "stage": "POST_TAX",
+                "formula": {
+                    "type": "PERCENTAGE", "base": "freight_before_charges",
+                    "rate": "0.35", "rounding": "CEILING_TEN",
+                },
+            })
     return {
         "schema": "freight_rules_v3",
-        "version": "CRISTAL-BLUE-MODIAL-2026.2",
+        "version": "CRISTAL-BLUE-MODIAL-2026.4",
         "carrier": {"name": "Cristal Blue Cargos", "legal_name": "Cristal Blue Cargos"},
         "validity": {"start": "2026-06-16", "end": "2027-06-16"},
         "origin": {"city": "Guarulhos", "state": "SP", "cep": "07042180"},
         "service": {"freight_term": "CIF", "cargo_type": "CARGA_FRACIONADA", "billing_terms": "15 DDL"},
         "cubage_factor_kg_m3": "300",
         "weight_policy": "MAX_REAL_CUBED",
-        "charged_weight_rounding": "TRUNCATE_3_DECIMALS",
+        "charged_weight_rounding": "ROUND_HALF_UP_3_DECIMALS",
         "expiry_warning_days": 30,
         "warnings": [
             "Equipamentos e taxas de descarga cobrados pelo destinatario nao estao inclusos no frete.",
@@ -119,21 +132,12 @@ def build_contract() -> dict:
             {"code": "REDELIVERY", "rate_on_original_freight": "0.50"},
             {"code": "RETURN", "rate_on_original_freight": "1.00"},
         ],
-        "redispatch": {"calculation": "SYSTEM_FREIGHT_PLUS_APPROVED_PARTNER_FREIGHT", "approval_required": True},
-        "charges": [{
-            "code": "REDISPATCH_PARTNER",
-            "stage": "POST_TAX",
-            "when": {"op": "and", "conditions": [
-                {"field": "partner_freight_approved", "op": "eq", "value": True},
-                {"field": "partner_freight_amount", "op": "gt", "value": "0"},
-            ]},
-            "formula": {"type": "REQUEST_VALUE", "field": "partner_freight_amount"},
-        }],
+        "redispatch": {"calculation": "35_PERCENT_OF_FREIGHT_CEILING_TO_TEN"},
         "assumptions": [
-            "PERCENTUAL_NOTA_NOT_CHARGED_IN_PORTAL_QUOTES_721_AND_733",
+            "PERCENTUAL_NOTA_6_PERCENT_WHEN_ABOVE_FREIGHT_WEIGHT",
             "ICMS_SP_TO_TO_MA_PA_PI_GROSS_UP_7_PERCENT",
             "GENERIC_STATE_ROUTE_IS_FALLBACK_AFTER_NAMED_CITIES",
-            "REGIONAL_ROUTES_REQUIRE_APPROVED_REDISPATCH_PARTNER_FREIGHT",
+            "REGIONAL_REDISPATCH_35_PERCENT_CEILING_TO_TEN_CONFIRMED_BY_CARRIER",
             "OPERATIONAL_MINIMUM_230_AFTER_ICMS",
             "INSURANCE_1_PERCENT_ROUNDED_UP_TO_FULL_BRL",
             "MA_INTERIOR_QUOTES_690_691_692_OVERRIDE_GENERIC_REDISPATCH",

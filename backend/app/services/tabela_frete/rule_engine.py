@@ -139,6 +139,8 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
     charged = max(real, cubed) if contract.get("weight_policy") == "MAX_REAL_CUBED" else real
     if contract.get("charged_weight_rounding") == "TRUNCATE_3_DECIMALS":
         charged = charged.quantize(Decimal("0.001"), rounding=ROUND_DOWN)
+    elif contract.get("charged_weight_rounding") == "ROUND_HALF_UP_3_DECIMALS":
+        charged = charged.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
     context = {**request, "real_weight_kg": real, "invoice_value": invoice,
                "volume_m3": volume, "cubed_weight_kg": cubed, "charged_weight_kg": charged}
 
@@ -170,10 +172,11 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
     formula = band["formula"]
     freight_weight = (decimal(formula["amount"], "tarifa") if formula["type"] == "FIXED"
                       else charged * decimal(formula["rate_per_kg"], "tarifa por kg"))
+    freight_value = invoice * decimal(route.get("freight_value_rate", 0), "percentual da nota")
     route_minimum = Decimal("0") if route.get("minimum_scope") in {"SUBTOTAL", "POST_TAX"} else decimal(
         route.get("minimum_freight", 0), "frete minimo"
     )
-    freight_base = max(freight_weight, route_minimum)
+    freight_base = max(freight_weight, freight_value, route_minimum)
     components: list[dict] = [{"code": "FREIGHT_BASE", "amount": freight_base,
                                "metadata": {"band_id": band["id"], "formula": formula}}]
     amounts = {"FREIGHT_BASE": freight_base}
@@ -243,6 +246,7 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
             components.append({"code": "FREIGHT_MINIMUM_ADJUSTMENT", "amount": adjustment})
             total = minimum
 
+    freight_before_charges = total
     for charge in (item for item in all_charges if item.get("stage") == "POST_TAX"):
         if not _condition(charge.get("when"), context):
             continue
@@ -253,17 +257,26 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
             amount = decimal(context.get(field, 0), field)
         elif kind == "PERCENTAGE":
             base_name = formula.get("base")
-            if base_name not in context:
+            if base_name == "freight_before_charges":
+                base = freight_before_charges
+            elif base_name in context:
+                base = decimal(context[base_name], base_name)
+            else:
                 raise RuleEngineError("UNKNOWN_BASE", f"Base desconhecida: {base_name}")
-            amount = decimal(context[base_name], base_name) * decimal(formula.get("rate"), charge["code"])
+            amount = base * decimal(formula.get("rate"), charge["code"])
         else:
             raise RuleEngineError("INVALID_CONTRACT", f"Formula pos-imposto invalida: {charge.get('code')}")
         if amount < 0:
             raise RuleEngineError("INVALID_INPUT", f"{charge['code']} nao pode ser negativo")
         if formula.get("rounding") == "CEILING_UNIT":
             amount = amount.quantize(Decimal("1"), rounding=ROUND_CEILING)
+        elif formula.get("rounding") == "CEILING_TEN":
+            amount = (amount / Decimal("10")).quantize(Decimal("1"), rounding=ROUND_CEILING) * Decimal("10")
         components.append({"code": charge["code"], "amount": amount})
         total += amount
+
+    if tax_config.get("report_on_final_total"):
+        icms = rounded(total * rate)
 
     warnings = list(contract.get("warnings", []))
     if 0 <= (end - today).days <= int(contract.get("expiry_warning_days", 30)):
@@ -277,7 +290,9 @@ def calculate(contract: dict, request: dict, *, on_date: date | None = None) -> 
                             "amount": rounded(subtotal * decimal(tax["rate"], tax["code"])), "adds_to_total": False})
     result = {"status": "success", "contract_version": contract.get("version"), "route_id": route["id"],
               "weight_band": band["id"], "real_weight_kg": real, "cubed_weight_kg": cubed,
-              "charged_weight_kg": charged, "freight_weight": rounded(freight_weight), "freight_base": rounded(freight_base),
+              "charged_weight_kg": charged, "freight_weight": rounded(freight_weight),
+              "freight_value": rounded(freight_value), "freight_base": rounded(freight_base),
+              "freight_before_charges": rounded(freight_before_charges),
               "components": [{**item, "amount": rounded(item["amount"])} for item in components],
               "subtotal": rounded(subtotal), "icms_mode": mode, "icms_rate": rate,
               "icms": rounded(icms), "total": rounded(total), "informative_taxes": informative,

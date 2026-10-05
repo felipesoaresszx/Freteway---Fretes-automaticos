@@ -72,14 +72,13 @@ def test_portal_quote_721_is_reproduced(contract):
     assert any(item == {"code": "RCTR_C", "amount": "25.00"} for item in result["components"])
 
 
-def test_generic_state_route_requires_approved_redispatch(contract):
-    with pytest.raises(RuleEngineError) as raised:
-        calculate(
-            contract, quote(city="Palmas", weight="100", invoice="1000", volume="1"),
-            on_date=date(2026, 10, 1),
-        )
-    assert raised.value.code == "MANUAL_QUOTE"
-    assert raised.value.manual_quote is True
+def test_generic_state_route_calculates_redispatch(contract):
+    result = calculate(
+        contract, quote(city="Palmas", weight="100", invoice="1000", volume="1"),
+        on_date=date(2026, 10, 1),
+    )
+    assert result["route_id"] == "TO_02"
+    assert {item["code"]: item["amount"] for item in result["components"] if item["code"] == "REDISPATCH"} == {"REDISPATCH": "150.00"}
 
 
 def test_named_city_has_precedence_over_generic_state_route(contract):
@@ -103,41 +102,76 @@ def test_portal_quote_733_is_reproduced(contract):
     assert any(item == {"code": "RCTR_C", "amount": "72.00"} for item in result["components"])
 
 
-def test_portal_quote_29974_sao_joao_do_piaui_is_reproduced(contract):
+def test_carrier_quote_719_sao_joao_do_piaui(contract):
     result = calculate(
         contract,
         quote(
             city="Sao Joao do Piaui", state="PI", weight="20", invoice="4082.00",
             volume=str(.58 * .44 * .57),
-        ) | {
-            "partner_freight_approved": True,
-            "partner_freight_amount": "133.35",
-            "partner_transit_days": 15,
-        },
+        ),
         on_date=date(2026, 10, 1),
     )
-    assert result["route_id"] == "PI_02"
+    assert result["route_id"] == "PI_SAO_JOAO"
     assert result["charged_weight_kg"] == "43.639"
+    assert result["freight_value"] == "244.92"
+    assert result["freight_base"] == "244.92"
+    assert result["freight_before_charges"] == "263.35"
     assert result["total"] == "404.35"
     assert result["delivery_days"] == 15
+    assert result["icms"] == "28.30"
+    assert {item["code"]: item["amount"] for item in result["components"] if item["code"] == "REDISPATCH"} == {"REDISPATCH": "100.00"}
 
 
-def test_approved_redispatch_is_added_after_system_freight(contract):
-    payload = quote(city="Palmas") | {
-        "partner_freight_approved": True, "partner_freight_amount": "50.00",
-    }
+def test_carrier_quote_665_sao_geraldo_do_araguaia(contract):
+    volume = sum((
+        .54 * .80 * .82,
+        .82 * .82 * 1.18,
+        .30 * .33 * .57,
+        .18 * .50 * 1.15,
+    ))
+    result = calculate(
+        contract,
+        quote(city="Sao Geraldo do Araguaia", state="PA", weight="38", invoice="3913.60", volume=str(volume)),
+        on_date=date(2026, 9, 23),
+    )
+    assert result["route_id"] == "PA_SAO_GERALDO_ARAGUAIA"
+    assert result["charged_weight_kg"] == "392.281"
+    assert result["freight_weight"] == "470.74"
+    assert result["freight_before_charges"] == "506.16"
+    assert result["total"] == "546.16"
+    assert result["icms"] == "38.23"
+    assert result["delivery_days"] == 12
+    assert {item["code"]: item["amount"] for item in result["components"] if item["code"] == "RCTR_C"} == {"RCTR_C": "40.00"}
+
+
+def test_carrier_quote_663_parnaiba(contract):
+    volume = sum((
+        .62 * .82 * .82,
+        1.16 * .33 * .56,
+        .20 * .40 * .35,
+        7 * .30 * .44 * .36,
+        .34 * .53 * .47,
+    ))
+    result = calculate(
+        contract,
+        quote(city="Parnaiba", state="PI", weight="197", invoice="4408", volume=str(volume)),
+        on_date=date(2026, 9, 23),
+    )
+    assert result["route_id"] == "PI_PARNAIBA"
+    assert result["charged_weight_kg"] == "322.977"
+    assert result["freight_weight"] == "419.87"
+    assert result["freight_before_charges"] == "451.47"
+    assert result["total"] == "656.47"
+    assert result["icms"] == "45.95"
+    assert result["delivery_days"] == 15
+    assert {item["code"]: item["amount"] for item in result["components"] if item["code"] == "REDISPATCH"} == {"REDISPATCH": "160.00"}
+
+
+def test_manual_partner_amount_does_not_override_automatic_redispatch(contract):
+    payload = quote(city="Palmas") | {"partner_freight_approved": True, "partner_freight_amount": "50.00"}
     result = calculate(contract, payload, on_date=date(2026, 10, 1))
-
-    assert result["subtotal"] == "125.00"
-    assert result["total"] == "290.00"
-    assert any(item == {"code": "REDISPATCH_PARTNER", "amount": "50.00"} for item in result["components"])
-
-
-def test_unapproved_redispatch_is_not_added(contract):
-    payload = quote(city="Palmas") | {"partner_freight_approved": False, "partner_freight_amount": "50.00"}
-    with pytest.raises(RuleEngineError) as raised:
-        calculate(contract, payload, on_date=date(2026, 10, 1))
-    assert raised.value.code == "MANUAL_QUOTE"
+    assert result["total"] == "330.00"
+    assert any(item == {"code": "REDISPATCH", "amount": "90.00"} for item in result["components"])
 
 
 @pytest.mark.parametrize(("city", "weight", "invoice", "volume", "total", "days", "charges"), [
