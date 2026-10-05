@@ -181,7 +181,14 @@ def _destination(data: dict, quote: dict) -> dict:
         item_origin_end = _normalize_cep(item.get("origin_cep_end"))
         if item.get("origin_uf") and key(item.get("origin_uf")) != key(quote.get("origem_uf")):
             continue
-        if item.get("origin_city") and key(item.get("origin_city")) != key(quote.get("origem_cidade")):
+        carvalima_guarulhos = (
+            (data.get("metadata") or {}).get("parser") == "carvalima_combined_v1"
+            and key(item.get("origin_city")) == "SAO PAULO"
+            and key(quote.get("origem_cidade")) == "GUARULHOS"
+            and key(quote.get("origem_uf")) == "SP"
+            and _normalize_cep(quote.get("origem_cep")) == "07042180"
+        )
+        if item.get("origin_city") and key(item.get("origin_city")) != key(quote.get("origem_cidade")) and not carvalima_guarulhos:
             continue
         if item_origin_start and item_origin_end and not (
             origin_cep and item_origin_start <= origin_cep <= item_origin_end
@@ -275,6 +282,26 @@ def _destination(data: dict, quote: dict) -> dict:
 
 def calcular_universal(data: dict, quote: dict) -> dict:
     data = _upgrade_legacy_maex(data)
+    carvalima = (data.get("metadata") or {}).get("parser") == "carvalima_combined_v1"
+    if carvalima:
+        services = quote.get("servicos") or {}
+        if isinstance(services, list):
+            services = {name: True for name in services}
+        quote = {**quote, "servicos": services}
+        if quote.get("dimensoes"):
+            quote["volume_total_m3"] = sum(
+                item["comprimento_cm"] * item["largura_cm"] * item["altura_cm"] * item.get("quantidade", 1) / 1_000_000
+                for item in quote["dimensoes"]
+            )
+        if any(services.get(name) for name in ("tde", "devolucao", "reentrega", "zona_rural", "zmrc", "paletizacao", "armazenagem_dias", "veiculo_dedicado")):
+            raise CalculoUniversalError("Carvalima: serviço adicional depende de confirmação comercial")
+        # A proposta distingue cidades dentro da mesma UF. CEP sem cidade
+        # não permite decidir entre tarifa estadual e tarifa específica.
+        if not quote.get("destino_cidade"):
+            raise CalculoUniversalError("Carvalima: informe cidade e UF do destino")
+        from app.services.tabela_frete.table_engine.normalization.city_normalizer import normalize_city_name
+
+        quote = {**quote, "destino_cidade": normalize_city_name(quote["destino_cidade"])["normalized_value"]}
     generoso_proposal = ((data.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1"
                          or any(item.get("service_level") == "CAPITAL" and item.get("minimum_freight") is not None
                                 and item.get("freight_percentage") is not None for item in data.get("destinations", [])))
@@ -358,6 +385,12 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         total = max(total, float(minimum_freight))
     generoso_partial = ((data.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1"
                         or any(item.get("proposal_model") == "generoso_minimum_kg_nf_v1" for item in data.get("destinations", [])))
+    carvalima_pending = []
+    if carvalima:
+        from app.services.tabela_frete.carvalima_pdf import commercial_pending_items
+
+        carvalima_pending = commercial_pending_items(data)
+    quote_partial = generoso_partial or bool(carvalima_pending)
     minimum_adjustment = round(total - calculated_base, 2)
     composition = [
         {"codigo": "FRETE_PESO", "descricao": description, "base": "peso_considerado", "valor": round(total, 2)},
@@ -518,6 +551,26 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         rounded_total = float((Decimal(str(subtotal)) / Decimal(str(increment))).quantize(Decimal("1"), rounding=ROUND_HALF_UP) * Decimal(str(increment)))
     else:
         rounded_total = subtotal
+    reference_adjustment = (data.get("pricing_rules") or {}).get("carvalima_reference_adjustment")
+    if carvalima and reference_adjustment:
+        factor = Decimal(str(reference_adjustment["factor"]))
+        if not factor.is_finite() or not Decimal("1") <= factor <= Decimal("2"):
+            raise CalculoUniversalError("Fator de ajuste comercial Carvalima inválido")
+        reference_total = float((Decimal(str(subtotal_without_tax)) * factor).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP,
+        ))
+        commercial_adjustment = round(reference_total - rounded_total, 2)
+        taxes.append({
+            "codigo": "AJUSTE_COMERCIAL_CARVALIMA",
+            "descricao": "Ajuste comercial conforme cotações de referência Carvalima",
+            "base": "SUBTOTAL_SEM_ICMS", "fator": str(factor),
+            "valor": commercial_adjustment,
+            "source": reference_adjustment,
+        })
+        applied_codes.append("AJUSTE_COMERCIAL_CARVALIMA")
+        # O ICMS calculado permanece separado. O ajuste não é lançado como imposto.
+        subtotal += commercial_adjustment
+        rounded_total = reference_total
     adjustment = round(rounded_total - subtotal, 2)
     if adjustment:
         taxes.append({"codigo":"ARREDONDAMENTO_COMERCIAL","descricao":"Arredondamento comercial","base":"TOTAL","valor":adjustment})
@@ -525,10 +578,11 @@ def calcular_universal(data: dict, quote: dict) -> dict:
     composition.extend(taxes)
     pending_items = (data.get("metadata", {}).get("commercial_pending_items")
                      or data.get("general_rules", [{}])[0].get("commercial_pending_items", [])) if generoso_partial else []
+    pending_items = pending_items or carvalima_pending
     return {
-        "status": "needs_review" if generoso_partial else "success",
-        "valor_total": None if generoso_partial else round(rounded_total, 2),
-        "cotacao_parcial": generoso_partial,
+        "status": "needs_review" if quote_partial else "success",
+        "valor_total": None if quote_partial else round(rounded_total, 2),
+        "cotacao_parcial": quote_partial,
         "frete_base_documentado": round(total, 2),
         "componentes_documentados": ["frete mínimo", "frete por kg", "percentual sobre NF"] if generoso_partial else [],
         "pendencias": pending_items,
@@ -544,7 +598,7 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         "peso_cubado_kg": round(cubed, 3),
         "destino_tabela": {
             "uf": destination.get("uf"),
-            "cidade": destination.get("city"),
+            "cidade": destination.get("city") or (quote.get("destino_cidade") if carvalima else None),
             "regiao": destination.get("region_code"),
         },
         "memoria_calculo": {
@@ -563,7 +617,7 @@ def calcular_universal(data: dict, quote: dict) -> dict:
             "pedagio": next((item["valor"] for item in taxes if item.get("codigo") == "PEDAGIO"), 0),
             "taxas": taxes, "ajustes": composition[1:],
             "prazo": destination.get("delivery_days", data.get("default_delivery_days")),
-            "valor_total": None if generoso_partial else round(rounded_total, 2),
+            "valor_total": None if quote_partial else round(rounded_total, 2),
             "versao_tabela": data.get("table_version"), "origem_regra": destination.get("source"),
         },
     }

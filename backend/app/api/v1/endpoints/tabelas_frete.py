@@ -94,8 +94,9 @@ async def simular_tabela_frete(
             raise HTTPException(status_code=422, detail={"code": exc.code, "message": str(exc)}) from exc
     elif dados.get("formato") == "tabela_frete_universal_v1":
         from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
+        from app.services.tabela_frete.carvalima_pdf import with_registered_validity
         try:
-            resultado = calcular_universal(dados, entrada.model_dump())
+            resultado = calcular_universal(with_registered_validity(dados, tabela), entrada.model_dump())
         except CalculoUniversalError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     else:
@@ -617,6 +618,11 @@ async def atualizar_dados_revisao(
         atual["campos_com_duvida"] = validation["errors"]
         atual["confianca_extracao"] = 0.99 if not validation["errors"] else 0.8
         atual["preview_estruturado"] = normalizar_preview(revisao.dados_extraidos)
+    elif (revisao.dados_extraidos.get("metadata") or {}).get("parser") == "carvalima_combined_v1":
+        from app.services.tabela_frete.carvalima_pdf import commercial_pending_items
+
+        atual["erros_validacao"] = commercial_pending_items(revisao.dados_extraidos)
+        atual["campos_com_duvida"] = ["data_fim_vigencia", "prazo_dias"]
     elif revisao.dados_extraidos.get("formato") == "tabela_frete_universal_v1" and revisao.dados_extraidos.get("ai_analysis"):
         from app.services.tabela_frete.ai_analysis.schemas import AIAnalysisResult
         from app.services.tabela_frete.ai_analysis.testing import TableTestService

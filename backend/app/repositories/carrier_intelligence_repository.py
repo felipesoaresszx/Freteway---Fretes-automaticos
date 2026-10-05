@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from sqlalchemy import case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.models import CarrierIntegration, EnrichmentEvidence, TabelaFrete, Transportadora, TransportadoraBranch, TransportadoraCoverage
+from app.models.models import CarrierIntegration, EnrichmentEvidence, TabelaFrete, TabelaFreteDadosImportados, Transportadora, TransportadoraBranch, TransportadoraCoverage
+from app.services.table_coverage import table_coverage
 from app.services.enrichment.config import CONFIG
 from app.services.transportadoras.normalization import normalize_cnpj
 
@@ -37,7 +38,16 @@ class CarrierIntelligenceRepository:
                 condition=exists(select(CarrierIntegration.id).where(CarrierIntegration.carrier_id==Transportadora.id,CarrierIntegration.integration_type.in_(types)))
                 stmt=stmt.where(or_(condition,Transportadora.tipo_integracao==legacy) if legacy else condition)
         if coverage_uf:
-            stmt=stmt.where(exists(select(TransportadoraCoverage.id).where(TransportadoraCoverage.transportadora_id==Transportadora.id,or_(TransportadoraCoverage.uf==coverage_uf.upper(),TransportadoraCoverage.coverage_type=="NATIONAL"))))
+            from datetime import datetime
+
+            now = datetime.utcnow()
+            declared = exists(select(TabelaFrete.id).join(TabelaFreteDadosImportados, TabelaFreteDadosImportados.tabela_frete_id == TabelaFrete.id).where(
+                TabelaFrete.transportadora_id == Transportadora.id, TabelaFrete.status == "active",
+                TabelaFrete.data_inicio <= now, TabelaFrete.data_fim >= now,
+                TabelaFreteDadosImportados.dados["metadata"]["parser"].as_string() == "carvalima_combined_v1",
+                TabelaFreteDadosImportados.dados["destinations"].contains([{"uf": coverage_uf.upper()}]),
+            ))
+            stmt=stmt.where(or_(declared, exists(select(TransportadoraCoverage.id).where(TransportadoraCoverage.transportadora_id==Transportadora.id,or_(TransportadoraCoverage.uf==coverage_uf.upper(),TransportadoraCoverage.coverage_type=="NATIONAL")))))
         count_stmt=select(func.count()).select_from(stmt.order_by(None).subquery()); total=int(await self.db.scalar(count_stmt) or 0)
         coverage_count=select(func.count(func.distinct(TransportadoraCoverage.uf))).where(TransportadoraCoverage.transportadora_id==Transportadora.id).correlate(Transportadora).scalar_subquery()
         api_exists=exists(select(CarrierIntegration.id).where(CarrierIntegration.carrier_id==Transportadora.id,CarrierIntegration.integration_type.in_(API_TYPES)))
@@ -46,6 +56,7 @@ class CarrierIntelligenceRepository:
         if not ids: return CardPage([],page,page_size,total,math.ceil(total/page_size) if total else 0)
         integrations=list((await self.db.scalars(select(CarrierIntegration).where(CarrierIntegration.carrier_id.in_(ids)))).all()); coverages=list((await self.db.scalars(select(TransportadoraCoverage).where(TransportadoraCoverage.transportadora_id.in_(ids)))).all()); branches=list((await self.db.scalars(select(TransportadoraBranch).where(TransportadoraBranch.transportadora_id.in_(ids)))).all()); tables=set(await self.db.scalars(select(TabelaFrete.transportadora_id).where(TabelaFrete.transportadora_id.in_(ids),TabelaFrete.status=="active"))); pending=set(await self.db.scalars(select(EnrichmentEvidence.transportadora_id).where(EnrichmentEvidence.transportadora_id.in_(ids),EnrichmentEvidence.review_status=="PENDING")))
         items=[]
+        coverages.extend(await table_coverage(self.db, ids))
         for carrier in carriers:
             carrier_integrations=[x for x in integrations if x.carrier_id==carrier.id]; carrier_coverages=[x for x in coverages if x.transportadora_id==carrier.id]; detected=[x for x in carrier_integrations if x.confidence_score is not None]; configured=[x for x in carrier_integrations if x.confidence_score is None]
             types=sorted({x.integration_type for x in carrier_integrations}); legacy={"api":"API_REST","webservice":"WEBSERVICE","soap":"API_SOAP","edi":"EDI","tabela":"TABELA"}.get(carrier.tipo_integracao)

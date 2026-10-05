@@ -388,6 +388,19 @@ def _analisar_documento_legacy(documento: DocumentoFrete, tabela: TabelaFrete, s
                 "campos_com_duvida": ["aliquota_icms"],
                 "resumo": dados_unificados["estatisticas"],
             }
+        from app.services.tabela_frete.carvalima_pdf import extract_carvalima_pdf
+
+        dados_carvalima = extract_carvalima_pdf(caminho)
+        if dados_carvalima:
+            pending = dados_carvalima["metadata"]["commercial_pending_items"]
+            return {
+                "dados_extraidos": dados_carvalima,
+                "confianca_extracao": 0.98,
+                "erros_validacao": pending,
+                "avisos": ["Tabela Carvalima reconhecida: excedente por kg acima da última faixa e taxas por rota.", *dados_carvalima["metadata"]["warnings"]],
+                "campos_com_duvida": ["data_fim_vigencia", "prazo_dias"],
+                "resumo": dados_carvalima["estatisticas"],
+            }
         from app.services.tabela_frete.tabela_combinada_pdf import extract_combined_table_pdf
 
         dados_combinados = extract_combined_table_pdf(caminho)

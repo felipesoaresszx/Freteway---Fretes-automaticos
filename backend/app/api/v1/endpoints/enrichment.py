@@ -12,6 +12,7 @@ from app.services.enrichment.config import CONFIG
 from app.repositories.carrier_intelligence_repository import CarrierIntelligenceRepository, PENDING_STATUSES
 from app.schemas.enrichment import BatchStatusIn, CarrierCardsPage, CarrierStatsOut, CoverageCheckIn, CoverageCheckOut, JobOut, PendingQueueResult
 from app.services.enrichment.normalization import normalize_cep
+from app.services.table_coverage import table_coverage
 
 router=APIRouter()
 
@@ -50,6 +51,7 @@ async def summaries(db:AsyncSession=Depends(get_db),_=Depends(require_permission
     carriers=list((await db.scalars(select(Transportadora).where(Transportadora.deleted_at.is_(None)))).all())
     coverages=list((await db.scalars(select(TransportadoraCoverage))).all()); integrations=list((await db.scalars(select(CarrierIntegration).where(CarrierIntegration.confidence_score.is_not(None)))).all()); branches=list((await db.scalars(select(TransportadoraBranch))).all()); evidences=list((await db.scalars(select(EnrichmentEvidence))).all())
     result=[]
+    coverages.extend(await table_coverage(db, [c.id for c in carriers]))
     for c in carriers:
         cov=[x for x in coverages if x.transportadora_id==c.id]; ints=[x for x in integrations if x.carrier_id==c.id]; carrier_evidence=[x for x in evidences if x.transportadora_id==c.id]; branch_count=sum(x.transportadora_id==c.id for x in branches); pending=sum(x.review_status=="PENDING" for x in carrier_evidence); types=sorted({x.integration_type for x in ints}); counts={"coverage":len(cov),"integrations":len(ints),"branches":branch_count}
         table=next((x for x in ints if x.integration_type=="TABELA"),None)
@@ -90,7 +92,10 @@ async def status(id:str,db:AsyncSession=Depends(get_db),_=Depends(require_permis
     return EnrichmentStatusOut(transportadora_id=id,status=c.enrichment_status,enrichment_started_at=c.enrichment_started_at,enrichment_finished_at=c.enrichment_finished_at,last_enrichment_at=c.last_enrichment_at,completion_percent=completion(c,counts,types),counts=counts)
 
 @router.get("/transportadoras/{id}/cobertura",response_model=list[CoverageOut])
-async def coverage(id:str,db:AsyncSession=Depends(get_db),_=Depends(require_permission("transportadoras.view"))): await carrier_or_404(db,id); return list((await db.scalars(select(TransportadoraCoverage).where(TransportadoraCoverage.transportadora_id==id))).all())
+async def coverage(id:str,db:AsyncSession=Depends(get_db),_=Depends(require_permission("transportadoras.view"))):
+    await carrier_or_404(db,id)
+    rows = list((await db.scalars(select(TransportadoraCoverage).where(TransportadoraCoverage.transportadora_id==id))).all())
+    return rows + await table_coverage(db, [id])
 
 @router.post("/transportadoras/{id}/coverage/check",response_model=CoverageCheckOut)
 async def coverage_check(id:str,data:CoverageCheckIn,db:AsyncSession=Depends(get_db),_=Depends(require_permission("transportadoras.view"))):
@@ -102,6 +107,12 @@ async def coverage_check(id:str,data:CoverageCheckIn,db:AsyncSession=Depends(get
     if data.uf_destino: destination_rules.append(and_(TransportadoraCoverage.coverage_type=="STATE",TransportadoraCoverage.uf==data.uf_destino.upper()))
     pickup=bool(await db.scalar(select(TransportadoraCoverage.id).where(TransportadoraCoverage.transportadora_id==id,TransportadoraCoverage.pickup_available.is_(True),or_(*origin_rules)).limit(1)))
     delivery=bool(await db.scalar(select(TransportadoraCoverage.id).where(TransportadoraCoverage.transportadora_id==id,TransportadoraCoverage.delivery_available.is_(True),or_(*destination_rules)).limit(1)))
+    declared = await table_coverage(db, [id])
+    from app.services.tabela_frete.calculo_universal import _state_from_cep
+
+    destination_uf = data.uf_destino or _state_from_cep(destination)
+    pickup = pickup or any(row.pickup_available and row.cep_start and row.cep_start <= origin <= row.cep_end for row in declared)
+    delivery = delivery or any(row.delivery_available and row.coverage_type == "STATE" and row.uf == destination_uf for row in declared)
     return CoverageCheckOut(pickup=pickup,delivery=delivery,eligible=pickup and delivery)
 @router.get("/transportadoras/{id}/integracoes",response_model=list[DiscoveredIntegrationOut])
 async def integrations(id:str,db:AsyncSession=Depends(get_db),_=Depends(require_permission("integrations.view"))): await carrier_or_404(db,id); return list((await db.scalars(select(CarrierIntegration).where(CarrierIntegration.carrier_id==id,CarrierIntegration.confidence_score.is_not(None)))).all())

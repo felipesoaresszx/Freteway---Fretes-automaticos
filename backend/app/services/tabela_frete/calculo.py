@@ -149,7 +149,10 @@ class TabelaFreteCalculoService:
 
             if tabela.dados_importados and tabela.dados_importados.formato == "tabela_frete_universal_v1":
                 try:
-                    return self._com_memoria(calcular_universal(tabela.dados_importados.dados, dados_cotacao), tabela, dados_cotacao)
+                    from app.services.tabela_frete.carvalima_pdf import with_registered_validity
+
+                    dados = with_registered_validity(tabela.dados_importados.dados, tabela)
+                    return self._com_memoria(calcular_universal(dados, dados_cotacao), tabela, dados_cotacao)
                 except CalculoUniversalError as exc:
                     return {"status": "error", "erro_codigo": "REGRA_TABELA_UNIVERSAL", "erro_mensagem": str(exc)}
 
