@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.tabela_frete.rule_engine import RuleEngineError, calculate, validate_contract
+from app.services.tabela_frete.rule_engine import calculate, validate_contract
 from app.services.tabela_frete.cristal_blue_2026 import (
     build_contract,
     extract_cristal_blue_pdf,
