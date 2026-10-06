@@ -89,7 +89,13 @@ def _upgrade_legacy_maex(data: dict) -> dict:
             "rates_by_route": {f"SP>{uf}": rate for uf, rate in MAEX_INTERSTATE_RATES.items()},
             "rates_by_destination":MAEX_INTERSTATE_RATES,"default_rate":.12,"rounding_mode":"UP",
             "source":{"label":"ICMS - conforme legislação vigente"}}]
-    upgraded["pricing_rules"] = {**(data.get("pricing_rules") or {}), "commercial_rounding_increment":.01}
+    upgraded["pricing_rules"] = {
+        "maex_ssw_additional_freight": {
+            "rate": .08,
+            "source": "SSW 1285194, 1285196, 1285201 (06/10/2026)",
+        },
+        **(data.get("pricing_rules") or {}), "commercial_rounding_increment": .01,
+    }
     upgraded["optional_services"] = {
         "rural_area": 5.50,
         "zmrc": 85.00,
@@ -453,6 +459,30 @@ def calcular_universal(data: dict, quote: dict) -> dict:
             amount = round(float(value), 2)
             taxes.append({"codigo": code, "descricao": name, "base": "FIXO", "valor": amount})
             applied_codes.append(code)
+    maex_additional = (data.get("pricing_rules") or {}).get("maex_ssw_additional_freight")
+    maex_ssw_applies = bool(
+        maex_additional and (
+            not maex_additional.get("destination_states")
+            or destination.get("uf") in maex_additional["destination_states"]
+        )
+    )
+    if maex_ssw_applies:
+        # Referências SSW confirmam 8% sobre frete + taxas ordinárias,
+        # antes do ICMS. Serviços opcionais não constam dessas referências.
+        basis = Decimal(str(round(total, 2))) + sum(
+            (Decimal(str(item["valor"])) for item in taxes), Decimal("0"),
+        )
+        amount = float((basis * Decimal(str(maex_additional["rate"]))).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP,
+        ))
+        taxes.append({
+            "codigo": "MAEX_ADDITIONAL_FREIGHT", "descricao": "Adicional de frete Maex (SSW)",
+            "base": "FREIGHT_AND_MANDATORY_FEES", "base_calculo": float(basis),
+            "percentual": maex_additional["rate"], "valor": amount,
+            "source": maex_additional["source"],
+        })
+        applied_codes.append("MAEX_ADDITIONAL_FREIGHT")
+        total = round(total, 2)
     services = quote.get("servicos") or {}
     service_rules = data.get("optional_services") or {}
     service_taxes = []
@@ -535,7 +565,9 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         if not 0 < rate < 1:
             continue
         raw_amount = Decimal(str(subtotal)) / (Decimal("1") - Decimal(str(rate))) - Decimal(str(subtotal))
-        if tax_rule.get("rounding_mode") == "UP":
+        if maex_ssw_applies:
+            amount = float(raw_amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+        elif tax_rule.get("rounding_mode") == "UP":
             amount = float(raw_amount.quantize(Decimal("0.01"), rounding=ROUND_CEILING))
         else:
             amount = round(float(raw_amount), 2)

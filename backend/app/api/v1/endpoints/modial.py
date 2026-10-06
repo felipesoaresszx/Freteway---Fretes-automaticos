@@ -28,7 +28,7 @@ class CotacaoModialInput(BaseModel):
 
 
 def montar_resposta_modial(payload: CotacaoModialInput, result: dict, table: TabelaFrete) -> dict:
-    mandatory_codes = {"DISPATCH", "TOLL", "GRIS", "INSURANCE"}
+    mandatory_codes = {"DISPATCH", "TOLL", "GRIS", "INSURANCE", "MAEX_ADDITIONAL_FREIGHT"}
     mandatory = [item for item in result["taxas_detalhadas"] if item.get("codigo") in mandatory_codes]
     icms = next((item for item in result["taxas_detalhadas"] if item.get("codigo") == "ICMS"), None)
     additional = [

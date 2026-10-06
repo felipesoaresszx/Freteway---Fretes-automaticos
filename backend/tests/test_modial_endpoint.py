@@ -52,6 +52,7 @@ def test_resposta_modial_separa_taxas_icms_e_adicionais():
             {"codigo": "TOLL", "valor": 12.66},
             {"codigo": "GRIS", "valor": 3.0},
             {"codigo": "INSURANCE", "valor": 3.0},
+            {"codigo": "MAEX_ADDITIONAL_FREIGHT", "valor": 11.06},
             {"codigo": "PALLETIZATION", "valor": 75.0},
             {"codigo": "ICMS", "valor": 10.41},
         ],
@@ -63,4 +64,5 @@ def test_resposta_modial_separa_taxas_icms_e_adicionais():
     assert response["total"] == 148.67
     assert response["icms"] == {"codigo": "ICMS", "valor": 10.41}
     assert response["servicos_adicionais"] == [{"codigo": "PALLETIZATION", "valor": 75.0}]
+    assert any(item['codigo'] == 'MAEX_ADDITIONAL_FREIGHT' for item in response['taxas_obrigatorias'])
     assert response["referencia_pedido"] == "PED-123456"

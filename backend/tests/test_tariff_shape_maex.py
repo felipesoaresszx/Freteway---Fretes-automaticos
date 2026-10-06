@@ -65,9 +65,9 @@ def test_maex_reproduz_cotacao_com_despacho_gris_e_arredondamento_comercial():
     assert quote["peso_considerado_kg"] == pytest.approx(55.873, abs=.001)
     assert quote["prazo_dias"] == 7
     assert quote["frete_base"] == 97.75
-    assert quote["valor_total"] == 148.36
+    assert quote["valor_total"] == 160.22
     assert {item["codigo"] for item in quote["taxas_detalhadas"]} == {
-        "DISPATCH", "GRIS", "INSURANCE", "TOLL", "ICMS",
+        "DISPATCH", "GRIS", "INSURANCE", "TOLL", "MAEX_ADDITIONAL_FREIGHT", "ICMS",
     }
 
 
@@ -85,9 +85,9 @@ def test_maex_resolve_goias_sem_indice_externo_na_imagem_de_producao(tmp_path):
 
     assert quote["status"] == "success"
     assert quote["destino_tabela"] == {"uf": "GO", "cidade": None, "regiao": "INTERIOR"}
-    assert quote["valor_total"] == 183.76
+    assert quote["valor_total"] == 198.45
     assert {item["codigo"] for item in quote["taxas_detalhadas"]} == {
-        "DISPATCH", "GRIS", "INSURANCE", "TOLL", "TDA", "ICMS",
+        "DISPATCH", "GRIS", "INSURANCE", "TOLL", "TDA", "MAEX_ADDITIONAL_FREIGHT", "ICMS",
     }
     icms = next(item for item in quote["taxas_detalhadas"] if item["codigo"] == "ICMS")
     assert icms["percentual"] == .07
@@ -150,7 +150,7 @@ def test_maex_atualiza_regras_de_preco_persistidas_por_versao_antiga():
         "peso": 11, "valor_nf": 1359, "volume_total_m3": .22893,
     })
 
-    assert quote["valor_total"] == 183.76
+    assert quote["valor_total"] == 198.45
 
 
 def test_codigo_sem_legenda_gera_impeditivo_especifico(tmp_path):
@@ -275,8 +275,8 @@ def _maex_contract_for_calculation():
 
 
 @pytest.mark.parametrize(("code", "region", "weight", "invoice", "subtotal"), [
-    ("GYN", "POLE", 150, 1000, 138.26),
-    ("BSB", "INTERIOR", 250, 2000, 226.49),
+    ("GYN", "POLE", 150, 1000, 149.32),
+    ("BSB", "INTERIOR", 250, 2000, 244.61),
 ])
 def test_maex_reproduz_exemplos_do_guia(code, region, weight, invoice, subtotal):
     result = calcular_universal(_maex_contract_for_calculation(), {
@@ -319,3 +319,56 @@ def test_maex_calcula_servicos_adicionais_da_proposta():
         "REDELIVERY": 51.17,
         "RETURN": 102.35,
     }.items() <= components.items()
+
+
+@pytest.mark.parametrize('code,state,region,base,weight,volume,invoice,additional,total,days', [
+    ('BSB', 'DF', 'POLE', 74.75, 49, .4375, 930.30, 10.54, 153.05, 3),
+    ('GYN', 'GO', 'INTERIOR', 126.50, 42, .159719, 2012.11, 12.97, 188.31, 5),
+    ('TOC', 'TO', 'INTERIOR', 155.25, 15, .0726, 969, 14.77, 214.43, 12),
+])
+def test_maex_reproduz_composicao_portal_ssw(code, state, region, base, weight, volume, invoice, additional, total, days):
+    import copy
+    data = _maex_contract_for_calculation()
+    destination = copy.deepcopy(data['destinations'][0])
+    destination.update(destination_code=code, uf=state, service_level=region, delivery_days=days)
+    destination['tariff_rule'].update(base_price=base, excess_rate_per_kg=.69)
+    destination['weight_rates'][0]['price'] = base
+    data['destinations'] = [destination]
+    before = copy.deepcopy(data)
+    quote = dict(destino_codigo=code, nivel_atendimento=region, peso=weight,
+                 volume_total_m3=volume, valor_nf=invoice, origem_uf='SP')
+    result = calcular_universal(data, quote)
+    components = {item['codigo']: item for item in result['taxas_detalhadas']}
+    assert result['valor_total'] == total
+    assert components['MAEX_ADDITIONAL_FREIGHT']['valor'] == additional
+    assert result['prazo_dias'] == days
+    assert round(result['frete_base'] + sum(item['valor'] for item in result['taxas_detalhadas']), 2) == total
+    assert data == before
+    assert calcular_universal(data, quote)['valor_total'] == total
+
+
+def test_adicional_maex_nao_afeta_outras_transportadoras():
+    data = _maex_contract_for_calculation()
+    quote = dict(destino_codigo='GYN', nivel_atendimento='POLE', peso=150, valor_nf=1000)
+    unrelated = {**data, 'source_document': 'Outra transportadora.xls'}
+    assert all(item['codigo'] != 'MAEX_ADDITIONAL_FREIGHT'
+               for item in calcular_universal(unrelated, quote)['taxas_detalhadas'])
+
+
+@pytest.mark.parametrize('code,state', [('GYN', 'GO'), ('BSB', 'DF'), ('TOC', 'TO'),
+                                      ('CWB', 'PR'), ('CMP', 'SP'), ('RBP', 'SP')])
+@pytest.mark.parametrize('level', ['POLE', 'INTERIOR'])
+def test_maex_aplica_adicional_em_todas_as_pracas_e_regioes(code, state, level):
+    from decimal import Decimal, ROUND_HALF_UP
+    data = _maex_contract_for_calculation()
+    data['destinations'] = [data['destinations'][0]]
+    data['destinations'][0].update(destination_code=code, uf=state, service_level=level)
+    result = calcular_universal(data, dict(destino_codigo=code, nivel_atendimento=level,
+                                        peso=150, valor_nf=1000, origem_uf='SP'))
+    components = {item['codigo']: item for item in result['taxas_detalhadas']}
+    assert components['MAEX_ADDITIONAL_FREIGHT']['valor'] == 11.06
+    assert result['subtotal_sem_icms'] == 149.32
+    rate = Decimal('.12') if state in {'SP', 'PR'} else Decimal('.07')
+    expected = float((Decimal('149.32') / (1 - rate)).quantize(Decimal('.01'), rounding=ROUND_HALF_UP))
+    assert result['valor_total'] == expected
+    assert components['ICMS']['percentual'] == float(rate)

@@ -71,6 +71,14 @@ um processo externo, evitando disparos sem autorização e sem credenciais confi
 
 ## Divergência com o portal SSW
 
+Atualização de 06/10/2026: as composições do SSW identificam adicional de frete
+de 8% antes do ICMS para DF, GO e TO. A pedido do usuário, essa regra foi
+estendida a todos os destinos Maex. A imagem corrigida do primeiro exemplo
+informa R$ 153,05. O motor agora inclui o adicional e reproduz
+R$ 153,05, R$ 188,31 e R$ 214,43 para os três pedidos conferidos. Consulte
+`maex-validacao-20261006.md` para bases, arredondamento e limites. O relato
+abaixo documenta a investigação anterior à disponibilização dessas composições.
+
 Reprocessamos as cotações 28603, 28324 e 28647 a partir dos pesos, dimensões, valores
 de nota e tarifas desta proposta. O cálculo reproduz R$ 141,73, R$ 174,37 e R$ 196,08,
 respectivamente, que são os totais registrados no FreteWay. A planilha não permite
