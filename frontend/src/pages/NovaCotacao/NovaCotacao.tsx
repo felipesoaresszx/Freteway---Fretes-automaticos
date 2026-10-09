@@ -1,7 +1,7 @@
 import { LoaderCircle, Star, Trash2, PlusCircle } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
-import { Badge, Card, Field, Input } from "../../components/ui";
+import { Card, Field, Input } from "../../components/ui";
 import { CotacaoResultDetail } from "../../components/CotacaoResultDetail";
 import { useCotacao } from "../../hooks/useCotacao";
 import { useTransportadoras } from "../../hooks/useTransportadoras";
@@ -92,7 +92,12 @@ export function NovaCotacao() {
     });
   }
 
-  const resultados = cotacao?.resultados ?? [];
+  const resultados = (cotacao?.resultados ?? []).filter(
+    (resultado) => resultado.status === "success"
+      && resultado.valor_frete != null
+      && Number.isFinite(resultado.valor_frete)
+      && resultado.valor_frete > 0
+  );
   const status = cotacao?.status;
   const todosFinalizados = status && status !== "processing";
 
@@ -205,7 +210,13 @@ export function NovaCotacao() {
             {isCarregando && <span className="text-xs text-text-secondary">atualizando...</span>}
           </div>
           <div className="space-y-2">
-            {resultados.length === 0 && <p className="text-xs text-text-secondary">Aguardando primeira resposta do backend...</p>}
+            {resultados.length === 0 && (
+              <p className="text-xs text-text-secondary">
+                {todosFinalizados
+                  ? "Nenhuma transportadora retornou um valor para esta cotação."
+                  : "Aguardando cotações das transportadoras..."}
+              </p>
+            )}
             {resultados.map((r) => {
               const isMelhor = cotacao.melhor_opcao_id === r.transportadora_id;
               return (
@@ -226,14 +237,6 @@ export function NovaCotacao() {
                     </span>
                   )}
                   {r.status === "success" && r.detalhamento && <CotacaoResultDetail detalhamento={r.detalhamento} />}
-                  {(r.status === "error" || r.status === "timeout") && (
-                    <div className="max-w-md text-right">
-                      <Badge tone={r.status === "timeout" ? "warning" : "error"}>
-                        {r.status === "timeout" ? "Timeout" : "Erro"}
-                      </Badge>
-                      {r.erro?.mensagem && <p className="mt-1 text-xs text-state-error">{r.erro.mensagem}</p>}
-                    </div>
-                  )}
                 </div>
               );
             })}
