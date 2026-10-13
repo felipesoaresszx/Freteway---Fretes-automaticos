@@ -420,6 +420,8 @@ class TransportadoraConfiguracaoApi(Base):
     nome_header: Mapped[str | None] = mapped_column(String(120), nullable=True)
     credencial_criptografada: Mapped[str | None] = mapped_column(Text, nullable=True)
     usuario_integracao: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contato_nome: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    contato_telefone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     auth_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     documento_devedor: Mapped[str | None] = mapped_column(String(14), nullable=True)
     filial_origem: Mapped[str | None] = mapped_column(String(10), nullable=True)

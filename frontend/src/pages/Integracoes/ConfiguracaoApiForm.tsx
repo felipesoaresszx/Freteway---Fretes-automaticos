@@ -7,12 +7,14 @@ import { useConfiguracaoApi, useSalvarConfiguracaoApi } from "../../hooks/useTra
 import type { ConfiguracaoApiInput, Transportadora } from "../../types/transportadora";
 
 const selectClass = "h-9 rounded border border-border bg-surface2 px-3 text-sm text-text-primary outline-none focus:ring-1 focus:ring-state-info";
+const rodonavesDefaults = { base_url: "https://quotation-apigateway.rte.com.br", endpoint_cotacao: "/api/v1/gera-cotacao", metodo_http: "POST" as const, tipo_autenticacao: "rodonaves_login" as const, auth_url: "https://quotation-apigateway.rte.com.br/token", campo_valor: "FreightValue", campo_prazo: "DeliveryTime" };
 const inicial: ConfiguracaoApiInput = {
   base_url: "", endpoint_cotacao: "", metodo_http: "POST", tipo_autenticacao: "bearer",
   nome_header: "X-API-Key", credencial: "", campo_valor: "valor_frete", campo_prazo: "prazo_dias", ativa: false,
 };
 
 export function ConfiguracaoApiForm({ transportadora, onClose }: { transportadora: Transportadora; onClose: () => void }) {
+  const isRodonaves = /rodonaves/i.test(transportadora.nome);
   const isJamef = transportadora.nome.trim().toLowerCase().startsWith("jamef");
   const isAlfa = transportadora.nome.trim().toLowerCase().startsWith("alfa");
   const isBraspress = transportadora.nome.trim().toLowerCase().startsWith("braspress");
@@ -23,7 +25,7 @@ export function ConfiguracaoApiForm({ transportadora, onClose }: { transportador
 
   useEffect(() => {
     if (consulta.data) {
-      setDados(isAlfa ? {
+      setDados(isRodonaves ? { ...consulta.data, ...rodonavesDefaults, credencial: "" } : isAlfa ? {
         ...consulta.data,
         base_url: "https://api.alfatransportes.com.br",
         endpoint_cotacao: "/cotacao/",
@@ -45,7 +47,7 @@ export function ConfiguracaoApiForm({ transportadora, onClose }: { transportador
         credencial: "",
       } : { ...consulta.data, credencial: "" });
     }
-  }, [consulta.data, isAlfa, isBraspress]);
+  }, [consulta.data, isAlfa, isBraspress, isRodonaves]);
   useEffect(() => {
     if (isJamef && !consulta.data) setDados((atual) => ({
       ...atual,
@@ -77,6 +79,9 @@ export function ConfiguracaoApiForm({ transportadora, onClose }: { transportador
       ativa: false,
     }));
   }, [isAlfa, consulta.data]);
+  useEffect(() => {
+    if (isRodonaves && !consulta.data) setDados((atual) => ({ ...atual, ...rodonavesDefaults }));
+  }, [isRodonaves, consulta.data]);
   function alterar<K extends keyof ConfiguracaoApiInput>(campo: K, valor: ConfiguracaoApiInput[K]) {
     setDados((atual) => ({ ...atual, [campo]: valor }));
   }
@@ -94,18 +99,20 @@ export function ConfiguracaoApiForm({ transportadora, onClose }: { transportador
 
   return <Card className="border-state-info/40">
     <div className="mb-4 flex items-center justify-between"><div><h2 className="flex items-center gap-2 text-sm font-medium"><KeyRound size={15} /> API — {transportadora.nome}</h2><p className="mt-1 text-xs text-text-secondary">O token é criptografado e nunca volta para a tela.</p></div><button onClick={onClose}><X size={16} /></button></div>
+    {isRodonaves && <p className="mb-4 text-xs text-text-secondary">Use o acesso liberado para a API Rodonaves. O sistema obtém os tokens automaticamente e consulta os IDs das cidades pelos CEPs. O prazo é consultado em um serviço separado.</p>}
     {isAlfa && <div className="mb-4 rounded border border-state-warning/40 bg-state-warning/10 p-3 text-xs text-state-warning"><strong className="block font-medium">Contrato Alfa</strong><span>GET /cotacao/ · chave enviada no parâmetro <code>idr</code> · negociação aplicada pelo CNPJ vinculado. Informe os dois dados fornecidos pela Alfa.</span></div>}
     {consulta.isLoading ? <p className="text-sm text-text-secondary">Carregando configuração...</p> : <form onSubmit={enviar} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <Field label="URL base da API"><Input required readOnly={isAlfa} type="url" value={dados.base_url} onChange={(e) => alterar("base_url", e.target.value)} placeholder="https://api.transportadora.com" /></Field>
-      <Field label="Endpoint de cotação"><Input readOnly={isAlfa} value={dados.endpoint_cotacao} onChange={(e) => alterar("endpoint_cotacao", e.target.value)} placeholder="/v1/cotacoes" /></Field>
-      <Field label="Método HTTP"><select disabled={isAlfa} className={selectClass} value={dados.metodo_http} onChange={(e) => alterar("metodo_http", e.target.value as "GET" | "POST")}><option>POST</option><option>GET</option></select></Field>
-      <Field label="Autenticação"><select disabled={isAlfa} className={selectClass} value={dados.tipo_autenticacao} onChange={(e) => alterar("tipo_autenticacao", e.target.value as ConfiguracaoApiInput["tipo_autenticacao"])}>{isJamef && <option value="jamef_login">Login JAMEF + Bearer</option>}{isBraspress && <option value="braspress_basic">Usuário e senha Braspress</option>}<option value="bearer">Bearer token</option><option value="api_key">API key em header</option><option value="query_param">API key em parâmetro da URL</option><option value="basic">Usuário e senha</option><option value="nenhuma">Sem autenticação</option></select></Field>
-      {(dados.tipo_autenticacao === "api_key" || dados.tipo_autenticacao === "query_param") && <Field label={dados.tipo_autenticacao === "query_param" ? "Nome do parâmetro" : "Nome do header"}><Input readOnly={isAlfa} value={dados.nome_header ?? ""} onChange={(e) => alterar("nome_header", e.target.value)} placeholder={dados.tipo_autenticacao === "query_param" ? "api_key" : "X-API-Key"} /></Field>}
+      <Field label="URL base da API"><Input required readOnly={isAlfa || isRodonaves} type="url" value={dados.base_url} onChange={(e) => alterar("base_url", e.target.value)} placeholder="https://api.transportadora.com" /></Field>
+      <Field label="Endpoint de cotação"><Input readOnly={isAlfa || isRodonaves} value={dados.endpoint_cotacao} onChange={(e) => alterar("endpoint_cotacao", e.target.value)} placeholder="/v1/cotacoes" /></Field>
+      <Field label="Método HTTP"><select disabled={isAlfa || isRodonaves} className={selectClass} value={dados.metodo_http} onChange={(e) => alterar("metodo_http", e.target.value as "GET" | "POST")}><option>POST</option><option>GET</option></select></Field>
+      <Field label="Autenticação"><select disabled={isAlfa || isRodonaves} className={selectClass} value={dados.tipo_autenticacao} onChange={(e) => alterar("tipo_autenticacao", e.target.value as ConfiguracaoApiInput["tipo_autenticacao"])}>{isRodonaves && <option value="rodonaves_login">Login Rodonaves + Bearer</option>}{isJamef && <option value="jamef_login">Login JAMEF + Bearer</option>}{isBraspress && <option value="braspress_basic">Usuário e senha Braspress</option>}<option value="bearer">Bearer token</option><option value="api_key">API key em header</option><option value="query_param">API key em parâmetro da URL</option><option value="basic">Usuário e senha</option><option value="nenhuma">Sem autenticação</option></select></Field>
+      {(dados.tipo_autenticacao === "api_key" || dados.tipo_autenticacao === "query_param") && <Field label={dados.tipo_autenticacao === "query_param" ? "Nome do parâmetro" : "Nome do header"}><Input readOnly={isAlfa || isRodonaves} value={dados.nome_header ?? ""} onChange={(e) => alterar("nome_header", e.target.value)} placeholder={dados.tipo_autenticacao === "query_param" ? "api_key" : "X-API-Key"} /></Field>}
+      {isRodonaves && <><Field label="Usuário da API Rodonaves"><Input required value={dados.usuario_integracao ?? ""} onChange={(e) => alterar("usuario_integracao", e.target.value)} autoComplete="username" /></Field><Field label="Senha da API Rodonaves"><Input type="password" value={dados.credencial ?? ""} onChange={(e) => alterar("credencial", e.target.value)} autoComplete="new-password" placeholder={consulta.data?.credencial_configurada ? "Já configurada — deixe vazio para manter" : "Informe a senha da API"} /></Field><Field label="CPF/CNPJ do cliente Rodonaves"><Input required inputMode="numeric" value={dados.documento_devedor ?? ""} onChange={(e) => alterar("documento_devedor", e.target.value.replace(/\D/g, "").slice(0, 14))} /></Field><Field label="Nome do contato"><Input required value={dados.contato_nome ?? ""} onChange={(e) => alterar("contato_nome", e.target.value)} /></Field><Field label="Telefone do contato"><Input required inputMode="tel" value={dados.contato_telefone ?? ""} onChange={(e) => alterar("contato_telefone", e.target.value)} /></Field></>}
       {isAlfa && <Field label="CNPJ vinculado à Alfa"><Input required inputMode="numeric" value={dados.documento_devedor ?? ""} onChange={(e) => alterar("documento_devedor", e.target.value.replace(/\D/g, "").slice(0, 14))} placeholder="00.000.000/0000-00" /></Field>}
       {dados.tipo_autenticacao === "jamef_login" && <><Field label="Usuário JAMEF"><Input value={dados.usuario_integracao ?? ""} onChange={(e) => alterar("usuario_integracao", e.target.value)} autoComplete="username" /></Field><Field label="Senha JAMEF"><Input type="password" value={dados.credencial ?? ""} onChange={(e) => alterar("credencial", e.target.value)} autoComplete="new-password" placeholder={consulta.data?.credencial_configurada ? "Já configurada — deixe vazio para manter" : "Informe a senha"} /></Field><Field label="URL de autenticação"><Input required type="url" value={dados.auth_url ?? ""} onChange={(e) => alterar("auth_url", e.target.value)} /></Field><Field label="CNPJ/CPF pagador"><Input required inputMode="numeric" value={dados.documento_devedor ?? ""} onChange={(e) => alterar("documento_devedor", e.target.value.replace(/\D/g, ""))} /></Field><Field label="Filial de origem (opcional)"><Input value={dados.filial_origem ?? ""} onChange={(e) => alterar("filial_origem", e.target.value)} /></Field><Field label="Modal"><select className={selectClass} value={dados.tipo_transporte ?? "1"} onChange={(e) => alterar("tipo_transporte", e.target.value as "1" | "2")}><option value="1">Rodoviário</option><option value="2">Aéreo</option></select></Field></>}
       {dados.tipo_autenticacao === "braspress_basic" && <><Field label="Usuário Braspress"><Input value={dados.usuario_integracao ?? ""} onChange={(e) => alterar("usuario_integracao", e.target.value)} autoComplete="username" /></Field><Field label="Senha Braspress"><Input type="password" value={dados.credencial ?? ""} onChange={(e) => alterar("credencial", e.target.value)} autoComplete="new-password" placeholder={consulta.data?.credencial_configurada ? "Já configurada — deixe vazio para manter" : "Informe a senha"} /></Field><Field label="CNPJ remetente"><Input required inputMode="numeric" value={dados.documento_devedor ?? ""} onChange={(e) => alterar("documento_devedor", e.target.value.replace(/\D/g, "").slice(0, 14))} /></Field><Field label="Modal"><select className={selectClass} value={dados.tipo_transporte ?? "R"} onChange={(e) => alterar("tipo_transporte", e.target.value as "R" | "A")}><option value="R">Rodoviário</option><option value="A">Aéreo</option></select></Field></>}
-      {dados.tipo_autenticacao !== "nenhuma" && dados.tipo_autenticacao !== "jamef_login" && dados.tipo_autenticacao !== "braspress_basic" && <Field label={dados.tipo_autenticacao === "basic" ? "Credencial (usuário:senha)" : "Chave / token"}><Input type="password" value={dados.credencial ?? ""} onChange={(e) => alterar("credencial", e.target.value)} placeholder={consulta.data?.credencial_configurada ? "Já configurada — deixe vazio para manter" : "Cole a credencial"} /></Field>}
-      {!isJamef && !isBraspress && <><Field label="Campo do valor na resposta"><Input readOnly={isAlfa} value={dados.campo_valor} onChange={(e) => alterar("campo_valor", e.target.value)} placeholder="data.valorFrete" /></Field><Field label="Campo do prazo na resposta"><Input readOnly={isAlfa} value={dados.campo_prazo} onChange={(e) => alterar("campo_prazo", e.target.value)} placeholder="data.prazoDias" /></Field></>}
+      {dados.tipo_autenticacao !== "nenhuma" && dados.tipo_autenticacao !== "jamef_login" && dados.tipo_autenticacao !== "braspress_basic" && dados.tipo_autenticacao !== "rodonaves_login" && <Field label={dados.tipo_autenticacao === "basic" ? "Credencial (usuário:senha)" : "Chave / token"}><Input type="password" value={dados.credencial ?? ""} onChange={(e) => alterar("credencial", e.target.value)} placeholder={consulta.data?.credencial_configurada ? "Já configurada — deixe vazio para manter" : "Cole a credencial"} /></Field>}
+      {!isJamef && !isBraspress && !isRodonaves && <><Field label="Campo do valor na resposta"><Input readOnly={isAlfa || isRodonaves} value={dados.campo_valor} onChange={(e) => alterar("campo_valor", e.target.value)} placeholder="data.valorFrete" /></Field><Field label="Campo do prazo na resposta"><Input readOnly={isAlfa || isRodonaves} value={dados.campo_prazo} onChange={(e) => alterar("campo_prazo", e.target.value)} placeholder="data.prazoDias" /></Field></>}
       <label className="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" checked={dados.ativa} onChange={(e) => alterar("ativa", e.target.checked)} /> Ativar integração nas cotações</label>
       <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-between gap-3"><p className={`text-xs ${mensagem.includes("não") ? "text-state-error" : "text-state-success"}`}>{mensagem}</p><button disabled={salvar.isPending} className="inline-flex h-9 items-center gap-2 rounded bg-state-info px-4 text-sm text-white disabled:opacity-50"><ShieldCheck size={14} /> {salvar.isPending ? "Salvando..." : "Salvar configuração"}</button></div>
     </form>}

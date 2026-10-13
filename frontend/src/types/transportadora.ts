@@ -56,9 +56,11 @@ export interface ConfiguracaoApi {
   base_url: string;
   endpoint_cotacao: string;
   metodo_http: "GET" | "POST";
-  tipo_autenticacao: "bearer" | "api_key" | "query_param" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic";
+  tipo_autenticacao: "bearer" | "api_key" | "query_param" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic" | "rodonaves_login";
   nome_header: string | null;
   usuario_integracao?: string | null;
+  contato_nome?: string | null;
+  contato_telefone?: string | null;
   auth_url?: string | null;
   documento_devedor?: string | null;
   filial_origem?: string | null;
@@ -74,10 +76,12 @@ export interface ConfiguracaoApiInput {
   base_url: string;
   endpoint_cotacao: string;
   metodo_http: "GET" | "POST";
-  tipo_autenticacao: "bearer" | "api_key" | "query_param" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic";
+  tipo_autenticacao: "bearer" | "api_key" | "query_param" | "basic" | "nenhuma" | "jamef_login" | "braspress_basic" | "rodonaves_login";
   nome_header?: string | null;
   credencial?: string | null;
   usuario_integracao?: string | null;
+  contato_nome?: string | null;
+  contato_telefone?: string | null;
   auth_url?: string | null;
   documento_devedor?: string | null;
   filial_origem?: string | null;

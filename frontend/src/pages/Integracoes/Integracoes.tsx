@@ -115,6 +115,7 @@ function Formulario({ editando, onClose, onConfigureRisso }: { editando: Transpo
   const [mensagemCnpj, setMensagemCnpj] = useState<{ tipo: "sucesso" | "aviso" | "erro"; texto: string } | null>(null);
   const [ultimoCnpjConsultado, setUltimoCnpjConsultado] = useState("");
   const [dados, setDados] = useState<FormData>({ ...valoresVazios });
+  const rodonaves = /rodonaves/i.test(dados.nome);
   const [erros, setErros] = useState<Partial<Record<keyof FormData, string>>>({});
 
   useEffect(() => {
@@ -234,14 +235,14 @@ function Formulario({ editando, onClose, onConfigureRisso }: { editando: Transpo
         </Field>
         {dados.metodo_calculo === "api" && !risso && <>
           <div><Field label="URL base da API"><Input type="url" value={dados.api_base_url ?? ""} onChange={(e) => alterar("api_base_url", e.target.value)} placeholder="https://api.transportadora.com" /></Field>{erros.api_base_url && <p className="mt-1 text-xs text-state-error">{erros.api_base_url}</p>}</div>
-          <Field label="Chave de API / Token"><Input type="password" value={dados.api_key ?? ""} onChange={(e) => alterar("api_key", e.target.value)} placeholder={configuracao.data?.credencial_mascarada ?? "Pode ser preenchida depois"} /></Field>
+          {!rodonaves && <Field label="Chave de API / Token"><Input type="password" value={dados.api_key ?? ""} onChange={(e) => alterar("api_key", e.target.value)} placeholder={configuracao.data?.credencial_mascarada ?? "Pode ser preenchida depois"} /></Field>}
           <Field label="Ambiente"><select value={dados.api_ambiente} onChange={(e) => alterar("api_ambiente", e.target.value as "producao" | "homologacao")} className={inputClass}><option value="producao">Produção</option><option value="homologacao">Homologação</option></select></Field>
         </>}
         {risso && dados.metodo_calculo === "api" && <div className="sm:col-span-2 rounded border border-state-info/40 bg-state-info/5 p-3">
           <p className="text-xs text-text-secondary">A Risso usa autenticação Senior com usuário e senha. As credenciais ficam protegidas na integração e não usam os campos genéricos de chave/token.</p>
           <button type="button" onClick={() => { onClose(); onConfigureRisso(editando!); }} className="mt-3 inline-flex h-9 items-center gap-2 rounded border border-state-info/40 px-3 text-sm text-state-info"><KeyRound size={14} /> Configurar credenciais Risso</button>
         </div>}
-        <div className="flex items-end"><p className="pb-2 text-xs text-text-secondary">{dados.metodo_calculo === "tabela_propria" ? "Após salvar, use “Gerenciar tabela” para enviar o documento comercial." : risso ? "API / Integração direta é o método correto para o provider Risso." : dados.metodo_calculo === "api" ? "Sem token, ficará pendente e não será consultada." : "A forma selecionada será usada pelo backend."}</p></div>
+        <div className="flex items-end"><p className="pb-2 text-xs text-text-secondary">{dados.metodo_calculo === "tabela_propria" ? "Após salvar, use “Gerenciar tabela” para enviar o documento comercial." : risso ? "API / Integração direta é o método correto para o provider Risso." : rodonaves && dados.metodo_calculo === "api" ? "Após salvar, abra Configurar API para informar usuário, senha e contato Rodonaves." : dados.metodo_calculo === "api" ? "Sem token, ficará pendente e não será consultada." : "A forma selecionada será usada pelo backend."}</p></div>
         <div className="sm:col-span-2 lg:col-span-3">
           {erros.metodo_calculo && <p className="text-xs text-state-error">{erros.metodo_calculo}</p>}
           {erroApi && <p className="text-xs text-state-error">{erroApi}</p>}

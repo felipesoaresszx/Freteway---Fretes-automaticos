@@ -1,3 +1,4 @@
+from app.integrations.transportadoras.rodonaves import RODONAVES_DEFAULTS, is_rodonaves
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
@@ -65,6 +66,12 @@ def _check_antt_rate_limit(key: str) -> None:
     if len(attempts) >= 30:
         raise HTTPException(status_code=429, detail="Muitas pesquisas. Aguarde um minuto e tente novamente.")
     attempts.append(now)
+
+
+def _rodonaves_ready(configuracao: TransportadoraConfiguracaoApi) -> bool:
+    return bool(configuracao.usuario_integracao and configuracao.credencial_criptografada
+                and configuracao.documento_devedor and (configuracao.contato_nome or "").strip()
+                and len(somente_digitos(configuracao.contato_telefone or "")) >= 10)
 
 
 async def _obter_ou_404(db: AsyncSession, transportadora_id: str) -> Transportadora:
@@ -277,8 +284,12 @@ async def criar_transportadora(
             credencial_criptografada=criptografar(dados.api_key) if dados.api_key else None,
             ativa=bool(dados.api_key),
         )
+        if is_rodonaves(transportadora.nome):
+            for campo, valor in RODONAVES_DEFAULTS.items():
+                setattr(configuracao, campo, valor)
+            configuracao.ativa = False
         db.add(configuracao)
-        transportadora.status_integracao = "ativo" if dados.api_key else "pendente_credencial"
+        transportadora.status_integracao = "ativo" if configuracao.ativa else "pendente_credencial"
         await db.commit()
         await db.refresh(transportadora)
     remover_arquivos_transportadora(arquivos_remover)
@@ -331,6 +342,11 @@ async def atualizar_transportadora(
             configuracao.credencial_criptografada = criptografar(dados.api_key)
             configuracao.ativa = True
             transportadora.status_integracao = "ativo"
+        if is_rodonaves(transportadora.nome):
+            for campo, valor in RODONAVES_DEFAULTS.items():
+                setattr(configuracao, campo, valor)
+            configuracao.ativa = _rodonaves_ready(configuracao)
+            transportadora.status_integracao = "ativo" if configuracao.ativa else "pendente_credencial"
     await db.commit()
     await db.refresh(transportadora)
     return transportadora
@@ -483,6 +499,8 @@ def _configuracao_out(configuracao: TransportadoraConfiguracaoApi) -> Configurac
         tipo_autenticacao=configuracao.tipo_autenticacao,
         nome_header=configuracao.nome_header,
         usuario_integracao=configuracao.usuario_integracao,
+        contato_nome=configuracao.contato_nome,
+        contato_telefone=configuracao.contato_telefone,
         auth_url=configuracao.auth_url,
         documento_devedor=configuracao.documento_devedor,
         filial_origem=configuracao.filial_origem,
@@ -520,6 +538,8 @@ async def salvar_configuracao_api(
     transportadora = await _obter_ou_404(db, transportadora_id)
     if transportadora.tipo_integracao != "api":
         raise HTTPException(status_code=400, detail="A transportadora precisa usar integração do tipo API")
+    if is_rodonaves(transportadora.nome):
+        dados = dados.model_copy(update=RODONAVES_DEFAULTS)
     is_alfa = transportadora.nome.strip().casefold().startswith("alfa")
     if is_alfa:
         dados = dados.model_copy(update={
@@ -551,6 +571,9 @@ async def salvar_configuracao_api(
     if transportadora.nome.strip().lower().startswith("braspress") and dados.ativa:
         if dados.tipo_autenticacao != "braspress_basic" or not configuracao.usuario_integracao or not configuracao.documento_devedor:
             raise HTTPException(status_code=422, detail="Informe usuario, senha e CNPJ remetente da Braspress")
+    if is_rodonaves(transportadora.nome) and dados.ativa:
+        if not dados.usuario_integracao or not dados.documento_devedor or not (dados.contato_nome or "").strip() or len(somente_digitos(dados.contato_telefone or "")) < 10:
+            raise HTTPException(status_code=422, detail="Informe usuário da API, CPF/CNPJ do cliente, nome e telefone do contato Rodonaves")
     if dados.ativa and dados.tipo_autenticacao != "nenhuma" and not configuracao.credencial_criptografada:
         raise HTTPException(status_code=422, detail="Informe a chave/token antes de ativar a API")
     if is_alfa and dados.ativa and not dados.documento_devedor:
@@ -586,6 +609,8 @@ async def salvar_configuracao_api(
                 "endpoint": dados.endpoint_cotacao,
             })
     transportadora.status_integracao = "ativo" if configuracao.ativa else "pendente_credencial"
+    if is_rodonaves(transportadora.nome):
+        transportadora.metodo_calculo = "api"
     transportadora.api_ambiente = transportadora.api_ambiente or "producao"
     await db.commit()
     await db.refresh(configuracao)
@@ -606,6 +631,8 @@ async def atualizar_credencial(
     if not configuracao:
         raise HTTPException(status_code=422, detail="Configure a URL da API antes de inserir a credencial")
     configuracao.credencial_criptografada = criptografar(dados.credencial)
+    if is_rodonaves(transportadora.nome) and not _rodonaves_ready(configuracao):
+        raise HTTPException(status_code=422, detail="Complete o usuário, CPF/CNPJ e contato na configuração Rodonaves antes de ativar")
     configuracao.ativa = True
     transportadora.status_integracao = "ativo"
     await db.commit()

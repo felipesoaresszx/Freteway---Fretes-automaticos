@@ -15,6 +15,7 @@ from app.core.observability import log_event
 from app.core.resilience import CircuitOpenError, executar_resiliente
 from app.integrations.transportadoras.mock.client import MockTransportadoraAdapter
 from app.integrations.transportadoras.api_generica import ApiGenericaAdapter
+from app.integrations.transportadoras.rodonaves import RodonavesAdapter, is_rodonaves
 from app.integrations.transportadoras.jamef import JamefAdapter
 from app.integrations.transportadoras.braspress import BraspressAdapter
 from app.integrations.ssw.provider import SSWProvider
@@ -251,6 +252,8 @@ async def _cotar_por_api(
         adapter = JamefAdapter(configuracao)
     elif nome.startswith("braspress"):
         adapter = BraspressAdapter(configuracao)
+    elif is_rodonaves(nome):
+        adapter = RodonavesAdapter(configuracao)
     else:
         adapter = ApiGenericaAdapter(configuracao)
     try:
@@ -259,7 +262,7 @@ async def _cotar_por_api(
             lambda: adapter.cotar(payload),
             should_retry=lambda item: item.status == "error" and item.erro_codigo == "ERRO_API_TRANSPORTADORA",
             attempts=settings.INTEGRATION_RETRY_ATTEMPTS,
-            timeout=settings.TIMEOUT_API_INTEGRACAO,
+            timeout=max(settings.TIMEOUT_API_INTEGRACAO, 45) if is_rodonaves(nome) else settings.TIMEOUT_API_INTEGRACAO,
             max_concurrency=settings.INTEGRATION_MAX_CONCURRENCY,
             circuit_failures=settings.INTEGRATION_CIRCUIT_FAILURES,
             circuit_reset_seconds=settings.INTEGRATION_CIRCUIT_RESET_SECONDS,
@@ -279,7 +282,8 @@ async def _cotar_por_api(
             transportadora_id=transportadora.id, transportadora=transportadora.nome,
             status="success", valor_frete=resultado.valor_frete, prazo_dias=resultado.prazo_dias,
             moeda=resultado.moeda, request_id=request_id,
-            provider="api_legada",
+            provider="rodonaves" if is_rodonaves(nome) else "api_legada",
+            detalhamento=resultado.detalhamento,
             memoria_calculo=(resultado.detalhamento or {}).get("memoria_calculo"),
         )
     return ResultadoTransportadora(
@@ -582,7 +586,7 @@ async def executar_cotacao(
             configuracao = configuracoes_por_transportadora.get(transportadora.id)
             if configuracao and transportadora.status_integracao == "ativo":
                 nome = transportadora.nome.strip().casefold()
-                provider = "jamef" if nome.startswith("jamef") else "braspress" if nome.startswith("braspress") else "api_generica"
+                provider = "jamef" if nome.startswith("jamef") else "braspress" if nome.startswith("braspress") else "rodonaves" if is_rodonaves(nome) else "api_generica"
                 tarefas.append(_observar_provider(
                     _cotar_por_api(transportadora, configuracao, payload),
                     carrier_id=transportadora.id, provider=provider, quote_id=quote_id,

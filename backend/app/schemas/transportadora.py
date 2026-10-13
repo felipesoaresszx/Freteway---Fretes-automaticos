@@ -224,6 +224,8 @@ class ConfiguracaoApiUpdate(BaseModel):
     nome_header: str | None = Field(None, max_length=120)
     credencial: str | None = Field(None, max_length=4000)
     usuario_integracao: str | None = Field(None, max_length=255)
+    contato_nome: str | None = Field(None, max_length=120)
+    contato_telefone: str | None = Field(None, max_length=30)
     auth_url: HttpUrl | None = None
     documento_devedor: str | None = Field(None, min_length=11, max_length=14)
     filial_origem: str | None = Field(None, max_length=10)
@@ -244,7 +246,7 @@ class ConfiguracaoApiUpdate(BaseModel):
     @classmethod
     def validar_autenticacao(cls, valor: str) -> str:
         normalizado = valor.lower()
-        if normalizado not in {"bearer", "api_key", "query_param", "basic", "nenhuma", "jamef_login", "braspress_basic"}:
+        if normalizado not in {"bearer", "api_key", "query_param", "basic", "nenhuma", "jamef_login", "braspress_basic", "rodonaves_login"}:
             raise ValueError("Tipo de autenticação inválido")
         return normalizado
 
@@ -257,6 +259,8 @@ class ConfiguracaoApiOut(BaseModel):
     tipo_autenticacao: str
     nome_header: str | None
     usuario_integracao: str | None = None
+    contato_nome: str | None = None
+    contato_telefone: str | None = None
     auth_url: str | None = None
     documento_devedor: str | None = None
     filial_origem: str | None = None
