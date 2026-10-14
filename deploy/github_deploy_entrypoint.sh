@@ -15,6 +15,19 @@ cd "$ROOT_DIR"
 # para que um chmod externo nunca bloqueie a atualizacao do codigo.
 git config core.fileMode false
 git fetch --prune origin main
+# Preserve ajustes feitos diretamente no servidor antes de atualizar. Arquivos
+# ignorados (env, storage e backups) permanecem no lugar. Nao reaplique o stash
+# automaticamente: isso publicaria codigo que nao passou pelo CI.
+if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+  backup_dir="/home/ubuntu/freteway-server-backups"
+  install -m 700 -d "$backup_dir"
+  backup_stamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  git stash push --include-untracked -m "pre-ci-deploy-$backup_stamp"
+  stash_revision="$(git rev-parse refs/stash)"
+  backup_file="$backup_dir/local-changes-$backup_stamp.patch"
+  (umask 077; git stash show --patch --binary --include-untracked "$stash_revision" > "$backup_file")
+  echo "Alteracoes locais preservadas em stash $stash_revision e $backup_file."
+fi
 git checkout main
 git merge --ff-only origin/main
 
