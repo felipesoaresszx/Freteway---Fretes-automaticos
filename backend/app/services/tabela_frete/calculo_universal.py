@@ -387,7 +387,8 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         percentage = band["freight_percentage"]
     if percentage is not None:
         total = max(total, invoice_value * float(percentage))
-    if minimum_freight is not None:
+    minimum_on_total = (data.get("pricing_rules") or {}).get("minimum_freight_basis") == "TOTAL"
+    if minimum_freight is not None and not minimum_on_total:
         total = max(total, float(minimum_freight))
     generoso_partial = ((data.get("metadata") or {}).get("parser") == "generoso_minimum_kg_nf_v1"
                         or any(item.get("proposal_model") == "generoso_minimum_kg_nf_v1" for item in data.get("destinations", [])))
@@ -603,6 +604,16 @@ def calcular_universal(data: dict, quote: dict) -> dict:
         # O ICMS calculado permanece separado. O ajuste não é lançado como imposto.
         subtotal += commercial_adjustment
         rounded_total = reference_total
+    if minimum_on_total and minimum_freight is not None:
+        final_minimum_adjustment = round(max(0.0, float(minimum_freight) - rounded_total), 2)
+        if final_minimum_adjustment:
+            taxes.append({
+                "codigo": "AJUSTE_MINIMO_FINAL", "descricao": "Ajuste ao frete mínimo final",
+                "base": "TOTAL_COM_IMPOSTOS", "valor": final_minimum_adjustment,
+            })
+            applied_codes.append("AJUSTE_MINIMO_FINAL")
+            subtotal += final_minimum_adjustment
+            rounded_total += final_minimum_adjustment
     adjustment = round(rounded_total - subtotal, 2)
     if adjustment:
         taxes.append({"codigo":"ARREDONDAMENTO_COMERCIAL","descricao":"Arredondamento comercial","base":"TOTAL","valor":adjustment})
