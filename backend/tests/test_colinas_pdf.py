@@ -82,6 +82,30 @@ def test_image_date_precedes_assumed_table_start():
     assert caught.value.code == "OUTSIDE_VALIDITY"
 
 
+def test_iati_portal_quote_without_destination_region():
+    request = image_quote() | {
+        "destination_city": "Iati", "destination_cep": "55345000",
+        "real_weight_kg": "27", "volume_m3": "1.056", "invoice_value": "2150",
+    }
+    result = calculate(parsed(), request, on_date=date(2026, 10, 15))
+    assert result["total"] == "431.89"
+    assert result["icms"] == "30.23"
+    assert Decimal(result["charged_weight_kg"]) == Decimal("316.8")
+
+
+def test_all_confirmed_colinas_cities_are_covered_without_region():
+    import json
+    from app.services.tabela_frete.colinas_pdf import CONFIG_PATH
+
+    config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    for city in config["covered_cities"]:
+        request = image_quote() | {"destination_city": city}
+        assert calculate(parsed(), request, on_date=date(2026, 10, 15))["status"] == "success"
+    with pytest.raises(RuleEngineError, match="fora da cobertura"):
+        calculate(parsed(), image_quote() | {"destination_city": "Petrolina"},
+                  on_date=date(2026, 10, 15))
+
+
 def test_real_pdf_returns_same_quote_when_available():
     path = Path(r"C:\Users\MODIAL\Downloads\TABELA 2026 MODIAL.pdf")
     if not path.exists():

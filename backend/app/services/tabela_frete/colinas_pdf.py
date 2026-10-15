@@ -49,7 +49,10 @@ def _document_date(text: str) -> date:
 
 def _coverage(config: dict) -> dict:
     regions = ["Agreste", "Mata Sul", "Mata Norte", "RMR"]
-    cities = [city for city, region in config.get("city_regions", {}).items() if region in regions]
+    cities = list(dict.fromkeys([
+        *config.get("covered_cities", []),
+        *(city for city, region in config.get("city_regions", {}).items() if region in regions),
+    ]))
     conditions = [{"field": "destination_region", "op": "in", "value": regions}]
     if cities:
         conditions.append({"field": "destination_city", "op": "in", "value": cities})
