@@ -65,8 +65,27 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --wait postgres
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps backend alembic upgrade head
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --no-deps backend python -m app.bootstrap
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --wait backend worker frontend
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T backend python -c \
-  "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=10); urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=10)"
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T backend python - <<'PY'
+import time
+import urllib.error
+import urllib.request
+
+# A VM pode ficar ocupada apos build e recriacao dos containers.
+# Repita falhas transitorias, mantendo um limite para detectar falhas reais.
+for path in ("/health", "/api/v1/health/ready"):
+    url = "http://127.0.0.1:8000" + path
+    for attempt in range(1, 6):
+        try:
+            with urllib.request.urlopen(url, timeout=15) as response:
+                response.read()
+            print(f"Healthcheck {path}: OK", flush=True)
+            break
+        except (OSError, urllib.error.URLError) as exc:
+            print(f"Healthcheck {path}: tentativa {attempt}/5 falhou: {exc}", flush=True)
+            if attempt == 5:
+                raise
+            time.sleep(5)
+PY
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T frontend \
   wget --quiet --tries=1 --spider http://127.0.0.1/
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T backend alembic current | grep -q '(head)'
