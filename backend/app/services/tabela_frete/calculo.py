@@ -30,6 +30,7 @@ from app.services.tabela_frete.contrato_calculo import ContractError, calculate 
 from app.services.tabela_frete.calculo_universal import CalculoUniversalError, calcular_universal
 from app.services.tabela_frete.rule_engine import RuleEngineError, calculate as calcular_regras_v3
 from app.services.tabela_frete.rispar import RisparError, calculate as calcular_rispar
+from app.services.tabela_frete.rodocargas import RodocargasError, calculate as calcular_rodocargas
 
 
 class TabelaFreteCalculoService:
@@ -97,6 +98,12 @@ class TabelaFreteCalculoService:
                     "erro_codigo": "TABELA_NAO_ENCONTRADA",
                     "erro_mensagem": f"Tabela {tabela_frete_id} não encontrada",
                 }
+
+            if tabela.dados_importados and tabela.dados_importados.formato == "rodocargas_freight_v1":
+                try:
+                    return self._com_memoria(calcular_rodocargas(tabela.dados_importados.dados, dados_cotacao), tabela, dados_cotacao)
+                except RodocargasError as exc:
+                    return {"status": "error", "erro_codigo": "REGRA_TABELA_RODOCARGAS", "erro_mensagem": str(exc)}
 
             if tabela.dados_importados and tabela.dados_importados.formato == "rodonaves_km_peso_v1":
                 dados = tabela.dados_importados.dados
