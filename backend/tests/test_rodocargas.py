@@ -74,6 +74,26 @@ def test_default_contract_ready_to_quote():
     assert calculate(data, quote(destino_cidade='São Luís', destino_uf='MA'))['valor_total'] == 369.35
 
 
+@pytest.mark.parametrize('city,invoice,volume,rounded,cubed,expected', [
+    ('Chapadinha', 3580.30, 1.120213, 1.120, 336, 698.90),  # Portal 31448
+    ('Viana', 5999.80, 1.11385, 1.114, 334.2, 713.80),     # Portal 31259
+])
+def test_portal_references_round_total_volume_before_cubage(city, invoice, volume, rounded, cubed, expected):
+    result = calculate(build_contract(), quote(destino_cidade=city, destino_uf='MA',
+                       peso=39 if city == 'Chapadinha' else 200, valor_nf=invoice,
+                       volume_total_m3=volume))
+    assert result['valor_total'] == expected
+    assert result['peso_cubado_kg'] == cubed
+    assert result['memoria_calculo']['volume_original_m3'] == volume
+    assert result['memoria_calculo']['volume_calculo_m3'] == rounded
+
+
+def test_volume_half_up_boundary():
+    result = calculate(build_contract(), quote(volume_total_m3='1.1205'))
+    assert result['memoria_calculo']['volume_calculo_m3'] == 1.121
+    assert result['peso_cubado_kg'] == 336.3
+
+
 @pytest.mark.asyncio
 async def test_service_routes_persisted_contract(contract):
     table = SimpleNamespace(dados_importados=SimpleNamespace(formato='rodocargas_freight_v1', dados=contract))

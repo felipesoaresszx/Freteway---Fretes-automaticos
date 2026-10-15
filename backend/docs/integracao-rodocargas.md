@@ -13,7 +13,8 @@ conforme a instrução do usuário sobre todas as cidades marcadas.
 
 ## Cálculo
 
-- Peso tarifável: maior entre peso real e volume total × 300 kg/m³.
+- Arredondar o volume total para três casas decimais (HALF_UP), antes da cubagem.
+- Peso tarifável: maior entre peso real e volume total arredondado × 300 kg/m³.
 - Divisão 1: máximo entre R$ 288 e peso tarifável × R$ 1,69.
 - Divisão 2: máximo entre 90 kg e peso tarifável, multiplicado por R$ 1,23.
 - Ad valorem: 5 por mil (0,5%) da NF; GRIS: 2 por mil (0,2%) da NF.
@@ -32,8 +33,13 @@ O cálculo por dentro segue o [art. 49](https://legislacao.fazenda.sp.gov.br/Pag
 Não foram atribuídos benefícios fiscais específicos da transportadora.
 Os mínimos foram interpretados como
 mínimo do frete peso; o pedágio usa peso tarifável antes do piso de 90 kg.
-Uma cotação real da transportadora permitirá conferir essas duas bases e o
-arredondamento. Não houve validação contra cotação emitida pela Rodocargas.
+As referências 31448 (Chapadinha, R$ 698,90) e 31259 (Viana, R$ 713,80),
+informadas pelo usuário em 15/10/2026, reproduzem exatamente o cálculo ao
+arredondar o volume total para três casas decimais antes de multiplicar por
+300 kg/m³. Chapadinha: 1,120213 → 1,120 m³ → 336 kg. Viana:
+1,11385 → 1,114 m³ → 334,2 kg. A memória registra o volume original e o
+volume utilizado. A referência Viana usa a dimensão de 120 cm registrada
+na cotação de produção; a imagem fornecida contém 1120 cm nesse campo.
 
 Não existe prazo de entrega ou término de vigência nos documentos. O prazo
 retornado é nulo. O término 9999-12-31 é sentinela administrativa para tabela

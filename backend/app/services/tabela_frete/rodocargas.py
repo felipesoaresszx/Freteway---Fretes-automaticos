@@ -89,6 +89,10 @@ def calculate(data, quote):
         raise RodocargasError('Peso deve ser maior que zero')
     invoice = number(quote.get('valor_nf', 0), 'Valor da NF')
     volume = number(quote.get('volume_total_m3') or quote.get('volume_m3') or 0, 'Volume')
+    raw_volume = volume
+    # Portal Rodocargas 31448 e 31259: arredonda o volume total (não cada
+    # volume individual ou o peso) para três casas antes de aplicar 300 kg/m³.
+    volume = volume.quantize(Decimal('.001'), rounding=ROUND_HALF_UP)
     cubed = volume * number(data['fator_cubagem'], 'Cubagem')
     weight = max(real, cubed)
     division = '2' if (state, city) == ('PI', 'TERESINA') else '1'
@@ -111,5 +115,8 @@ def calculate(data, quote):
             'taxas_detalhadas': components,
             'destino_tabela': {'uf': state, 'cidade': city, 'divisao': division},
             'memoria_calculo': {'divisao': division, 'subtotal_sem_icms': float(subtotal),
+                               'volume_original_m3': float(raw_volume),
+                               'volume_calculo_m3': float(volume),
+                               'arredondamento_volume': '3 casas decimais, HALF_UP, antes da cubagem',
                                'source_document': data['source_document'],
                                'valor_total': float(total)}}
