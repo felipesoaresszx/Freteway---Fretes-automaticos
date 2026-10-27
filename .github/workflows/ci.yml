@@ -71,13 +71,18 @@ jobs:
     needs: [backend, frontend]
     strategy:
       matrix:
-        component: [backend, frontend]
+        include:
+          - component: backend
+            dockerfile: Dockerfile
+          - component: frontend
+            dockerfile: Dockerfile.production
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.component }}
+          file: ./${{ matrix.component }}/${{ matrix.dockerfile }}
           push: false
           tags: freteway-${{ matrix.component }}:ci
           cache-from: type=gha,scope=${{ matrix.component }}
