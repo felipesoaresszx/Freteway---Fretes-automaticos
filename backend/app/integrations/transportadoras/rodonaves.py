@@ -18,7 +18,7 @@ DELIVERY_URL = "https://01wapi.rte.com.br"
 RODONAVES_DEFAULTS = {
     "base_url": QUOTATION_URL, "endpoint_cotacao": "/api/v1/gera-cotacao",
     "metodo_http": "POST", "tipo_autenticacao": "rodonaves_login",
-    "auth_url": f"{QUOTATION_URL}/token", "campo_valor": "FreightValue",
+    "auth_url": f"{QUOTATION_URL}/token", "campo_valor": "Value",
     "campo_prazo": "DeliveryTime", "nome_header": None,
 }
 
@@ -50,6 +50,15 @@ def freight_value(value: object) -> float:
     if not math.isfinite(result) or result <= 0:
         raise ValueError("Frete inválido")
     return result
+
+
+def delivery_days(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise ValueError("Prazo inválido")
+    numeric = Decimal(str(value))
+    if not numeric.is_finite() or numeric < 0 or numeric != numeric.to_integral_value():
+        raise ValueError("Prazo inválido")
+    return int(numeric)
 
 
 class RodonavesAdapter(TransportadoraAdapter):
@@ -89,10 +98,7 @@ class RodonavesAdapter(TransportadoraAdapter):
             "DestinationUFDescription": payload["destino_uf"].upper(),
         })
         response.raise_for_status()
-        days = int(response.json()["DeliveryTime"])
-        if days < 0:
-            raise ValueError("Prazo inválido")
-        return days
+        return delivery_days(response.json()["DeliveryTime"])
 
     async def cotar(self, cotacao_payload: dict) -> ResultadoCotacao:
         cfg, p = self.configuracao, cotacao_payload
@@ -134,16 +140,36 @@ class RodonavesAdapter(TransportadoraAdapter):
                 if response.status_code in {401, 403}:
                     raise RodonavesError("RODONAVES_AUTENTICACAO_RECUSADA", "A Rodonaves não autorizou a geração da cotação. Confira a liberação da API.")
                 if response.status_code == 400:
+                    try:
+                        error = response.json()
+                    except ValueError:
+                        error = {}
+                    message = error.get("Message") if isinstance(error, dict) else None
+                    # Só traduz mensagens conhecidas; nunca devolver o corpo externo.
+                    if message == "Cliente destinatário não encontrado.":
+                        raise RodonavesError("RODONAVES_DESTINATARIO_NAO_ENCONTRADO", "A API Rodonaves não encontrou o cadastro do destinatário. Confira o CPF/CNPJ; se o portal cotar com os mesmos dados, solicite à Rodonaves a verificação do cadastro na API.")
+                    if message == "Cliente remetente não encontrado.":
+                        raise RodonavesError("RODONAVES_REMETENTE_NAO_ENCONTRADO", "A API Rodonaves não encontrou o cadastro do remetente. Confira o CPF/CNPJ configurado e sua liberação na transportadora.")
                     raise RodonavesError("RODONAVES_COTACAO_RECUSADA", "A Rodonaves recusou os dados da cotação. Confira o cadastro do destinatário e o vínculo do cliente na transportadora.")
                 response.raise_for_status()
                 result = response.json()
-                value = freight_value(result["FreightValue"])
-                details = {"protocolo": result.get("ProtocolId"), "avisos": []}
+                if not isinstance(result, dict):
+                    raise ValueError("Resposta de cotação inválida")
+                # A produção usa Value/ProtocolNumber; manter o contrato antigo.
+                raw_value = result.get("Value")
+                value = freight_value(raw_value if raw_value is not None else result.get("FreightValue"))
+                protocol = result.get("ProtocolNumber")
+                details = {"protocolo": protocol if protocol is not None else result.get("ProtocolId"), "avisos": []}
                 try:
-                    days = await asyncio.wait_for(self._delivery(client, p), timeout=5)
-                except (httpx.HTTPError, RodonavesError, KeyError, TypeError, ValueError, TimeoutError):
-                    days = None
-                    details["avisos"].append("Frete obtido; prazo indisponível na API de prazo da Rodonaves.")
+                    if result.get("ActiveDeliveryTime") is False or result.get("DeliveryDaysOnError") is True:
+                        raise ValueError("Prazo da cotação indisponível")
+                    days = delivery_days(result.get("DeliveryTime"))
+                except (ValueError, ArithmeticError):
+                    try:
+                        days = await asyncio.wait_for(self._delivery(client, p), timeout=5)
+                    except (httpx.HTTPError, RodonavesError, KeyError, TypeError, ValueError, ArithmeticError, TimeoutError):
+                        days = None
+                        details["avisos"].append("Frete obtido; prazo indisponível na API de prazo da Rodonaves.")
                 return ResultadoCotacao(status="success", valor_frete=value, prazo_dias=days, detalhamento=details)
         except RodonavesError as exc:
             return ResultadoCotacao(status="error", erro_codigo=exc.code, erro_mensagem=exc.message)

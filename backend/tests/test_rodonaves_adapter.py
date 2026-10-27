@@ -21,7 +21,7 @@ def payload():
             "comprimento_cm": 50, "altura_cm": 30, "largura_cm": 40}]}
 
 
-def install_client(monkeypatch, failure=None):
+def install_client(monkeypatch, failure=None, quotation_response=None, error_response=None):
     calls = []
 
     async def handler(request):
@@ -46,8 +46,8 @@ def install_client(monkeypatch, failure=None):
             return httpx.Response(200, json={"DeliveryTime": 5})
         assert request.url.path == "/api/v1/gera-cotacao"
         if failure == "quotation":
-            return httpx.Response(400, json={"Message": "test-secret"})
-        return httpx.Response(200, json={"FreightValue": "1.234,56", "ProtocolId": 42})
+            return httpx.Response(400, json=error_response if error_response is not None else {"Message": "test-secret"})
+        return httpx.Response(200, json=quotation_response if quotation_response is not None else {"FreightValue": "1.234,56", "ProtocolId": 42})
 
     real_client = httpx.AsyncClient
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw))
@@ -90,6 +90,81 @@ async def test_delivery_failure_preserves_freight(monkeypatch):
     result = await RodonavesAdapter(config()).cotar(payload())
     assert result.status == "success" and result.valor_frete == 1234.56
     assert result.prazo_dias is None and result.detalhamento["avisos"]
+
+
+@pytest.mark.asyncio
+async def test_production_response_uses_quoted_value_protocol_and_delivery(monkeypatch):
+    calls = install_client(monkeypatch, quotation_response={
+        "Value": 236.71, "ProtocolNumber": "225047304", "DeliveryTime": 4,
+        "ActiveDeliveryTime": True, "DeliveryDaysOnError": False,
+        "FreightValue": 999, "ProtocolId": 999,
+    })
+    result = await RodonavesAdapter(config()).cotar(payload())
+    assert (result.status, result.valor_frete, result.prazo_dias) == ("success", 236.71, 4)
+    assert result.detalhamento == {"protocolo": "225047304", "avisos": []}
+    assert len([r for r in calls if r.url.path == "/token"]) == 2
+    assert not any(r.url.path == "/api/v1/prazo-entrega" for r in calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("delivery", [
+    {"DeliveryTime": 0}, {"DeliveryTime": "4"},
+])
+async def test_valid_quoted_delivery_does_not_require_another_service(monkeypatch, delivery):
+    calls = install_client(monkeypatch, quotation_response={"Value": 236.71, **delivery})
+    result = await RodonavesAdapter(config()).cotar(payload())
+    assert result.status == "success" and result.prazo_dias == int(delivery["DeliveryTime"])
+    assert not any(r.url.path == "/api/v1/prazo-entrega" for r in calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("delivery", [
+    {}, {"DeliveryTime": None}, {"DeliveryTime": -1}, {"DeliveryTime": True},
+    {"DeliveryTime": 1.5}, {"DeliveryTime": "NaN"}, {"DeliveryTime": "bad"},
+    {"DeliveryTime": 4, "ActiveDeliveryTime": False},
+    {"DeliveryTime": 4, "DeliveryDaysOnError": True},
+])
+async def test_unavailable_quoted_delivery_uses_fallback(monkeypatch, delivery):
+    calls = install_client(monkeypatch, quotation_response={"Value": 236.71, **delivery})
+    result = await RodonavesAdapter(config()).cotar(payload())
+    assert (result.status, result.valor_frete, result.prazo_dias) == ("success", 236.71, 5)
+    assert sum(r.url.path == "/api/v1/gera-cotacao" for r in calls) == 1
+    assert any(r.url.path == "/api/v1/prazo-entrega" for r in calls)
+
+
+@pytest.mark.asyncio
+async def test_production_freight_preserved_when_delivery_services_fail(monkeypatch):
+    install_client(monkeypatch, failure="delivery", quotation_response={"Value": 236.71, "ProtocolNumber": "225047304"})
+    result = await RodonavesAdapter(config()).cotar(payload())
+    assert (result.status, result.valor_frete, result.prazo_dias) == ("success", 236.71, None)
+    assert result.detalhamento["protocolo"] == "225047304" and result.detalhamento["avisos"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response,code", [
+    ({"Message": "Cliente destinatário não encontrado."}, "RODONAVES_DESTINATARIO_NAO_ENCONTRADO"),
+    ({"Message": "Cliente remetente não encontrado."}, "RODONAVES_REMETENTE_NAO_ENCONTRADO"),
+    ({"Message": "test-secret"}, "RODONAVES_COTACAO_RECUSADA"),
+    (["test-secret"], "RODONAVES_COTACAO_RECUSADA"),
+])
+async def test_quotation_business_errors_are_specific_and_safe(monkeypatch, response, code):
+    calls = install_client(monkeypatch, failure="quotation", error_response=response)
+    result = await RodonavesAdapter(config()).cotar(payload())
+    assert result.status == "error" and result.erro_codigo == code
+    assert "test-secret" not in result.erro_mensagem
+    assert sum(r.url.path == "/api/v1/gera-cotacao" for r in calls) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response", [
+    {"Value": 0, "FreightValue": 100}, {"Value": "NaN"}, ["test-secret"],
+])
+async def test_malformed_quotation_is_not_reported_as_success(monkeypatch, response):
+    calls = install_client(monkeypatch, quotation_response=response)
+    result = await RodonavesAdapter(config()).cotar(payload())
+    assert result.status == "error" and result.erro_codigo == "RODONAVES_API_ERRO"
+    assert "test-secret" not in result.erro_mensagem
+    assert sum(r.url.path == "/api/v1/gera-cotacao" for r in calls) == 1
 
 
 @pytest.mark.asyncio
