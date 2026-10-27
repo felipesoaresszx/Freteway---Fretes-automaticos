@@ -19,7 +19,8 @@ verificar o contato. Não criar arquivos com senhas nem versionar segredos.
 ## Contrato
 
 - Autenticação: POST `/token`, form-urlencoded, `auth_type=DEV`,
-  `grant_type=password`, `companyId=1`, `username`, `password`.
+  `grant_type=password`, `username`, `password`. Não enviar `companyId=1`:
+  esse parâmetro impõe um vínculo de empresa que pode recusar um acesso válido.
 - Cada serviço recebe seu próprio token. Tokens são obtidos por cotação,
   evitando uso de token expirado.
 - Cidades: GET `https://dne-api.rte.com.br/api/cities/byzipcode?zipCode=CEP`.
@@ -37,7 +38,37 @@ Erros não expõem senha, tokens, corpo HTTP ou dados pessoais da resposta.
 Destinatários ainda não cadastrados na Rodonaves podem ser recusados; este
 adapter não cadastra clientes automaticamente.
 
-## Validação em 13/10/2026
+## Validação em 27/10/2026
+
+O novo acesso fornecido foi aceito pelo endpoint de cotação (HTTP 200 com
+`access_token`) sem `companyId`. Com `companyId=1`, os três serviços recusaram
+a autenticação com `invalid_grant`, informando ausência de vínculo à empresa
+RODONAVES. O adapter foi corrigido para não enviar esse parâmetro, conforme
+o formulário documentado. Os 11 testes do adapter passaram, incluindo a
+regressão do formulário de autenticação. Nenhuma cotação foi gerada no teste.
+
+### Ativação em produção
+
+Em 27/10/2026, após autorização do usuário, o banco foi protegido pelo backup
+`backups/freteway_2026-10-27_143637.dump`. A correção foi aplicada ao checkout
+do servidor e aos containers backend e worker, seguidos de reinício. A
+reconstrução completa das imagens foi interrompida por consumo de recursos;
+as imagens Docker não foram republicadas nessa intervenção. A correção e o
+teste de regressão foram preparados para incorporação ao Git, preservando
+o ajuste nos próximos builds e deploys.
+
+O cadastro RTE RODONAVES foi configurado com usuário `LAIDOM`, senha
+criptografada no banco, CNPJ MODIAL São Paulo `04.917.818/0001-24` e contato
+Felipe fornecido pelo usuário. Transportadora e API ativas, método `api`,
+status da integração `ativo` e ambiente `producao`. A tabela existente
+`Tabela Rodonaves` também foi confirmada como `active` e foi preservada.
+
+Validação final pelo adapter instalado no backend: autenticação aceita em
+cotação, cidades e prazo; consulta de cidade por CEP aceita; `/health` e
+`/api/v1/health/ready` com HTTP 200. Não foi criada cotação no TMS. A validação
+não comprova o vínculo comercial dos demais CNPJs nem um valor real de frete.
+
+## Validação anterior em 13/10/2026
 
 O acesso fornecido para o Portal do Cliente foi recusado pelas APIs de cotação,
 cidades e prazo com HTTP 400 / `invalid_grant`. Também foi verificado o CNPJ com

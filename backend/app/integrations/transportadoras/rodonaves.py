@@ -60,7 +60,7 @@ class RodonavesAdapter(TransportadoraAdapter):
 
     async def _token(self, client, base: str) -> dict:
         response = await client.post(f"{base}/token", data={
-            "auth_type": "DEV", "grant_type": "password", "companyId": "1",
+            "auth_type": "DEV", "grant_type": "password",
             "username": self.configuracao.usuario_integracao,
             "password": descriptografar(self.configuracao.credencial_criptografada),
         })
