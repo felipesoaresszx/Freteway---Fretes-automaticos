@@ -28,15 +28,40 @@ verificar o contato. Não criar arquivos com senhas nem versionar segredos.
 - Cotação: POST `https://quotation-apigateway.rte.com.br/api/v1/gera-cotacao`.
   Peso real total, peso unitário e dimensões em centímetros de cada linha,
   quantidade de volumes e valor da nota. CPF/CNPJ do destinatário é obrigatório.
-  Ler `FreightValue` e guardar `ProtocolId`.
+  A resposta real de produção usa `Value`, `ProtocolNumber` e `DeliveryTime`.
+  O adapter também aceita `FreightValue` e `ProtocolId` do contrato antigo.
+  Priorizar o prazo da própria cotação quando válido e disponível.
 - Prazo: POST `https://01wapi.rte.com.br/api/v1/prazo-entrega`, nomes de cidades
   sem acentos em maiúsculas e UFs. Ler `DeliveryTime`. Se este serviço falhar,
-  preservar o frete com prazo ausente e aviso. Limitar essa etapa a cinco segundos.
+  Consultar somente quando a cotação não informar prazo válido/disponível.
+  Se falhar, preservar o frete com prazo ausente e aviso. Limitar essa etapa
+  a cinco segundos.
 
 `gera-cotacao` registra cotação no TMS; não há retry automático desse POST.
 Erros não expõem senha, tokens, corpo HTTP ou dados pessoais da resposta.
 Destinatários ainda não cadastrados na Rodonaves podem ser recusados; este
 adapter não cadastra clientes automaticamente.
+
+Recusas conhecidas de destinatário e remetente são traduzidas para códigos
+e mensagens específicos, sem repassar o corpo HTTP externo. A recusa de
+destinatário não prova ausência de cadastro no portal: se os mesmos dados
+funcionarem no portal, solicitar à Rodonaves a verificação do cadastro na API.
+
+## Resposta real e correção do parser em 27/10/2026
+
+O teste com origem 07042180, destino 85865310, remetente MODIAL São Paulo,
+destinatário 07.671.011/0001-42, mercadoria R$ 9.900,00 e dois volumes (12 kg,
+41 x 44 x 34 cm; 16 kg, 43 x 56 x 40 cm) retornou HTTP 200. Resposta real:
+`Value=236.71`, `ProtocolNumber=225047304`, `DeliveryTime=4`, validade
+11/11/2026. O parser anterior esperava apenas os campos do contrato antigo e
+trataria esse sucesso como erro. A correção cobre ambos os formatos e evita
+uma consulta adicional de prazo quando a cotação já trouxer um prazo válido.
+
+Testes cobrem a resposta real, compatibilidade antiga, prazo zero, fallback de
+prazo, preservação de preço quando o prazo falha, recusas específicas e
+respostas inválidas sem repetição do POST de cotação. A divergência cadastral
+dos outros destinatários permanece uma recusa da transportadora; este ajuste
+não cadastra clientes nem substitui a resposta da API por preço do portal.
 
 ## Validação em 27/10/2026
 
