@@ -27,6 +27,13 @@ def install_client(monkeypatch, failure=None):
     async def handler(request):
         calls.append(request)
         if request.url.path == "/token":
+            from urllib.parse import parse_qs
+            form = parse_qs(request.content.decode())
+            assert "companyId" not in form
+            assert form["auth_type"] == ["DEV"]
+            assert form["grant_type"] == ["password"]
+            assert form["username"] == ["api-user"]
+            assert form["password"] == ["test-secret"]
             if failure == "auth":
                 return httpx.Response(400, json={"error": "invalid_grant", "error_description": "test-secret"})
             return httpx.Response(200, json={"access_token": request.url.host})
