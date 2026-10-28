@@ -1,4 +1,5 @@
 from app.integrations.transportadoras.rodonaves import RODONAVES_DEFAULTS, is_rodonaves
+from app.integrations.transportadoras.rispa import RISPA_DEFAULTS, is_rispa
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
@@ -538,6 +539,8 @@ async def salvar_configuracao_api(
     transportadora = await _obter_ou_404(db, transportadora_id)
     if transportadora.tipo_integracao != "api":
         raise HTTPException(status_code=400, detail="A transportadora precisa usar integração do tipo API")
+    if is_rispa(transportadora.nome):
+        dados = dados.model_copy(update=RISPA_DEFAULTS)
     if is_rodonaves(transportadora.nome):
         dados = dados.model_copy(update=RODONAVES_DEFAULTS)
     is_alfa = transportadora.nome.strip().casefold().startswith("alfa")
@@ -609,7 +612,7 @@ async def salvar_configuracao_api(
                 "endpoint": dados.endpoint_cotacao,
             })
     transportadora.status_integracao = "ativo" if configuracao.ativa else "pendente_credencial"
-    if is_rodonaves(transportadora.nome):
+    if is_rispa(transportadora.nome) or is_rodonaves(transportadora.nome):
         transportadora.metodo_calculo = "api"
     transportadora.api_ambiente = transportadora.api_ambiente or "producao"
     await db.commit()

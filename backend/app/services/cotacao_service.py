@@ -18,6 +18,7 @@ from app.integrations.transportadoras.api_generica import ApiGenericaAdapter
 from app.integrations.transportadoras.rodonaves import RodonavesAdapter, is_rodonaves
 from app.integrations.transportadoras.jamef import JamefAdapter
 from app.integrations.transportadoras.braspress import BraspressAdapter
+from app.integrations.transportadoras.rispa import RispaAdapter, is_rispa
 from app.integrations.ssw.provider import SSWProvider
 from app.integrations.ssw.schemas import SSWQuoteRequest
 from app.integrations.transportadoras.registry import registry
@@ -254,6 +255,8 @@ async def _cotar_por_api(
         adapter = BraspressAdapter(configuracao)
     elif is_rodonaves(nome):
         adapter = RodonavesAdapter(configuracao)
+    elif is_rispa(nome):
+        adapter = RispaAdapter(configuracao)
     else:
         adapter = ApiGenericaAdapter(configuracao)
     try:
@@ -282,7 +285,7 @@ async def _cotar_por_api(
             transportadora_id=transportadora.id, transportadora=transportadora.nome,
             status="success", valor_frete=resultado.valor_frete, prazo_dias=resultado.prazo_dias,
             moeda=resultado.moeda, request_id=request_id,
-            provider="rodonaves" if is_rodonaves(nome) else "api_legada",
+            provider="rodonaves" if is_rodonaves(nome) else "rispa" if is_rispa(nome) else "api_legada",
             detalhamento=resultado.detalhamento,
             memoria_calculo=(resultado.detalhamento or {}).get("memoria_calculo"),
         )
@@ -586,7 +589,7 @@ async def executar_cotacao(
             configuracao = configuracoes_por_transportadora.get(transportadora.id)
             if configuracao and transportadora.status_integracao == "ativo":
                 nome = transportadora.nome.strip().casefold()
-                provider = "jamef" if nome.startswith("jamef") else "braspress" if nome.startswith("braspress") else "rodonaves" if is_rodonaves(nome) else "api_generica"
+                provider = "jamef" if nome.startswith("jamef") else "braspress" if nome.startswith("braspress") else "rodonaves" if is_rodonaves(nome) else "rispa" if is_rispa(nome) else "api_generica"
                 tarefas.append(_observar_provider(
                     _cotar_por_api(transportadora, configuracao, payload),
                     carrier_id=transportadora.id, provider=provider, quote_id=quote_id,
