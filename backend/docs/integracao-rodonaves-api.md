@@ -3,6 +3,20 @@
 O cadastro RTE Rodonaves usa o adapter `RodonavesAdapter` quando o método de
 cálculo é `api`. Não há dependência de automação do Portal do Cliente.
 
+## Atualização em 30/10/2026: simulação
+
+O adapter utiliza POST `/api/v1/simula-cotacao`. Não exige nem envia
+CPF/CNPJ do destinatário ou dados de contato. Mantém o CPF/CNPJ do
+cliente solicitante, CEPs, cidades, peso, valor da nota e volumes.
+O resultado inclui aviso de valor aproximado, sujeito a alteração na
+cotação definitiva. O campo de valor configurado é `FreightValue`;
+o parser também aceita `Value`. O fallback de prazo foi preservado.
+Validação: 35 testes do adapter com HTTP simulado; sem consulta real.
+[Contrato oficial](https://dev.rodonaves.com.br/v2.0/reference/apiv1simula-cotacaopost-1).
+
+As seções abaixo registram a integração anterior com `gera-cotacao`
+e suas validações históricas.
+
 ## Configuração
 
 Aplicar `alembic upgrade head` para incluir os campos de contato. Em Integrações,
