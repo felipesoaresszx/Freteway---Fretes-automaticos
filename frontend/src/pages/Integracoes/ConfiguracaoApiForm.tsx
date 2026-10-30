@@ -7,7 +7,7 @@ import { useConfiguracaoApi, useSalvarConfiguracaoApi } from "../../hooks/useTra
 import type { ConfiguracaoApiInput, Transportadora } from "../../types/transportadora";
 
 const selectClass = "h-9 rounded border border-border bg-surface2 px-3 text-sm text-text-primary outline-none focus:ring-1 focus:ring-state-info";
-const rodonavesDefaults = { base_url: "https://quotation-apigateway.rte.com.br", endpoint_cotacao: "/api/v1/gera-cotacao", metodo_http: "POST" as const, tipo_autenticacao: "rodonaves_login" as const, auth_url: "https://quotation-apigateway.rte.com.br/token", campo_valor: "Value", campo_prazo: "DeliveryTime" };
+const rodonavesDefaults = { base_url: "https://quotation-apigateway.rte.com.br", endpoint_cotacao: "/api/v1/simula-cotacao", metodo_http: "POST" as const, tipo_autenticacao: "rodonaves_login" as const, auth_url: "https://quotation-apigateway.rte.com.br/token", campo_valor: "FreightValue", campo_prazo: "DeliveryTime" };
 const inicial: ConfiguracaoApiInput = {
   base_url: "", endpoint_cotacao: "", metodo_http: "POST", tipo_autenticacao: "bearer",
   nome_header: "X-API-Key", credencial: "", campo_valor: "valor_frete", campo_prazo: "prazo_dias", ativa: false,

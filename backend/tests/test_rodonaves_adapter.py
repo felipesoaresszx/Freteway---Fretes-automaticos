@@ -44,7 +44,7 @@ def install_client(monkeypatch, failure=None, quotation_response=None, error_res
             if failure == "delivery":
                 return httpx.Response(503)
             return httpx.Response(200, json={"DeliveryTime": 5})
-        assert request.url.path == "/api/v1/gera-cotacao"
+        assert request.url.path == "/api/v1/simula-cotacao"
         if failure == "quotation":
             return httpx.Response(400, json=error_response if error_response is not None else {"Message": "test-secret"})
         return httpx.Response(200, json=quotation_response if quotation_response is not None else {"FreightValue": "1.234,56", "ProtocolId": 42})
@@ -61,12 +61,14 @@ async def test_contract_and_service_tokens(monkeypatch):
     result = await RodonavesAdapter(config()).cotar(payload())
     assert (result.status, result.valor_frete, result.prazo_dias) == ("success", 1234.56, 5)
     assert result.detalhamento["protocolo"] == 42
-    quote = next(r for r in calls if r.url.path == "/api/v1/gera-cotacao")
+    quote = next(r for r in calls if r.url.path == "/api/v1/simula-cotacao")
     body = json.loads(quote.content)
     assert body["OriginCityId"] == 100 and body["DestinationCityId"] == 200
     assert body["OriginZipCode"] == "07042180"
     assert body["CustomerTaxIdRegistration"] == "04917818000124"
-    assert body["ReceiverCpfcnp"] == "12345678901"
+    assert "ReceiverCpfcnp" not in body
+    assert "ContactName" not in body and "ContactPhoneNumber" not in body
+    assert body["EletronicInvoiceValue"] == 1000
     assert body["TotalWeight"] == 40 and body["TotalPackages"] == 2
     assert body["Packs"] == [{"AmountPackages": 2, "Weight": 20, "Length": 50, "Height": 30, "Width": 40}]
     delivery = next(r for r in calls if r.url.path == "/api/v1/prazo-entrega")
@@ -81,7 +83,7 @@ async def test_safe_errors_without_retry(monkeypatch, failure, code):
     result = await RodonavesAdapter(config()).cotar(payload())
     assert result.status == "error" and result.erro_codigo == code
     assert "test-secret" not in result.erro_mensagem
-    assert len([r for r in calls if r.url.path == "/api/v1/gera-cotacao"]) <= 1
+    assert len([r for r in calls if r.url.path == "/api/v1/simula-cotacao"]) <= 1
 
 
 @pytest.mark.asyncio
@@ -101,7 +103,8 @@ async def test_production_response_uses_quoted_value_protocol_and_delivery(monke
     })
     result = await RodonavesAdapter(config()).cotar(payload())
     assert (result.status, result.valor_frete, result.prazo_dias) == ("success", 236.71, 4)
-    assert result.detalhamento == {"protocolo": "225047304", "avisos": []}
+    assert result.detalhamento["protocolo"] == "225047304"
+    assert "Simulação" in result.detalhamento["avisos"][0]
     assert len([r for r in calls if r.url.path == "/token"]) == 2
     assert not any(r.url.path == "/api/v1/prazo-entrega" for r in calls)
 
@@ -128,7 +131,7 @@ async def test_unavailable_quoted_delivery_uses_fallback(monkeypatch, delivery):
     calls = install_client(monkeypatch, quotation_response={"Value": 236.71, **delivery})
     result = await RodonavesAdapter(config()).cotar(payload())
     assert (result.status, result.valor_frete, result.prazo_dias) == ("success", 236.71, 5)
-    assert sum(r.url.path == "/api/v1/gera-cotacao" for r in calls) == 1
+    assert sum(r.url.path == "/api/v1/simula-cotacao" for r in calls) == 1
     assert any(r.url.path == "/api/v1/prazo-entrega" for r in calls)
 
 
@@ -152,7 +155,7 @@ async def test_quotation_business_errors_are_specific_and_safe(monkeypatch, resp
     result = await RodonavesAdapter(config()).cotar(payload())
     assert result.status == "error" and result.erro_codigo == code
     assert "test-secret" not in result.erro_mensagem
-    assert sum(r.url.path == "/api/v1/gera-cotacao" for r in calls) == 1
+    assert sum(r.url.path == "/api/v1/simula-cotacao" for r in calls) == 1
 
 
 @pytest.mark.asyncio
@@ -164,16 +167,14 @@ async def test_malformed_quotation_is_not_reported_as_success(monkeypatch, respo
     result = await RodonavesAdapter(config()).cotar(payload())
     assert result.status == "error" and result.erro_codigo == "RODONAVES_API_ERRO"
     assert "test-secret" not in result.erro_mensagem
-    assert sum(r.url.path == "/api/v1/gera-cotacao" for r in calls) == 1
+    assert sum(r.url.path == "/api/v1/simula-cotacao" for r in calls) == 1
 
 
 @pytest.mark.asyncio
 async def test_missing_data_does_not_call_api(monkeypatch):
     calls = install_client(monkeypatch)
-    result = await RodonavesAdapter(config(contato_nome=None)).cotar(payload())
+    result = await RodonavesAdapter(config(documento_devedor=None)).cotar(payload())
     assert result.erro_codigo == "RODONAVES_CONFIGURACAO_INCOMPLETA"
-    result = await RodonavesAdapter(config()).cotar({**payload(), "documento_destinatario": None})
-    assert result.erro_codigo == "RODONAVES_DESTINATARIO_AUSENTE"
     assert calls == []
 
 
@@ -199,3 +200,18 @@ async def test_quote_service_selects_rodonaves(monkeypatch):
     monkeypatch.setattr(cotacao_service, "executar_resiliente", execute)
     result = await cotacao_service._cotar_por_api(SimpleNamespace(id="rte", nome="RTE RODONAVES"), config(), payload())
     assert result.provider == "rodonaves" and result.valor_frete == 100
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("receiver", [None, "", "invalid", "12345678901"])
+async def test_simulation_does_not_require_receiver_or_contact(monkeypatch, receiver):
+    calls = install_client(monkeypatch)
+    data = payload()
+    data.pop("documento_destinatario")
+    if receiver is not None:
+        data["documento_destinatario"] = receiver
+    result = await RodonavesAdapter(config(contato_nome=None, contato_telefone=None)).cotar(data)
+    assert result.status == "success"
+    assert result.valor_frete == 1234.56
+    assert "Simulação" in result.detalhamento["avisos"][0]
+    assert sum(r.url.path == "/api/v1/simula-cotacao" for r in calls) == 1

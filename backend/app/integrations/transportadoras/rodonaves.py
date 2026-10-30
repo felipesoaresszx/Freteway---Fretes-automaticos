@@ -16,9 +16,9 @@ QUOTATION_URL = "https://quotation-apigateway.rte.com.br"
 DNE_URL = "https://dne-api.rte.com.br"
 DELIVERY_URL = "https://01wapi.rte.com.br"
 RODONAVES_DEFAULTS = {
-    "base_url": QUOTATION_URL, "endpoint_cotacao": "/api/v1/gera-cotacao",
+    "base_url": QUOTATION_URL, "endpoint_cotacao": "/api/v1/simula-cotacao",
     "metodo_http": "POST", "tipo_autenticacao": "rodonaves_login",
-    "auth_url": f"{QUOTATION_URL}/token", "campo_valor": "Value",
+    "auth_url": f"{QUOTATION_URL}/token", "campo_valor": "FreightValue",
     "campo_prazo": "DeliveryTime", "nome_header": None,
 }
 
@@ -107,13 +107,8 @@ class RodonavesAdapter(TransportadoraAdapter):
         if not cfg.usuario_integracao or not cfg.credencial_criptografada:
             return ResultadoCotacao(status="error", erro_codigo="RODONAVES_CREDENCIAL_AUSENTE", erro_mensagem="Informe o usuário e a senha de acesso à API Rodonaves.")
         document = _digits(cfg.documento_devedor)
-        receiver = _digits(p.get("documento_destinatario"))
-        contact = (getattr(cfg, "contato_nome", None) or "").strip()
-        phone = _digits(getattr(cfg, "contato_telefone", None))
-        if len(document) not in {11, 14} or not contact or len(phone) < 10:
-            return ResultadoCotacao(status="error", erro_codigo="RODONAVES_CONFIGURACAO_INCOMPLETA", erro_mensagem="Informe CPF/CNPJ do cliente, nome e telefone de contato na configuração da Rodonaves.")
-        if len(receiver) not in {11, 14}:
-            return ResultadoCotacao(status="error", erro_codigo="RODONAVES_DESTINATARIO_AUSENTE", erro_mensagem="Informe o CPF/CNPJ do destinatário na cotação.")
+        if len(document) not in {11, 14}:
+            return ResultadoCotacao(status="error", erro_codigo="RODONAVES_CONFIGURACAO_INCOMPLETA", erro_mensagem="Informe CPF/CNPJ do cliente na configuração da Rodonaves.")
         origin, destination = _digits(p.get("origem_cep")), _digits(p.get("destino_cep"))
         if len(origin) != 8 or len(destination) != 8:
             return ResultadoCotacao(status="error", erro_codigo="RODONAVES_CEP_INVALIDO", erro_mensagem="Informe os CEPs de origem e destino com oito dígitos.")
@@ -128,15 +123,14 @@ class RodonavesAdapter(TransportadoraAdapter):
                     "OriginZipCode": origin, "OriginCityId": origin_id,
                     "DestinationZipCode": destination, "DestinationCityId": destination_id,
                     "TotalWeight": p["peso"], "EletronicInvoiceValue": p["valor_nf"],
-                    "CustomerTaxIdRegistration": document, "ReceiverCpfcnp": receiver,
-                    "ContactName": contact, "ContactPhoneNumber": phone,
+                    "CustomerTaxIdRegistration": document,
                     "TotalPackages": p["quantidade_volumes"],
                     "Packs": [{"AmountPackages": v["quantidade"], "Weight": v["peso_kg"],
                                "Length": v["comprimento_cm"], "Height": v["altura_cm"],
                                "Width": v["largura_cm"]} for v in p["volumes"]],
                 }
-                # Gera um registro TMS: não repetir POST automaticamente após falha.
-                response = await client.post(f"{QUOTATION_URL}/api/v1/gera-cotacao", headers=quotation_headers, json=body)
+                # Manter uma tentativa por consulta, sem repetir o POST automaticamente.
+                response = await client.post(f"{QUOTATION_URL}/api/v1/simula-cotacao", headers=quotation_headers, json=body)
                 if response.status_code in {401, 403}:
                     raise RodonavesError("RODONAVES_AUTENTICACAO_RECUSADA", "A Rodonaves não autorizou a geração da cotação. Confira a liberação da API.")
                 if response.status_code == 400:
@@ -159,7 +153,8 @@ class RodonavesAdapter(TransportadoraAdapter):
                 raw_value = result.get("Value")
                 value = freight_value(raw_value if raw_value is not None else result.get("FreightValue"))
                 protocol = result.get("ProtocolNumber")
-                details = {"protocolo": protocol if protocol is not None else result.get("ProtocolId"), "avisos": []}
+                details = {"protocolo": protocol if protocol is not None else result.get("ProtocolId"),
+                           "avisos": ["Simulação Rodonaves: valor aproximado, sujeito a alteração na cotação definitiva."]}
                 try:
                     if result.get("ActiveDeliveryTime") is False or result.get("DeliveryDaysOnError") is True:
                         raise ValueError("Prazo da cotação indisponível")
