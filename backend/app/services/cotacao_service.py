@@ -543,6 +543,13 @@ async def executar_cotacao(
     tarefas = []
     resultados_tabela: list[ResultadoTransportadora] = []
     for transportadora in transportadoras:
+        integration = integrations_por_transportadora.get(transportadora.id)
+        if payload["quantidade_volumes"] > 1 and (
+            "correios" in (transportadora.nome or "").casefold()
+            or "correios" in (transportadora.codigo or "").casefold()
+            or (integration is not None and integration.adapter_code == "correios")
+        ):
+            continue
         tabela = tabelas_por_transportadora.get(transportadora.id)
         if "generoso" in norm(transportadora.nome).lower() and transportadora.metodo_calculo == "tabela_propria":
             resultados_tabela.append(await _observar_provider(
