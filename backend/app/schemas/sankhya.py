@@ -92,6 +92,13 @@ class CotacaoSankhyaIn(BaseModel):
             "volumes": "itens", "Volumes": "itens",
             "CPF_CNPJ_DESTINATARIO": "documento_destinatario",
             "CNPJ_DESTINATARIO": "documento_destinatario",
+            "CPF_DESTINATARIO": "documento_destinatario",
+            "CpfCnpjDestinatario": "documento_destinatario",
+            "cpfCnpjDestinatario": "documento_destinatario",
+            "CnpjDestinatario": "documento_destinatario",
+            "cnpjDestinatario": "documento_destinatario",
+            "CpfDestinatario": "documento_destinatario",
+            "cpfDestinatario": "documento_destinatario",
             "documento": "documento_destinatario",
         }
         for origem, destino in aliases.items():

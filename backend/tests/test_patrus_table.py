@@ -10,7 +10,9 @@ from app.schemas.cotacao import ResultadoTransportadora
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PATRUS = next(ROOT.glob("Tabela Patrus*.xlsx"), None)
+PATRUS = next((ROOT / "tabelas_trans").glob("Tabela Patrus*.xlsx"), None)
+if PATRUS is None:
+    PATRUS = next(ROOT.glob("Tabela Patrus*.xlsx"), None)
 pytestmark = pytest.mark.skipif(PATRUS is None, reason="planilha Patrus oficial não disponível")
 
 

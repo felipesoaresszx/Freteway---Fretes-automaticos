@@ -47,6 +47,7 @@ real não deve ser gravada no código-fonte ou em arquivos versionados.
   "CepOrigem": "01001-000",
   "CepDestino": "30110-000",
   "VlrNota": 6781.00,
+  "CPF_CNPJ_DESTINATARIO": "04917818000124",
   "Volumes": [
     {
       "Quantidade": 2,
@@ -69,8 +70,43 @@ real não deve ser gravada no código-fonte ou em arquivos versionados.
 | `CepDestino` | texto | Sim | CEP de destino, com ou sem pontuação. |
 | `VlrNota` | número positivo | Sim | Valor total da mercadoria. |
 | `Volumes` | array | Sim | Um ou mais grupos de volumes da carga. |
+| `CPF_CNPJ_DESTINATARIO` | texto | Para Rodonaves | CPF/CNPJ do destinatário da nota, com ou sem pontuação. |
 
 ### Campos de cada volume
+
+O documento deve vir do cadastro do destinatário vinculado à nota/pedido.
+Também são aceitos `documento_destinatario`, `CNPJ_DESTINATARIO`,
+`CPF_DESTINATARIO`, `CpfCnpjDestinatario`, `cpfCnpjDestinatario`,
+`CnpjDestinatario`, `cnpjDestinatario`, `CpfDestinatario` e `cpfDestinatario`.
+O campo continua opcional no contrato geral: sua ausência não bloqueia as
+transportadoras que não precisam dele. Sem documento, a Rodonaves não gera
+proposta. O FreteWay não consulta o documento no ERP automaticamente.
+
+### Diagnóstico em produção em 30/10/2026
+
+O de-para geral da RTE RODONAVES está ativo, com CODPARC 276. A integração
+global de consulta ao Sankhya está inativa e sem credenciais; não é possível
+buscar o documento do destinatário por NUNOTA neste ambiente.
+
+A auditoria `integracao_sankhya` passa a registrar `campos_recebidos`
+(apenas nomes), `documento_destinatario_presente` e
+`resultados_transportadoras` (nome, status e código de erro), inclusive para
+transportadoras que não produziram proposta. Não registra o documento nem
+o corpo recebido. O formato de resposta e o filtro de propostas válidas
+permanecem os mesmos.
+
+Compatibilidade e diagnóstico aplicados ao checkout, ao backend em execução
+e à imagem local `freteway-backend:latest`. Arquivos anteriores e contexto de
+atualização preservados em
+`/home/ubuntu/freteway-server-backups/rodonaves-sankhya-20261030`;
+imagem anterior em `freteway-backend:pre-rte-20261030`.
+
+Validação: 66 testes de Sankhya/Rodonaves passaram. Readiness público HTTP 200.
+Uma chamada controlada com `CnpjDestinatario` e seleção de transportadora
+inexistente retornou HTTP 200 e confirmou a presença do documento na auditoria,
+sem consultar transportadoras ou registrar cotação no TMS. Ainda é necessária
+uma chamada real do Sankhya para determinar se o ERP envia o documento e
+validar a proposta da Rodonaves.
 
 | Campo | Tipo | Obrigatório | Descrição |
 |---|---|:---:|---|

@@ -110,7 +110,14 @@ async def _cotar(payload: CotacaoSankhyaIn, request: Request, db: AsyncSession) 
     db.add(AuditLog(
         user_id=None, acao="cotar", recurso="integracao_sankhya", recurso_id=payload.numero_pedido,
         dados_novos={"empresa": payload.empresa_sankhya_id, "transportadoras": carriers,
-                     "total": len(linhas), "sucessos": sucessos, "request_id": request_id},
+                     "total": len(linhas), "sucessos": sucessos, "request_id": request_id,
+                     "documento_destinatario_presente": bool(payload.documento_destinatario),
+                     "campos_recebidos": sorted(str(key)[:80] for key in (await request.json()))[:80],
+                     "resultados_transportadoras": [
+                         {"transportadora": item.transportadora, "status": item.status,
+                          "erro_codigo": item.erro.codigo if item.erro else None}
+                         for item in resultados
+                     ]},
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent", "")[:500] or None,
     ))

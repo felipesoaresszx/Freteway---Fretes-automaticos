@@ -265,6 +265,63 @@ def test_endpoint_processa_chamada_externa_e_multiplos_volumes(monkeypatch):
     assert fake_db.audit_rows[0].recurso_id == "21259"
 
 
+@pytest.mark.parametrize("campo", [
+    "documento_destinatario", "CPF_CNPJ_DESTINATARIO", "CNPJ_DESTINATARIO",
+    "CPF_DESTINATARIO", "CpfCnpjDestinatario", "cpfCnpjDestinatario",
+    "CnpjDestinatario", "cnpjDestinatario", "CpfDestinatario", "cpfDestinatario",
+])
+def test_endpoint_repassa_documento_destinatario_ao_motor(monkeypatch, campo):
+    client, calls, audit_db = _http_client(monkeypatch, [])
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"},
+        json={**PAYLOAD_SANKHYA, campo: "04.917.818/0001-24"},
+    )
+    assert response.status_code == 200
+    assert calls[0][0].documento_destinatario == "04917818000124"
+    assert calls[0][0].peso == 25
+    audit = audit_db.audit_rows[0].dados_novos
+    assert audit["documento_destinatario_presente"] is True
+    assert campo in audit["campos_recebidos"]
+    assert "04917818000124" not in str(audit)
+
+
+def test_documento_canonico_prevalece_sobre_alias():
+    payload = CotacaoSankhyaIn.model_validate({
+        **PAYLOAD_SANKHYA, "documento_destinatario": "04917818000124",
+        "CnpjDestinatario": "invalido",
+    })
+    assert payload.documento_destinatario == "04917818000124"
+
+
+def test_falta_documento_rodonaves_preserva_propostas_das_outras(monkeypatch):
+    results = [
+        ResultadoTransportadora(
+            transportadora_id="t1", transportadora="Correios", status="success",
+            valor_frete=89.9, prazo_dias=3, request_id="other-carrier",
+        ),
+        ResultadoTransportadora(
+            transportadora_id="rte", transportadora="RTE RODONAVES", status="error",
+            request_id="rodonaves",
+            erro=ErroResultado(codigo="RODONAVES_DESTINATARIO_AUSENTE", mensagem="Informe CPF/CNPJ"),
+        ),
+    ]
+    client, calls, audit_db = _http_client(monkeypatch, results)
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"}, json=PAYLOAD_SANKHYA,
+    )
+    assert response.status_code == 200
+    assert calls[0][0].documento_destinatario is None
+    lines = response.json()["ShippingSevicesArray"]
+    assert len(lines) == 1
+    assert lines[0]["Carrier"] == "Correios"
+    assert lines[0]["ShippingPrice"] == "89.90"
+    audit = audit_db.audit_rows[0].dados_novos
+    assert audit["documento_destinatario_presente"] is False
+    assert audit["resultados_transportadoras"][1]["erro_codigo"] == "RODONAVES_DESTINATARIO_AUSENTE"
+
+
 def test_endpoint_envia_colinas_sem_prazo_com_zero(monkeypatch):
     resultados = [ResultadoTransportadora(
         transportadora_id="colinas", transportadora="COLINAS TRANSPORTES", status="success",

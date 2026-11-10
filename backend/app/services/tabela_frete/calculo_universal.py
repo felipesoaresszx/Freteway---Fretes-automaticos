@@ -318,6 +318,13 @@ def calcular_universal(data: dict, quote: dict) -> dict:
     if destination.get("status") in {"SOB_CONSULTA", "INDISPONIVEL_POR_TABELA"}:
         raise CalculoUniversalError(destination["status"])
     volume = float(quote.get("volume_total_m3") or quote.get("volume_m3") or 0)
+    volume_precision = (data.get("pricing_rules") or {}).get("cubage_volume_decimal_places")
+    if volume_precision is not None:
+        if isinstance(volume_precision, bool) or not isinstance(volume_precision, int) or not 0 <= volume_precision <= 6:
+            raise CalculoUniversalError("Precisão do volume para cubagem inválida")
+        volume = float(Decimal(str(volume)).quantize(
+            Decimal(1).scaleb(-volume_precision), rounding=ROUND_HALF_UP,
+        ))
     factor = float(destination.get("cubage_factor") or data.get("fator_cubagem") or 0)
     cubed = volume * factor if factor > 0 else 0.0
     weight = max(real, cubed)
