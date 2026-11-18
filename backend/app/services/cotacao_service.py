@@ -331,6 +331,7 @@ async def _cotar_por_provider(
         request = FreightQuoteRequest(
             origin_zipcode=payload["origem_cep"],
             destination_zipcode=payload["destino_cep"],
+            sender_document=payload.get("documento_remetente"),
             weight_kg=payload["peso"],
             volumes=payload["quantidade_volumes"],
             total_value=payload["valor_nf"],
@@ -431,6 +432,7 @@ async def executar_cotacao(
             volume.comprimento_cm * volume.largura_cm * volume.altura_cm * volume.quantidade / 1_000_000
             for volume in cotacao.volumes
         ),
+        "documento_remetente": cotacao.documento_remetente,
         "documento_destinatario": cotacao.documento_destinatario,
         "servicos": cotacao.servicos.model_dump(),
         "volumes": [volume.model_dump() for volume in cotacao.volumes],

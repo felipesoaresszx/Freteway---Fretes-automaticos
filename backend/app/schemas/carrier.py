@@ -21,6 +21,7 @@ class FreightQuoteRequest(BaseModel):
     volumes: int = Field(default=1, ge=1)
     total_value: Decimal = Field(ge=0)
     cubage_m3: Decimal | None = Field(default=None, ge=0)
+    sender_document: str | None = None
     products: list[dict[str, Any]] | None = None
 
 
