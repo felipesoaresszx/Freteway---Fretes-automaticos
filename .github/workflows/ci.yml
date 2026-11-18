@@ -6,7 +6,7 @@ on:
   pull_request:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -86,7 +86,7 @@ jobs:
           push: false
           tags: freteway-${{ matrix.component }}:ci
           cache-from: type=gha,scope=${{ matrix.component }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+          cache-to: ${{ github.event_name == 'push' && format('type=gha,mode=max,scope={0},ignore-error=true', matrix.component) || '' }}
 
   deploy:
     name: Deploy Oracle Cloud
