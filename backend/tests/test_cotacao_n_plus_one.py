@@ -98,6 +98,41 @@ async def test_cotacao_sem_transportadoras_faz_apenas_consulta_inicial():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("quantidades", [[1], [2], [3], [1, 2]])
+async def test_correios_somente_um_volume(quantidades):
+    api = _carrier("correios-api", "api")
+    api.nome = "Correios SEDEX"
+    table = _carrier("correios-tabela", "tabela_propria")
+    table.nome = "Correios Malote"
+    other = _carrier("outra", "api")
+    integration = CarrierIntegration(
+        id="integration", carrier_id=api.id, integration_type="API",
+        adapter_code="correios", active=True, priority=1, configuration={},
+    )
+    db = AsyncMock()
+    db.execute.side_effect = [
+        _result([api, table, other]), _result([]), _result([integration]),
+        _result([]), _result([]), _result([]),
+    ]
+    request = _quote_request()
+    volume = request.volumes[0]
+    request.volumes = [volume.model_copy(update={"quantidade": q}) for q in quantidades]
+    success = ResultadoTransportadora(
+        transportadora_id=api.id, transportadora=api.nome, status="success",
+        valor_frete=10, request_id="correios",
+    )
+    with patch("app.services.cotacao_service._cotar_por_provider", AsyncMock(return_value=success)) as provider:
+        results = await executar_cotacao(request, db)
+
+    if sum(quantidades) > 1:
+        provider.assert_not_awaited()
+        assert [r.transportadora_id for r in results] == [other.id]
+    else:
+        provider.assert_awaited_once()
+        assert {r.transportadora_id for r in results} == {api.id, table.id, other.id}
+
+
+@pytest.mark.asyncio
 async def test_generoso_aparece_na_cotacao_padrao_sem_tabela_documental_publicada():
     carrier = _carrier("00000000-0000-0000-0000-000000000004", "tabela_propria")
     carrier.nome = "Transporte Generoso Ltda"

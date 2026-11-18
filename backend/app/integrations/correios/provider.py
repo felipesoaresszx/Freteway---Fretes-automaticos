@@ -95,6 +95,8 @@ class CorreiosProvider(CarrierAdapter):
         return [{"code": code, "name": SERVICE_NAMES.get(code, f"Correios {code}")} for code in self._service_codes(credentials)]
 
     async def quote(self, request: FreightQuoteRequest, credentials: dict[str, str]) -> list[FreightQuoteResult]:
+        if request.volumes > 1:
+            return []
         codes = self._service_codes(credentials)
         client = CorreiosClient(credentials)
         responses = await asyncio.gather(

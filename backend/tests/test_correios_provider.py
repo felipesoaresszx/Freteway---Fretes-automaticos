@@ -25,6 +25,17 @@ def credentials() -> dict[str, str]:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("volumes", [2, 3])
+async def test_nao_consulta_correios_acima_de_um_volume(monkeypatch, volumes):
+    def unexpected_client(*args, **kwargs):
+        pytest.fail("Correios não deve ser consultado acima de 1 volume")
+
+    monkeypatch.setattr("app.integrations.correios.provider.CorreiosClient", unexpected_client)
+    quote_request = request().model_copy(update={"volumes": volumes})
+    assert await CorreiosProvider().quote(quote_request, {}) == []
+
+
+@pytest.mark.asyncio
 async def test_autentica_consulta_preco_prazo_e_normaliza(monkeypatch):
     calls = []
 
