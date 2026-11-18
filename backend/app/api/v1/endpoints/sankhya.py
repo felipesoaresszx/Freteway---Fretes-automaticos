@@ -50,6 +50,7 @@ async def _cotar(payload: CotacaoSankhyaIn, request: Request, db: AsyncSession) 
         peso=sum(item.peso_kg * item.quantidade for item in payload.itens),
         volumes=[item.para_volume() for item in payload.itens],
         transportadoras_ids=payload.transportadoras_ids,
+        documento_remetente=empresa.cnpj,
         documento_destinatario=payload.documento_destinatario,
         quote_id=f"sankhya:{payload.numero_pedido}:{request_id}",
     )

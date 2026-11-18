@@ -38,19 +38,20 @@ class CotacaoCreate(BaseModel):
     valor_nf: float = Field(gt=0)
     peso: float = Field(gt=0)
     volumes: list[VolumeIn]
+    documento_remetente: str | None = None
     documento_destinatario: str | None = None
     transportadoras_ids: list[str] | None = None  # None = todas as ativas
     servicos: ServicosAdicionaisFrete = Field(default_factory=ServicosAdicionaisFrete)
     quote_id: str | None = Field(default=None, exclude=True)
 
-    @field_validator("documento_destinatario")
+    @field_validator("documento_destinatario", "documento_remetente")
     @classmethod
     def validar_documento_destinatario(cls, valor: str | None) -> str | None:
         if not valor:
             return None
         normalizado = somente_digitos(valor)
         if not documento_valido(normalizado):
-            raise ValueError("CPF ou CNPJ do destinatario invalido")
+            raise ValueError("CPF ou CNPJ invalido")
         return normalizado
 
 

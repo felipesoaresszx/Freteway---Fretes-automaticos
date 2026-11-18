@@ -51,7 +51,7 @@ class _FakeDb:
         self.audit_rows = []
 
     async def scalar(self, _statement):
-        return SimpleNamespace(id="empresa-1")
+        return SimpleNamespace(id="empresa-1", cnpj="04917818000477")
 
     async def execute(self, _statement):
         self.execute_calls += 1
@@ -402,3 +402,12 @@ async def test_cliente_retorna_erro_estruturado_sem_expor_segredos(monkeypatch):
     assert erro.value.codigo == "SANKHYA_CREDENCIAL_INVALIDA"
     assert "super-secreto" not in erro.value.mensagem
     assert "x-token" not in erro.value.mensagem
+
+
+def test_cnpj_remetente_vem_da_empresa_identificada_por_codemp(monkeypatch):
+    client, calls, _ = _http_client(monkeypatch, [])
+    response = client.post("/api/v1/integrations/sankhya/cotacao",
+                           json={**PAYLOAD_SANKHYA, "CODEMP": 8},
+                           headers={"X-API-Key": "integration-secret"})
+    assert response.status_code == 200
+    assert calls[0][0].documento_remetente == "04917818000477"

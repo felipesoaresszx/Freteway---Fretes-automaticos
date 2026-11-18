@@ -114,9 +114,11 @@ def to_alfa_request(request: FreightQuoteRequest, credentials: dict[str, str]) -
     cep_origem = _sanitize_cep(request.origin_zipcode)
     cep_destino = _sanitize_cep(request.destination_zipcode)
     
-    # A API aplica a negociação comercial pelo CNPJ vinculado à chave IDR.
-    # O documento da cotação é usado apenas como fallback para cadastros antigos.
-    doc_destinatario = _sanitize_document(credentials.get("customer_document"))
+    # A empresa remetente identificada na cotacao prevalece sobre o cadastro
+    # padrao da integracao. A chave IDR continua sendo a credencial da Alfa.
+    doc_destinatario = _sanitize_document(request.sender_document)
+    if not doc_destinatario:
+        doc_destinatario = _sanitize_document(credentials.get("customer_document"))
     if not doc_destinatario:
         doc_destinatario = _get_destination_document(request)
     if not doc_destinatario:

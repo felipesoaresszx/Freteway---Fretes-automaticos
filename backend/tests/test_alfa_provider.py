@@ -625,3 +625,10 @@ class TestAlfaProvider:
         provider = AlfaProvider()
         with pytest.raises(AlfaNoQuoteError):
             await provider.quote(basic_request(), credentials())
+
+
+def test_alfa_prioriza_filial_remetente_sobre_matriz_configurada():
+    request = basic_request().model_copy(update={"sender_document": "04917818000477"})
+    result = to_alfa_request(request, {**credentials(), "customer_document": "04917818000124"})
+    assert result.cliCnpj == "04917818000477"
+    assert result.cliTip == AlfaCustomerType.JURIDICA
