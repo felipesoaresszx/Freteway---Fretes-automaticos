@@ -21,6 +21,7 @@ PAYLOAD_SANKHYA = {
     "VlrNota": 1250,
     "CepOrigem": "01001-000",
     "CepDestino": "30110-000",
+    "CPF_CNPJ_DESTINATARIO": "60.701.190/0001-04",
     "Volumes": [
         {"Quantidade": 2, "Peso": 10, "Altura": 30, "Largura": 40, "Comprimento": 50},
         {"Quantidade": 1, "Peso": 5, "Altura": 10, "Largura": 20, "Comprimento": 30},
@@ -123,6 +124,7 @@ def test_payload_preserva_dados_do_pedido():
         "itens": [{"quantidade": 1, "peso_kg": 12, "volume_m3": 0.2, "valor": 500}],
         "valor_mercadoria": 500,
         "numero_pedido": "21259",
+        "documento_destinatario": "30539356867",
         "tipo_transporte": "FRETE INCLUSO NA NOTA FISCAL",
     })
     assert payload.numero_pedido == "21259"
@@ -137,6 +139,7 @@ def test_payload_aceita_nomes_exatos_do_contrato():
         "itens": [{"peso": 12, "volume_m3": 0.2, "valor": 500}],
         "valor_total_mercadoria": 500,
         "numero_pedido_sankhya": "21259",
+        "documento_destinatario": "30539356867",
     })
     assert payload.numero_pedido == "21259"
     assert payload.itens[0].peso_kg == 12
@@ -146,6 +149,7 @@ def test_payload_aceita_campos_nativos_e_ceps_planos():
     payload = CotacaoSankhyaIn.model_validate({
         "CODEMP": "7", "NUNOTA": 21259, "VlrNota": 1250,
         "CepOrigem": "01001-000", "CepDestino": "30110-000",
+        "CPF_CNPJ_DESTINATARIO": "30539356867",
         "Volumes": [{"Quantidade": 1, "Peso": 12, "Altura": 30,
                      "Largura": 40, "Comprimento": 50}],
     })
@@ -303,6 +307,48 @@ def test_endpoint_rejeita_json_e_cep_invalidos(monkeypatch):
     invalid_zip = client.post("/api/v1/integrations/sankhya/cotacao", headers=headers, json=payload)
     assert invalid_zip.status_code == 422
     assert calls == []
+
+
+@pytest.mark.parametrize("documento", [None, "", "   ", "123", "11111111111", "11111111111111"])
+def test_endpoint_rejeita_documento_invalido_sem_cotar(monkeypatch, documento):
+    client, calls, _ = _http_client(monkeypatch, [])
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"},
+        json={**PAYLOAD_SANKHYA, "CPF_CNPJ_DESTINATARIO": documento},
+    )
+    assert response.status_code == 422
+    assert calls == []
+
+
+def test_endpoint_exige_documento_destinatario(monkeypatch):
+    client, calls, _ = _http_client(monkeypatch, [])
+    payload = {key: value for key, value in PAYLOAD_SANKHYA.items() if key != "CPF_CNPJ_DESTINATARIO"}
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"}, json=payload,
+    )
+    assert response.status_code == 422
+    assert calls == []
+
+
+@pytest.mark.parametrize("campo", [
+    "CPF_CNPJ_DESTINATARIO", "CNPJ_DESTINATARIO", "documento_destinatario", "documento",
+])
+@pytest.mark.parametrize("documento,normalizado", [
+    ("305.393.568-67", "30539356867"),
+    ("60.701.190/0001-04", "60701190000104"),
+])
+def test_endpoint_repassa_cpf_e_cnpj_normalizados_para_cotacao(monkeypatch, campo, documento, normalizado):
+    client, calls, _ = _http_client(monkeypatch, [])
+    payload = {key: value for key, value in PAYLOAD_SANKHYA.items() if key != "CPF_CNPJ_DESTINATARIO"}
+    response = client.post(
+        "/api/v1/integrations/sankhya/cotacao",
+        headers={"X-API-Key": "integration-secret"}, json={**payload, campo: documento},
+    )
+    assert response.status_code == 200
+    assert calls[0][0].documento_destinatario == normalizado
+    assert calls[0][0].documento_remetente == "04917818000477"
 
 
 def test_endpoint_retorna_array_vazio_quando_nao_ha_transportadora(monkeypatch):
