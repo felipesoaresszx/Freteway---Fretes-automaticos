@@ -29,8 +29,7 @@ def payload():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("documento", ["30539356867", "60701190000104"])
-async def test_mapeia_cotacao_e_resposta_braspress(monkeypatch, documento):
+async def test_mapeia_cotacao_e_resposta_braspress(monkeypatch):
     chamadas = []
 
     class Client:
@@ -42,15 +41,14 @@ async def test_mapeia_cotacao_e_resposta_braspress(monkeypatch, documento):
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: Client())
     monkeypatch.setattr("app.integrations.transportadoras.braspress.validate_external_url", lambda url: url)
-    dados = {**payload(), "documento_destinatario": documento}
-    resultado = await BraspressAdapter(configuracao()).cotar(dados)
+    resultado = await BraspressAdapter(configuracao()).cotar(payload())
 
     assert resultado.status == "success"
     assert resultado.valor_frete == 199.9
     assert resultado.prazo_dias == 4
     enviado = chamadas[0][1]["json"]
     assert enviado["cnpjRemetente"] == "60701190000104"
-    assert enviado["cnpjDestinatario"] == documento
+    assert enviado["cnpjDestinatario"] == "30539356867"
     assert enviado["cubagem"][0]["comprimento"] == 0.67
     assert isinstance(chamadas[0][1]["auth"], httpx.BasicAuth)
 

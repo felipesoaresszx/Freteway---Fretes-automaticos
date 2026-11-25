@@ -65,13 +65,13 @@ class CotacaoSankhyaIn(BaseModel):
     valor_mercadoria: float = Field(gt=0, allow_inf_nan=False)
     numero_pedido: str = Field(min_length=1, max_length=100)
     transportadoras_ids: list[str] | None = None
-    documento_destinatario: str = Field(
-        min_length=1, description="CPF ou CNPJ obrigatório do destinatário"
-    )
+    documento_destinatario: str | None = None
 
     @field_validator("documento_destinatario")
     @classmethod
-    def validar_documento_destinatario(cls, valor: str) -> str:
+    def validar_documento_destinatario(cls, valor: str | None) -> str | None:
+        if not valor:
+            return None
         normalizado = somente_digitos(str(valor))
         if not documento_valido(normalizado):
             raise ValueError("CPF ou CNPJ do destinatario invalido")

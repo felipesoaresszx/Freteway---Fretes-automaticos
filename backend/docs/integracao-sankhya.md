@@ -47,7 +47,6 @@ real não deve ser gravada no código-fonte ou em arquivos versionados.
   "CepOrigem": "01001-000",
   "CepDestino": "30110-000",
   "VlrNota": 6781.00,
-  "CPF_CNPJ_DESTINATARIO": "305.393.568-67",
   "Volumes": [
     {
       "Quantidade": 2,
@@ -70,17 +69,6 @@ real não deve ser gravada no código-fonte ou em arquivos versionados.
 | `CepDestino` | texto | Sim | CEP de destino, com ou sem pontuação. |
 | `VlrNota` | número positivo | Sim | Valor total da mercadoria. |
 | `Volumes` | array | Sim | Um ou mais grupos de volumes da carga. |
-| `CPF_CNPJ_DESTINATARIO` | texto | Sim | CPF ou CNPJ válido do destinatário, com ou sem pontuação. |
-
-O documento do destinatário é obrigatório. Requisições sem documento, com valor
-nulo, vazio ou CPF/CNPJ inválido retornam HTTP `422`, antes de consultar as
-transportadoras. Também são aceitos `documento_destinatario`,
-`CNPJ_DESTINATARIO` e `documento` como nomes desse campo.
-
-O FreteWay remove a pontuação e repassa o documento ao fluxo de cotação. Cada
-adapter envia o documento nos campos aceitos pela API da transportadora.
-O CNPJ do remetente continua sendo obtido do cadastro da empresa indicada por
-`CODEMP`; ele não substitui o documento obrigatório do destinatário.
 
 ### Campos de cada volume
 
@@ -189,7 +177,6 @@ curl --request POST \
     "CepOrigem": "01001-000",
     "CepDestino": "30110-000",
     "VlrNota": 6781.00,
-    "CPF_CNPJ_DESTINATARIO": "305.393.568-67",
     "Volumes": [{
       "Quantidade": 2,
       "Peso": 12.5,
